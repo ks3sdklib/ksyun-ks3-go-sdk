@@ -155,8 +155,3 @@ and copy the sample directory and sample.go to the src directory of your test pr
 
 ## License
 > - MIT License, see [license file](LICENSE)
-
-# ksyun-ks3-go-sdk-
-# ksyun-ks3-go-sdk
-# ksyun-ks3-go-sdk
-# ksyun-ks3-go-sdk
