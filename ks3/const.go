@@ -172,7 +172,7 @@ const (
 
 	HTTPHeaderKs3ACL                         = "X-Kss-Acl"
 	HTTPHeaderKs3MetaPrefix                  = "X-Kss-Meta-"
-	HTTPHeaderKs3ObjectACL                   = "X-Kss-Object-Acl"
+	HTTPHeaderKs3ObjectACL                   = "X-Kss-Acl"
 	HTTPHeaderKs3SecurityToken               = "X-Kss-Security-Token"
 	HTTPHeaderKs3ServerSideEncryption        = "X-Kss-Server-Side-Encryption"
 	HTTPHeaderKs3ServerSideEncryptionKeyID   = "X-Kss-Server-Side-Encryption-Key-Id"
