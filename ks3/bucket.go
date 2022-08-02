@@ -702,8 +702,6 @@ func (bucket Bucket) GetObjectDetailedMeta(objectKey string, options ...Option) 
 //
 func (bucket Bucket) GetObjectMeta(objectKey string, options ...Option) (http.Header, error) {
 	params, _ := GetRawParams(options)
-	params["objectMeta"] = nil
-	//resp, err := bucket.do("GET", objectKey, "?objectMeta", "", nil, nil, nil)
 	resp, err := bucket.do("HEAD", objectKey, params, options, nil, nil)
 	if err != nil {
 		return nil, err
