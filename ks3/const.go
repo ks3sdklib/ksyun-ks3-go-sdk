@@ -66,16 +66,13 @@ type StorageClassType string
 
 const (
 	// StorageStandard standard
-	StorageStandard StorageClassType = "Standard"
+	StorageStandard StorageClassType = "STANDARD"
 
 	// StorageIA infrequent access
-	StorageIA StorageClassType = "IA"
+	StorageIA StorageClassType = "STANDARD_IA"
 
 	// StorageArchive archive
-	StorageArchive StorageClassType = "Archive"
-
-	// StorageColdArchive cold archive
-	StorageColdArchive StorageClassType = "ColdArchive"
+	StorageArchive StorageClassType = "ARCHIVE"
 )
 
 //RedundancyType bucket data Redundancy type

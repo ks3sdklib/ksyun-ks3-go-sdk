@@ -2337,14 +2337,14 @@ func (s *Ks3BucketSuite) TestRestoreObjectWithConfig(c *C) {
 	c.Assert(err, IsNil)
 
 	bucketName := bucketNamePrefix + RandLowStr(6)
-	err = client.CreateBucket(bucketName, StorageClass(StorageColdArchive))
+	err = client.CreateBucket(bucketName, StorageClass(StorageArchive))
 	c.Assert(err, IsNil)
 
 	bucket, err := client.Bucket(bucketName)
 	objectName := objectNamePrefix + RandStr(8)
 
 	// Put object
-	err = bucket.PutObject(objectName, strings.NewReader("123456789"), ObjectStorageClass(StorageColdArchive))
+	err = bucket.PutObject(objectName, strings.NewReader("123456789"), ObjectStorageClass(StorageArchive))
 	c.Assert(err, IsNil)
 
 	var restoreConfig RestoreConfiguration
@@ -2354,14 +2354,14 @@ func (s *Ks3BucketSuite) TestRestoreObjectWithConfig(c *C) {
 	c.Assert(err, IsNil)
 
 	objectName = objectNamePrefix + RandStr(8)
-	err = bucket.PutObject(objectName, strings.NewReader("123456789"), ObjectStorageClass(StorageColdArchive))
+	err = bucket.PutObject(objectName, strings.NewReader("123456789"), ObjectStorageClass(StorageArchive))
 	c.Assert(err, IsNil)
 	restoreConfig.Tier = string(RestoreBulk)
 	err = bucket.RestoreObjectDetail(objectName, restoreConfig)
 	c.Assert(err, IsNil)
 
 	objectName = objectNamePrefix + RandStr(8)
-	err = bucket.PutObject(objectName, strings.NewReader("123456789"), ObjectStorageClass(StorageColdArchive))
+	err = bucket.PutObject(objectName, strings.NewReader("123456789"), ObjectStorageClass(StorageArchive))
 	c.Assert(err, IsNil)
 	restoreConfig.Days = 0
 	err = bucket.RestoreObjectDetail(objectName, restoreConfig)
