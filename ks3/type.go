@@ -24,16 +24,31 @@ type ListBucketsResult struct {
 type BucketProperties struct {
 	XMLName      xml.Name  `xml:"Bucket"`
 	Name         string    `xml:"Name"`         // Bucket name
-	Location     string    `xml:"Location"`     // Bucket datacenter
+	Region     string    `xml:"Region"`         // Bucket datacenter
 	CreationDate time.Time `xml:"CreationDate"` // Bucket create time
-	StorageClass string    `xml:"StorageClass"` // Bucket storage class
+	StorageClass string    `xml:"Type"` // Bucket storage class
 }
 
 // GetBucketACLResult defines GetBucketACL request's result
-type GetBucketACLResult struct {
+type AccessControlPolicy struct {
 	XMLName xml.Name `xml:"AccessControlPolicy"`
-	ACL     string   `xml:"AccessControlList>Grant"` // Bucket ACL
+	ACL     []Grant   `xml:"AccessControlList>Grant"` // Bucket ACL
 	Owner   Owner    `xml:"Owner"`                   // Bucket owner
+}
+
+type GetBucketACLResult = AccessControlPolicy
+type GetObjectACLResult = AccessControlPolicy
+
+type Grant struct {
+	Grantee Grantee `xml:"Grantee"`
+	Permission Permission `xml:"Permission"`
+}
+
+type Grantee struct {
+	Uri string `xml:"uri"`
+	Name string `xml:"name"`
+	ID string `xml:"ID"`
+	DisplayName string `xml:"DisplayName"`
 }
 
 // LifecycleConfiguration is the Bucket Lifecycle configuration
@@ -411,9 +426,6 @@ type CopyObjectResult struct {
 	LastModified time.Time `xml:"LastModified"` // New object's last modified time.
 	ETag         string    `xml:"ETag"`         // New object's ETag
 }
-
-// GetObjectACLResult defines result of GetObjectACL request
-type GetObjectACLResult GetBucketACLResult
 
 type deleteXML struct {
 	XMLName xml.Name       `xml:"Delete"`

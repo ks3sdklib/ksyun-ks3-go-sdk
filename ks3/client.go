@@ -797,33 +797,15 @@ func (client Client) GetBucketCORS(bucketName string, options ...Option) (GetBuc
 //
 // error    it's nil if no error, otherwise it's an error object.
 //
-func (client Client) GetBucketInfo(bucketName string, options ...Option) (GetBucketInfoResult, error) {
-	var out GetBucketInfoResult
+func (client Client) GetBucketInfo(bucketName string, options ...Option) (http.Header, error) {
 	params := map[string]interface{}{}
-	params["bucketInfo"] = nil
-	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	resp, err := client.do("HEAD", bucketName, params, nil, nil, options...)
 	if err != nil {
-		return out, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	err = xmlUnmarshal(resp.Body, &out)
-
-	// convert None to ""
-	if err == nil {
-		if out.BucketInfo.SseRule.KMSMasterKeyID == "None" {
-			out.BucketInfo.SseRule.KMSMasterKeyID = ""
-		}
-
-		if out.BucketInfo.SseRule.SSEAlgorithm == "None" {
-			out.BucketInfo.SseRule.SSEAlgorithm = ""
-		}
-
-		if out.BucketInfo.SseRule.KMSDataEncryption == "None" {
-			out.BucketInfo.SseRule.KMSDataEncryption = ""
-		}
-	}
-	return out, err
+	return resp.Headers, nil
 }
 
 // SetBucketVersioning set bucket versioning:Enabled、Suspended

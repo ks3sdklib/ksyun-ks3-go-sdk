@@ -147,11 +147,11 @@ const (
 	HTTPHeaderContentDisposition        = "Content-Disposition"
 	HTTPHeaderContentEncoding           = "Content-Encoding"
 	HTTPHeaderContentLength             = "Content-Length"
-	HTTPHeaderContentMD5                = "Content-MD5"
+	HTTPHeaderContentMD5                = "Content-Md5"
 	HTTPHeaderContentType               = "Content-Type"
 	HTTPHeaderContentLanguage           = "Content-Language"
 	HTTPHeaderDate                      = "Date"
-	HTTPHeaderEtag                      = "ETag"
+	HTTPHeaderEtag                      = "Etag"
 	HTTPHeaderExpires                   = "Expires"
 	HTTPHeaderHost                      = "Host"
 	HTTPHeaderLastModified              = "Last-Modified"
@@ -167,6 +167,7 @@ const (
 	HTTPHeaderACReqMethod               = "Access-Control-Request-Method"
 	HTTPHeaderACReqHeaders              = "Access-Control-Request-Headers"
 
+	HTTPHeaderBucketType                     = "X-Kss-Bucket-Type"
 	HTTPHeaderKs3ACL                         = "X-Kss-Acl"
 	HTTPHeaderKs3MetaPrefix                  = "X-Kss-Meta-"
 	HTTPHeaderKs3ObjectACL                   = "X-Kss-Acl"
@@ -252,4 +253,14 @@ const (
 	AuthV1 AuthVersionType = "v1"
 	// AuthV2 v2
 	AuthV2 AuthVersionType = "v2"
+)
+
+const ALL_USERS = "http://acs.ksyun.com/groups/global/AllUsers"
+
+type Permission string
+
+const (
+	PermissionFullControl Permission = "FULL_CONTROL"
+	PermissionRead        Permission = "READ"
+	PermissionWrite       Permission = "WRITE"
 )

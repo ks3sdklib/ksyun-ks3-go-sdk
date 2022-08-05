@@ -1285,3 +1285,31 @@ func AddContentType(options []Option, keys ...string) []Option {
 
 	return opts
 }
+
+func (result AccessControlPolicy) GetCannedACL() ACLType {
+	var allUsersPermissions []Permission
+	for i := range result.ACL {
+		grant := result.ACL[i]
+		if grant.Grantee.Uri == ALL_USERS {
+			allUsersPermissions = append(allUsersPermissions, grant.Permission)
+		}
+	}
+
+	var read, write bool
+	for i := range allUsersPermissions {
+		var permission = allUsersPermissions[i]
+		if permission == PermissionRead {
+			read = true
+		} else if permission == PermissionWrite {
+			write = true
+		}
+	}
+
+	if read && write {
+		return ACLPublicReadWrite
+	} else if read {
+		return ACLPublicRead
+	} else {
+		return ACLPrivate
+	}
+}
