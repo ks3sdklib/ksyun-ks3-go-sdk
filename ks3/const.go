@@ -65,6 +65,8 @@ const (
 type StorageClassType string
 
 const (
+	StorageNormal StorageClassType = "NORMAL"
+
 	// StorageStandard standard
 	StorageStandard StorageClassType = "STANDARD"
 
