@@ -45,8 +45,8 @@ type Grant struct {
 }
 
 type Grantee struct {
-	Uri string `xml:"uri"`
-	Name string `xml:"name"`
+	Uri string `xml:"URI"`
+	Name string `xml:"Name"`
 	ID string `xml:"ID"`
 	DisplayName string `xml:"DisplayName"`
 }
