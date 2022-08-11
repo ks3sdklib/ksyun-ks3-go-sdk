@@ -77,6 +77,19 @@ const (
 	StorageArchive StorageClassType = "ARCHIVE"
 )
 
+var BucketStorageClassList = []StorageClassType {
+	StorageNormal,
+	StorageIA,
+	StorageArchive,
+}
+
+var ObjectStorageClassList = []StorageClassType {
+	StorageStandard,
+	StorageIA,
+	StorageArchive,
+}
+
+
 //RedundancyType bucket data Redundancy type
 type DataRedundancyType string
 
