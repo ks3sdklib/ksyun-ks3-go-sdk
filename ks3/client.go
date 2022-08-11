@@ -113,17 +113,12 @@ func (client Client) CreateBucket(bucketName string, options ...Option) error {
 	buffer := new(bytes.Buffer)
 
 	var cbConfig createBucketConfiguration
-	cbConfig.StorageClass = StorageStandard
+	cbConfig.StorageClass = StorageNormal
 
 	isStorageSet, valStroage, _ := IsOptionSet(options, storageClass)
-	isRedundancySet, valRedundancy, _ := IsOptionSet(options, redundancyType)
 	isObjectHashFuncSet, valHashFunc, _ := IsOptionSet(options, objectHashFunc)
 	if isStorageSet {
 		cbConfig.StorageClass = valStroage.(StorageClassType)
-	}
-
-	if isRedundancySet {
-		cbConfig.DataRedundancyType = valRedundancy.(DataRedundancyType)
 	}
 
 	if isObjectHashFuncSet {
