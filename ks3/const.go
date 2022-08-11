@@ -78,17 +78,6 @@ const (
 	StorageNormal StorageClassType = "NORMAL"
 )
 
-//RedundancyType bucket data Redundancy type
-type DataRedundancyType string
-
-const (
-	// RedundancyLRS Local redundancy, default value
-	RedundancyLRS DataRedundancyType = "LRS"
-
-	// RedundancyZRS Same city redundancy
-	RedundancyZRS DataRedundancyType = "ZRS"
-)
-
 //ObjecthashFuncType
 type ObjecthashFuncType string
 
