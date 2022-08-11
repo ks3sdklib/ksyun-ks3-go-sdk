@@ -130,14 +130,9 @@ func (client Client) CreateBucket(bucketName string, options ...Option) error {
 		cbConfig.ObjectHashFunction = valHashFunc.(ObjecthashFuncType)
 	}
 
-	bs, err := xml.Marshal(cbConfig)
-	if err != nil {
-		return err
-	}
-	buffer.Write(bs)
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers[HTTPHeaderContentType] = contentType
-
+	headers[HTTPHeaderBucketType] = string(cbConfig.StorageClass)
 	params := map[string]interface{}{}
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
 	if err != nil {

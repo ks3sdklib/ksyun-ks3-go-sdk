@@ -73,6 +73,9 @@ const (
 
 	// StorageArchive archive
 	StorageArchive StorageClassType = "ARCHIVE"
+
+	// StorageIA infrequent access
+	StorageNORMAL StorageClassType = "NORMAL"
 )
 
 //RedundancyType bucket data Redundancy type
