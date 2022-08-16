@@ -213,10 +213,10 @@ const (
 
 // Other constants
 const (
-	MaxPartSize = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
-	MinPartSize = 100 * 1024             // Min part size, 100KB
-
-	FilePermMode = os.FileMode(0664) // Default file permission
+	MaxPartSize    = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
+	MinPartSize    = 100 * 1024             // Min part size, 100KB
+	MinPartSize5MB = 5*1024*1024 + 100      // part size, 5MB
+	FilePermMode   = os.FileMode(0664)      // Default file permission
 
 	TempFilePrefix = "ks3-go-temp-" // Temp file prefix
 	TempFileSuffix = ".temp"        // Temp file suffix
