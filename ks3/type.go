@@ -492,7 +492,7 @@ func (slice UploadParts) Swap(i, j int) {
 
 // UploadPartCopyResult defines result object of multipart copy request.
 type UploadPartCopyResult struct {
-	XMLName      xml.Name  `xml:"CopyPartResult"`
+	XMLName      xml.Name  `xml:"CopyObjectResult"`
 	LastModified time.Time `xml:"LastModified"` // Last modified time
 	ETag         string    `xml:"ETag"`         // ETag
 }
