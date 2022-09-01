@@ -24,15 +24,15 @@ type ListBucketsResult struct {
 type BucketProperties struct {
 	XMLName      xml.Name  `xml:"Bucket"`
 	Name         string    `xml:"Name"`         // Bucket name
-	Region     string    `xml:"Region"`         // Bucket datacenter
+	Region       string    `xml:"Region"`       // Bucket datacenter
 	CreationDate time.Time `xml:"CreationDate"` // Bucket create time
-	StorageClass string    `xml:"Type"` // Bucket storage class
+	StorageClass string    `xml:"Type"`         // Bucket storage class
 }
 
 // GetBucketACLResult defines GetBucketACL request's result
 type AccessControlPolicy struct {
 	XMLName xml.Name `xml:"AccessControlPolicy"`
-	ACL     []Grant   `xml:"AccessControlList>Grant"` // Bucket ACL
+	ACL     []Grant  `xml:"AccessControlList>Grant"` // Bucket ACL
 	Owner   Owner    `xml:"Owner"`                   // Bucket owner
 }
 
@@ -40,14 +40,14 @@ type GetBucketACLResult = AccessControlPolicy
 type GetObjectACLResult = AccessControlPolicy
 
 type Grant struct {
-	Grantee Grantee `xml:"Grantee"`
+	Grantee    Grantee    `xml:"Grantee"`
 	Permission Permission `xml:"Permission"`
 }
 
 type Grantee struct {
-	Uri string `xml:"URI"`
-	Name string `xml:"Name"`
-	ID string `xml:"ID"`
+	Uri         string `xml:"URI"`
+	Name        string `xml:"Name"`
+	ID          string `xml:"ID"`
 	DisplayName string `xml:"DisplayName"`
 }
 
@@ -759,7 +759,6 @@ func decodeListMultipartUploadResult(result *ListMultipartUploadResult) error {
 type createBucketConfiguration struct {
 	XMLName            xml.Name           `xml:"CreateBucketConfiguration"`
 	StorageClass       StorageClassType   `xml:"StorageClass,omitempty"`
-	DataRedundancyType DataRedundancyType `xml:"DataRedundancyType,omitempty"`
 	ObjectHashFunction ObjecthashFuncType `xml:"ObjectHashFunction,omitempty"`
 }
 

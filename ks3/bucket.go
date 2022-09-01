@@ -598,7 +598,6 @@ func (bucket Bucket) ListObjects(options ...Option) (ListObjectsResult, error) {
 		return out, err
 	}
 
-	err = decodeListObjectsResult(&out)
 	return out, err
 }
 

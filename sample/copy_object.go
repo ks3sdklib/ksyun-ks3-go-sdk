@@ -3,7 +3,7 @@ package sample
 import (
 	"fmt"
 
-	"github.com/chenqichen/ksyun-ks3-go-sdk/ks3"
+	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
 )
 
 // CopyObjectSample shows the copy files usage

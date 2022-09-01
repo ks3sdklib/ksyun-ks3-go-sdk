@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chenqichen/ksyun-ks3-go-sdk/ks3"
+	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
 )
 
 // ObjectMetaSample shows how to get and set the object metadata

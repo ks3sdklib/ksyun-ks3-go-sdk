@@ -89,6 +89,11 @@ func Meta(key, value string) Option {
 	return setHeader(HTTPHeaderKs3MetaPrefix+key, value)
 }
 
+// Meta is an option to set Meta header
+func NoMeta(key, value string) Option {
+	return setHeader(HTTPHeaderKs3Prefix+key, value)
+}
+
 // Range is an option to set Range header, [start, end]
 func Range(start, end int64) Option {
 	return setHeader(HTTPHeaderRange, fmt.Sprintf("bytes=%d-%d", start, end))
@@ -441,11 +446,6 @@ func DeleteObjectsQuiet(isQuiet bool) Option {
 // StorageClass bucket storage class
 func StorageClass(value StorageClassType) Option {
 	return addArg(storageClass, value)
-}
-
-// RedundancyType bucket data redundancy type
-func RedundancyType(value DataRedundancyType) Option {
-	return addArg(redundancyType, value)
 }
 
 // RedundancyType bucket data redundancy type

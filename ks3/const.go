@@ -76,33 +76,28 @@ const (
 	// StorageArchive archive
 	StorageArchive StorageClassType = "ARCHIVE"
 
-	// StorageIA infrequent access
-	StorageNORMAL StorageClassType = "NORMAL"
+	//bucket-storageclass
+	StorageNormal StorageClassType = "NORMAL"
 )
 
 var BucketStorageClassList = []StorageClassType {
 	StorageNormal,
 	StorageIA,
-	StorageArchive,
 }
-
+	StorageArchive,
 var ObjectStorageClassList = []StorageClassType {
 	StorageStandard,
 	StorageIA,
 	StorageArchive,
 }
-
-
-//RedundancyType bucket data Redundancy type
 type DataRedundancyType string
+//RedundancyType bucket data Redundancy type
 
-const (
-	// RedundancyLRS Local redundancy, default value
-	RedundancyLRS DataRedundancyType = "LRS"
-
-	// RedundancyZRS Same city redundancy
-	RedundancyZRS DataRedundancyType = "ZRS"
-)
+var ObjectStorageClassList = []StorageClassType{
+	StorageStandard,
+	StorageIA,
+	StorageArchive,
+}
 
 //ObjecthashFuncType
 type ObjecthashFuncType string
@@ -188,6 +183,7 @@ const (
 	HTTPHeaderBucketType                     = "X-Kss-Bucket-Type"
 	HTTPHeaderKs3ACL                         = "X-Kss-Acl"
 	HTTPHeaderKs3MetaPrefix                  = "X-Kss-Meta-"
+	HTTPHeaderKs3Prefix                      = "X-Kss-"
 	HTTPHeaderKs3ObjectACL                   = "X-Kss-Acl"
 	HTTPHeaderKs3SecurityToken               = "X-Kss-Security-Token"
 	HTTPHeaderKs3ServerSideEncryption        = "X-Kss-Server-Side-Encryption"
@@ -212,6 +208,7 @@ const (
 	HTTPHeaderKs3CallbackVar                 = "X-Kss-Callback-Var"
 	HTTPHeaderKs3Requester                   = "X-Kss-Request-Payer"
 	HTTPHeaderKs3Tagging                     = "X-Kss-Tagging"
+	HTTPHeaderKs3TaggingCount                = "X-Kss-Tagging-Count"
 	HTTPHeaderKs3TaggingDirective            = "X-Kss-Tagging-Directive"
 	HTTPHeaderKs3TrafficLimit                = "X-Kss-Traffic-Limit"
 	HTTPHeaderKs3ForbidOverWrite             = "X-Kss-Forbid-Overwrite"
@@ -239,11 +236,12 @@ const (
 
 // Other constants
 const (
-	MaxPartSize = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
-	MinPartSize5MB = 5 * 1024 * 1024
-	MinPartSize = 100 * 1024             // Min part size, 100KB
 
-	FilePermMode = os.FileMode(0664) // Default file permission
+	MaxPartSize    = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
+	MinPartSize    = 100 * 1024             // Min part size, 100KB
+	MinPartSize5MB = 5*1024*1024 + 100      // part size, 5MB
+	FilePermMode   = os.FileMode(0664)      // Default file permission
+
 
 	TempFilePrefix = "ks3-go-temp-" // Temp file prefix
 	TempFileSuffix = ".temp"        // Temp file suffix
