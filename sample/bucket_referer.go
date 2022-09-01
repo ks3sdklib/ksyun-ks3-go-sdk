@@ -3,7 +3,7 @@ package sample
 import (
 	"fmt"
 
-	"github.com/chenqichen/ksyun-ks3-go-sdk/ks3"
+	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
 )
 
 // BucketRefererSample shows how to set, get and delete the bucket referer.
