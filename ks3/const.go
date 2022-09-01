@@ -78,6 +78,18 @@ const (
 	StorageNormal StorageClassType = "NORMAL"
 )
 
+var BucketStorageClassList = []StorageClassType{
+	StorageNormal,
+	StorageIA,
+	StorageArchive,
+}
+
+var ObjectStorageClassList = []StorageClassType{
+	StorageStandard,
+	StorageIA,
+	StorageArchive,
+}
+
 //ObjecthashFuncType
 type ObjecthashFuncType string
 
@@ -162,6 +174,7 @@ const (
 	HTTPHeaderBucketType                     = "X-Kss-Bucket-Type"
 	HTTPHeaderKs3ACL                         = "X-Kss-Acl"
 	HTTPHeaderKs3MetaPrefix                  = "X-Kss-Meta-"
+	HTTPHeaderKs3Prefix                      = "X-Kss-"
 	HTTPHeaderKs3ObjectACL                   = "X-Kss-Acl"
 	HTTPHeaderKs3SecurityToken               = "X-Kss-Security-Token"
 	HTTPHeaderKs3ServerSideEncryption        = "X-Kss-Server-Side-Encryption"
@@ -186,6 +199,7 @@ const (
 	HTTPHeaderKs3CallbackVar                 = "X-Kss-Callback-Var"
 	HTTPHeaderKs3Requester                   = "X-Kss-Request-Payer"
 	HTTPHeaderKs3Tagging                     = "X-Kss-Tagging"
+	HTTPHeaderKs3TaggingCount                = "X-Kss-Tagging-Count"
 	HTTPHeaderKs3TaggingDirective            = "X-Kss-Tagging-Directive"
 	HTTPHeaderKs3TrafficLimit                = "X-Kss-Traffic-Limit"
 	HTTPHeaderKs3ForbidOverWrite             = "X-Kss-Forbid-Overwrite"
