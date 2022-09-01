@@ -65,7 +65,6 @@ const (
 type StorageClassType string
 
 const (
-
 	// StorageStandard standard
 	StorageStandard StorageClassType = "STANDARD"
 
@@ -82,6 +81,7 @@ const (
 var BucketStorageClassList = []StorageClassType{
 	StorageNormal,
 	StorageIA,
+	StorageArchive,
 }
 
 var ObjectStorageClassList = []StorageClassType{
