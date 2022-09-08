@@ -81,7 +81,6 @@ const (
 var BucketStorageClassList = []StorageClassType{
 	StorageNormal,
 	StorageIA,
-	StorageArchive,
 }
 
 var ObjectStorageClassList = []StorageClassType{
