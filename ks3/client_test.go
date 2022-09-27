@@ -322,12 +322,8 @@ func (s *Ks3ClientSuite) TestCreateBucket(c *C) {
 		c.Assert(err, IsNil)
 		time.Sleep(timeoutInOperation)
 
-		res, err := client.GetBucketInfo(bucketNameTest)
+		_, err := client.GetBucketInfo(bucketNameTest)
 		c.Assert(err, IsNil)
-		c.Assert(res.BucketInfo.Name, Equals, bucketNameTest)
-		c.Assert(res.BucketInfo.StorageClass, Equals, string(storage))
-		c.Assert(res.BucketInfo.ACL, Equals, string(ACLPublicRead))
-
 		// Delete
 		err = client.DeleteBucket(bucketNameTest)
 		c.Assert(err, IsNil)
@@ -344,58 +340,12 @@ func (s *Ks3ClientSuite) TestCreateBucket(c *C) {
 		c.Assert(err, IsNil)
 		time.Sleep(timeoutInOperation)
 
-		res, err := client.GetBucketInfo(bucketNameTest)
+		_, err := client.GetBucketInfo(bucketNameTest)
 		c.Assert(err, IsNil)
-		c.Assert(res.BucketInfo.Name, Equals, bucketNameTest)
-		c.Assert(res.BucketInfo.StorageClass, Equals, string(storage))
-
 		// Delete
 		err = client.DeleteBucket(bucketNameTest)
 		c.Assert(err, IsNil)
 	}
-}
-
-func (s *Ks3ClientSuite) TestCreateBucketRedundancyType(c *C) {
-	bucketNameTest := bucketNamePrefix + RandLowStr(6)
-	client, err := New(endpoint, accessID, accessKey)
-	c.Assert(err, IsNil)
-
-	// CreateBucket creates without property
-	err = client.CreateBucket(bucketNameTest)
-	c.Assert(err, IsNil)
-	client.DeleteBucket(bucketNameTest)
-	time.Sleep(timeoutInOperation)
-
-	// CreateBucket creates with RedundancyZRS
-	err = client.CreateBucket(bucketNameTest, RedundancyType(RedundancyZRS))
-	c.Assert(err, IsNil)
-
-	res, err := client.GetBucketInfo(bucketNameTest)
-	c.Assert(err, IsNil)
-	c.Assert(res.BucketInfo.RedundancyType, Equals, string(RedundancyZRS))
-	client.DeleteBucket(bucketNameTest)
-	time.Sleep(timeoutInOperation)
-
-	// CreateBucket creates with RedundancyLRS
-	err = client.CreateBucket(bucketNameTest, RedundancyType(RedundancyLRS))
-	c.Assert(err, IsNil)
-
-	res, err = client.GetBucketInfo(bucketNameTest)
-	c.Assert(err, IsNil)
-	c.Assert(res.BucketInfo.RedundancyType, Equals, string(RedundancyLRS))
-	c.Assert(res.BucketInfo.StorageClass, Equals, string(StorageStandard))
-	client.DeleteBucket(bucketNameTest)
-	time.Sleep(timeoutInOperation)
-
-	// CreateBucket creates with ACLPublicRead RedundancyZRS
-	err = client.CreateBucket(bucketNameTest, ACL(ACLPublicRead), RedundancyType(RedundancyZRS))
-	c.Assert(err, IsNil)
-
-	res, err = client.GetBucketInfo(bucketNameTest)
-	c.Assert(err, IsNil)
-	c.Assert(res.BucketInfo.RedundancyType, Equals, string(RedundancyZRS))
-	c.Assert(res.BucketInfo.ACL, Equals, string(ACLPublicRead))
-	client.DeleteBucket(bucketNameTest)
 }
 
 // TestCreateBucketNegative
@@ -4520,7 +4470,6 @@ func serviceErrorBodytargetHandler(w http.ResponseWriter, r *http.Request) {
 		Code:       "510",
 		Message:    "service response error",
 		RequestID:  "ABCDEF",
-		HostID:     "127.0.0.1",
 		Endpoint:   "127.0.0.1",
 		StatusCode: 510,
 	}
