@@ -48,14 +48,14 @@ func New(endpoint, accessKeyID, accessKeySecret string, options ...ClientOption)
 	config.AccessKeySecret = accessKeySecret
 
 	// URL parse
-	url := &urlMaker{}
+	url := &UrlMaker{}
 	err := url.Init(config.Endpoint, config.IsCname, config.IsUseProxy)
 	if err != nil {
 		return nil, err
 	}
 
 	// HTTP connect
-	conn := &Conn{config: config, url: url}
+	conn := &Conn{config: config, Url: url}
 
 	// KS3 client
 	client := &Client{
@@ -787,15 +787,33 @@ func (client Client) GetBucketCORS(bucketName string, options ...Option) (GetBuc
 //
 // error    it's nil if no error, otherwise it's an error object.
 //
-func (client Client) GetBucketInfo(bucketName string, options ...Option) (http.Header, error) {
+func (client Client) GetBucketInfo(bucketName string, options ...Option) (GetBucketInfoResult, error) {
+	var out GetBucketInfoResult
 	params := map[string]interface{}{}
-	resp, err := client.do("HEAD", bucketName, params, nil, nil, options...)
+	params["bucketInfo"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
 	if err != nil {
-		return nil, err
+		return out, err
 	}
 	defer resp.Body.Close()
 
-	return resp.Headers, nil
+	err = xmlUnmarshal(resp.Body, &out)
+
+	// convert None to ""
+	if err == nil {
+		if out.BucketInfo.SseRule.KMSMasterKeyID == "None" {
+			out.BucketInfo.SseRule.KMSMasterKeyID = ""
+		}
+
+		if out.BucketInfo.SseRule.SSEAlgorithm == "None" {
+			out.BucketInfo.SseRule.SSEAlgorithm = ""
+		}
+
+		if out.BucketInfo.SseRule.KMSDataEncryption == "None" {
+			out.BucketInfo.SseRule.KMSDataEncryption = ""
+		}
+	}
+	return out, err
 }
 
 // SetBucketVersioning set bucket versioning:Enabled、Suspended
@@ -1771,7 +1789,7 @@ func (client Client) LimitDownloadSpeed(downSpeed int) error {
 func UseCname(isUseCname bool) ClientOption {
 	return func(client *Client) {
 		client.Config.IsCname = isUseCname
-		client.Conn.url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
 	}
 }
 
@@ -1854,7 +1872,7 @@ func Proxy(proxyHost string) ClientOption {
 	return func(client *Client) {
 		client.Config.IsUseProxy = true
 		client.Config.ProxyHost = proxyHost
-		client.Conn.url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
 	}
 }
 
@@ -1871,7 +1889,7 @@ func AuthProxy(proxyHost, proxyUser, proxyPassword string) ClientOption {
 		client.Config.IsAuthProxy = true
 		client.Config.ProxyUser = proxyUser
 		client.Config.ProxyPassword = proxyPassword
-		client.Conn.url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
 	}
 }
 
