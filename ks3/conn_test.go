@@ -14,7 +14,7 @@ type Ks3ConnSuite struct{}
 var _ = Suite(&Ks3ConnSuite{})
 
 func (s *Ks3ConnSuite) TestURLMarker(c *C) {
-	um := urlMaker{}
+	um := UrlMaker{}
 	um.Init("docs.github.com", true, false)
 	c.Assert(um.Type, Equals, urlTypeCname)
 	c.Assert(um.Scheme, Equals, "http")
@@ -90,7 +90,7 @@ func (s *Ks3ConnSuite) TestAuth(c *C) {
 	endpoint := "https://github.com/"
 	cfg := getDefaultKs3Config()
 	cfg.AuthVersion = AuthV1
-	um := urlMaker{}
+	um := UrlMaker{}
 	um.Init(endpoint, false, false)
 	conn := Conn{cfg, &um, nil}
 	uri := um.getURL("bucket", "object", "")
@@ -153,7 +153,7 @@ func (s *Ks3ConnSuite) TestConnToolFunc(c *C) {
 func (s *Ks3ConnSuite) TestSignRtmpURL(c *C) {
 	cfg := getDefaultKs3Config()
 
-	um := urlMaker{}
+	um := UrlMaker{}
 	um.Init(endpoint, false, false)
 	conn := Conn{cfg, &um, nil}
 
@@ -176,7 +176,7 @@ func (s *Ks3ConnSuite) TestSignRtmpURL(c *C) {
 
 func (s *Ks3ConnSuite) TestGetRtmpSignedStr(c *C) {
 	cfg := getDefaultKs3Config()
-	um := urlMaker{}
+	um := UrlMaker{}
 	um.Init(endpoint, false, false)
 	conn := Conn{cfg, &um, nil}
 

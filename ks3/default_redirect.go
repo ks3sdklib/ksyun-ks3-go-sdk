@@ -16,6 +16,7 @@ func defaultHTTPRedirect(client *http.Client) {
 			prevAuth := via[len(via)-1].Header.Get("Authorization")
 			req.Header.Set("Authorization", prevAuth)
 		}
+
 		return nil
 	}
 }
