@@ -23,7 +23,7 @@ import (
 // Conn defines KS3 Conn
 type Conn struct {
 	config *Config
-	url    *urlMaker
+	Url    *UrlMaker
 	client *http.Client
 }
 
@@ -52,7 +52,7 @@ var signKeyList = []string{"acl", "uploads", "location", "cors",
 }
 
 // init initializes Conn
-func (conn *Conn) init(config *Config, urlMaker *urlMaker, client *http.Client) error {
+func (conn *Conn) init(config *Config, urlMaker *UrlMaker, client *http.Client) error {
 	if client == nil {
 		// New transport
 		transport := newTransport(conn, config)
@@ -81,7 +81,7 @@ func (conn *Conn) init(config *Config, urlMaker *urlMaker, client *http.Client) 
 	}
 
 	conn.config = config
-	conn.url = urlMaker
+	conn.Url = urlMaker
 	conn.client = client
 
 	return nil
@@ -92,7 +92,7 @@ func (conn Conn) Do(method, bucketName, objectName string, params map[string]int
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
 	urlParams := conn.getURLParams(params)
 	subResource := conn.getSubResource(params)
-	uri := conn.url.getURL(bucketName, objectName, urlParams)
+	uri := conn.Url.getURL(bucketName, objectName, urlParams)
 	resource := conn.getResource(bucketName, objectName, subResource)
 	return conn.doRequest(method, uri, resource, headers, data, initCRC, listener)
 }
@@ -383,7 +383,7 @@ func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expir
 		params[HTTPParamSignatureV2] = signedStr
 	}
 	urlParams := conn.getURLParams(params)
-	return conn.url.getSignURL(bucketName, objectName, urlParams)
+	return conn.Url.getSignURL(bucketName, objectName, urlParams)
 }
 
 func (conn Conn) signRtmpURL(bucketName, channelName, playlistName string, expiration int64) string {
@@ -405,7 +405,7 @@ func (conn Conn) signRtmpURL(bucketName, channelName, playlistName string, expir
 	}
 
 	urlParams := conn.getURLParams(params)
-	return conn.url.getSignRtmpURL(bucketName, channelName, urlParams)
+	return conn.Url.getSignRtmpURL(bucketName, channelName, urlParams)
 }
 
 // handleBody handles request body
@@ -740,7 +740,7 @@ const (
 	urlTypeksyun = 3
 )
 
-type urlMaker struct {
+type UrlMaker struct {
 	Scheme  string // HTTP or HTTPS
 	NetLoc  string // Host or IP
 	Type    int    // 1 CNAME, 2 IP, 3 ksyun
@@ -748,7 +748,7 @@ type urlMaker struct {
 }
 
 // Init parses endpoint
-func (um *urlMaker) Init(endpoint string, isCname bool, isProxy bool) error {
+func (um *UrlMaker) Init(endpoint string, isCname bool, isProxy bool) error {
 	if strings.HasPrefix(endpoint, "http://") {
 		um.Scheme = "http"
 		um.NetLoc = endpoint[len("http://"):]
@@ -790,7 +790,7 @@ func (um *urlMaker) Init(endpoint string, isCname bool, isProxy bool) error {
 }
 
 // getURL gets URL
-func (um urlMaker) getURL(bucket, object, params string) *url.URL {
+func (um UrlMaker) getURL(bucket, object, params string) *url.URL {
 	host, path := um.buildURL(bucket, object)
 	addr := ""
 	if params == "" {
@@ -803,13 +803,13 @@ func (um urlMaker) getURL(bucket, object, params string) *url.URL {
 }
 
 // getSignURL gets sign URL
-func (um urlMaker) getSignURL(bucket, object, params string) string {
+func (um UrlMaker) getSignURL(bucket, object, params string) string {
 	host, path := um.buildURL(bucket, object)
 	return fmt.Sprintf("%s://%s%s?%s", um.Scheme, host, path, params)
 }
 
 // getSignRtmpURL Build Sign Rtmp URL
-func (um urlMaker) getSignRtmpURL(bucket, channelName, params string) string {
+func (um UrlMaker) getSignRtmpURL(bucket, channelName, params string) string {
 	host, path := um.buildURL(bucket, "live")
 
 	channelName = url.QueryEscape(channelName)
@@ -819,7 +819,7 @@ func (um urlMaker) getSignRtmpURL(bucket, channelName, params string) string {
 }
 
 // buildURL builds URL
-func (um urlMaker) buildURL(bucket, object string) (string, string) {
+func (um UrlMaker) buildURL(bucket, object string) (string, string) {
 	var host = ""
 	var path = ""
 

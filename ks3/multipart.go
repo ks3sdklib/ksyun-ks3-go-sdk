@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -160,10 +159,10 @@ func (bucket Bucket) UploadPartCopy(imur InitiateMultipartUploadResult, srcBucke
 	versionIdKey := "versionId"
 	versionId, _ := FindOption(options, versionIdKey, nil)
 	if versionId == nil {
-		opts = []Option{CopySource(srcBucketName, url.QueryEscape(srcObjectKey)),
+		opts = []Option{CopySource(srcBucketName, srcObjectKey),
 			CopySourceRange(startPosition, partSize)}
 	} else {
-		opts = []Option{CopySourceVersion(srcBucketName, url.QueryEscape(srcObjectKey), versionId.(string)),
+		opts = []Option{CopySourceVersion(srcBucketName, srcObjectKey, versionId.(string)),
 			CopySourceRange(startPosition, partSize)}
 		options = DeleteOption(options, versionIdKey)
 	}
