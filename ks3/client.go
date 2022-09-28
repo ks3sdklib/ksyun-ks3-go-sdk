@@ -816,6 +816,24 @@ func (client Client) GetBucketInfo(bucketName string, options ...Option) (GetBuc
 	return out, err
 }
 
+// HeadBucket head the bucket to check exists or not.
+//
+// bucketName    the bucket name.
+// http.header   the response headers upon successful request. It's only valid when error is nil.
+//
+// error    it's nil if no error, otherwise it's an error object.
+//
+func (client Client) HeadBucket(bucketName string, options ...Option) (http.Header, error) {
+	params := map[string]interface{}{}
+	resp, err := client.do("HEAD", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return resp.Headers, nil
+}
+
 // SetBucketVersioning set bucket versioning:Enabled、Suspended
 // bucketName    the bucket name.
 // error    it's nil if no error, otherwise it's an error object.
