@@ -73,14 +73,20 @@ const (
 
 	// StorageArchive archive
 	StorageArchive StorageClassType = "ARCHIVE"
-
-	//bucket-storageclass
-	StorageNormal StorageClassType = "NORMAL"
 )
 
-var BucketStorageClassList = []StorageClassType{
-	StorageNormal,
-	StorageIA,
+type BucketType string
+
+const (
+    TypeNormal  BucketType  = "NORMAL"
+    TypeIA      BucketType = "IA"
+    TypeArchive BucketType = "ARCHIVE"
+)
+
+var BucketTypeList = []BucketType{
+    TypeNormal,
+    TypeIA,
+    TypeArchive,
 }
 
 var ObjectStorageClassList = []StorageClassType{

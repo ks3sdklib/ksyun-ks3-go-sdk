@@ -26,7 +26,7 @@ type BucketProperties struct {
 	Name         string    `xml:"Name"`         // Bucket name
 	Region       string    `xml:"Region"`       // Bucket datacenter
 	CreationDate time.Time `xml:"CreationDate"` // Bucket create time
-	StorageClass string    `xml:"Type"`         // Bucket storage class
+	Type         string    `xml:"Type"`         // Bucket storage class
 }
 
 // GetBucketACLResult defines GetBucketACL request's result
