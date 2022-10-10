@@ -24,6 +24,7 @@ const (
 	initCRC64          = "init-crc64"
 	progressListener   = "x-progress-listener"
 	storageClass       = "storage-class"
+	bucketType         = "bucket-type"
 	responseHeader     = "x-response-header"
 	redundancyType     = "redundancy-type"
 	objectHashFunc     = "object-hash-func"

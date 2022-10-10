@@ -108,26 +108,27 @@ func (client Client) Bucket(bucketName string) (*Bucket, error) {
 //
 func (client Client) CreateBucket(bucketName string, options ...Option) error {
 	headers := make(map[string]string)
-	handleOptions(headers, options)
+	err := handleOptions(headers, options)
+	if err != nil {
+		return err
+	}
 
 	buffer := new(bytes.Buffer)
-
-	var cbConfig createBucketConfiguration
-	cbConfig.StorageClass = StorageNormal
-
-	isStorageSet, valStroage, _ := IsOptionSet(options, storageClass)
-	isObjectHashFuncSet, valHashFunc, _ := IsOptionSet(options, objectHashFunc)
-	if isStorageSet {
-		cbConfig.StorageClass = valStroage.(StorageClassType)
-	}
-
-	if isObjectHashFuncSet {
-		cbConfig.ObjectHashFunction = valHashFunc.(ObjecthashFuncType)
-	}
-
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers[HTTPHeaderContentType] = contentType
-	headers[HTTPHeaderBucketType] = string(cbConfig.StorageClass)
+
+	if headers[HTTPHeaderBucketType] == "" {
+		bType := TypeNormal
+		isBucketTypeSet, valBucketType, _ := IsOptionSet(options, bucketType)
+		isStorageSet, valStorage, _ := IsOptionSet(options, storageClass)
+		if isBucketTypeSet {
+			bType = valBucketType.(BucketType)
+		} else if isStorageSet {
+			bType = valStorage.(BucketType)
+		}
+		headers[HTTPHeaderBucketType] = string(bType)
+	}
+
 	params := map[string]interface{}{}
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
 	if err != nil {
