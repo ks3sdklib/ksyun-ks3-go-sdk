@@ -419,7 +419,7 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 		req.ContentLength = readerLen
 	}
 	req.Header.Set(HTTPHeaderContentLength, strconv.FormatInt(req.ContentLength, 10))
-	
+
 	if reader != nil {
 		reader = TeeReader(reader, nil, req.ContentLength, listener, tracker)
 	}
@@ -774,6 +774,9 @@ func (um *UrlMaker) Init(endpoint string, isCname bool, isProxy bool) error {
 	host, _, err := net.SplitHostPort(um.NetLoc)
 	if err != nil {
 		host = um.NetLoc
+		if len(host) <= 1 {
+			return &net.AddrError{Err: "host is error", Addr: host}
+		}
 		if host[0] == '[' && host[len(host)-1] == ']' {
 			host = host[1 : len(host)-1]
 		}
