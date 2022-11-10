@@ -419,7 +419,10 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 		req.ContentLength = readerLen
 	}
 	req.Header.Set(HTTPHeaderContentLength, strconv.FormatInt(req.ContentLength, 10))
-
+	
+	if reader != nil {
+		reader = TeeReader(reader, nil, req.ContentLength, listener, tracker)
+	}
 	// MD5
 	if body != nil && conn.config.IsEnableMD5 && req.Header.Get(HTTPHeaderContentMD5) == "" {
 		md5 := ""
