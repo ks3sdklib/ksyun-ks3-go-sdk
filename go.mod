@@ -1,4 +1,4 @@
-module github.com/chenqichen/ksyun-ks3-go-sdk
+module github.com/wilac-pv/ksyun-ks3-go-sdk
 
 go 1.16
 

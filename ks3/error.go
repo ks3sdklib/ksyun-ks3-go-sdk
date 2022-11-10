@@ -13,7 +13,6 @@ type ServiceError struct {
 	Code       string   `xml:"Code"`      // The error code returned from KS3 to the caller
 	Message    string   `xml:"Message"`   // The detail error message from KS3
 	RequestID  string   `xml:"RequestId"` // The UUID used to uniquely identify the request
-	HostID     string   `xml:"HostId"`    // The KS3 server cluster's Id
 	Endpoint   string   `xml:"Endpoint"`
 	RawMessage string   // The raw messages from KS3
 	StatusCode int      // HTTP status code

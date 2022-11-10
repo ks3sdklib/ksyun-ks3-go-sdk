@@ -75,16 +75,29 @@ const (
 	StorageArchive StorageClassType = "ARCHIVE"
 )
 
-//RedundancyType bucket data Redundancy type
-type DataRedundancyType string
+type BucketType string
 
 const (
-	// RedundancyLRS Local redundancy, default value
-	RedundancyLRS DataRedundancyType = "LRS"
-
-	// RedundancyZRS Same city redundancy
-	RedundancyZRS DataRedundancyType = "ZRS"
+    TypeNormal  BucketType  = "NORMAL"
+    TypeIA      BucketType = "IA"
+    TypeArchive BucketType = "ARCHIVE"
 )
+
+var BucketTypeList = []BucketType{
+    TypeNormal,
+    TypeIA,
+    TypeArchive,
+}
+
+var ObjectStorageClassList = []StorageClassType{
+	StorageStandard,
+	StorageIA,
+	StorageArchive,
+}
+
+type DataRedundancyType string
+
+//RedundancyType bucket data Redundancy type
 
 //ObjecthashFuncType
 type ObjecthashFuncType string
@@ -147,11 +160,11 @@ const (
 	HTTPHeaderContentDisposition        = "Content-Disposition"
 	HTTPHeaderContentEncoding           = "Content-Encoding"
 	HTTPHeaderContentLength             = "Content-Length"
-	HTTPHeaderContentMD5                = "Content-MD5"
+	HTTPHeaderContentMD5                = "Content-Md5"
 	HTTPHeaderContentType               = "Content-Type"
 	HTTPHeaderContentLanguage           = "Content-Language"
 	HTTPHeaderDate                      = "Date"
-	HTTPHeaderEtag                      = "ETag"
+	HTTPHeaderEtag                      = "Etag"
 	HTTPHeaderExpires                   = "Expires"
 	HTTPHeaderHost                      = "Host"
 	HTTPHeaderLastModified              = "Last-Modified"
@@ -167,8 +180,10 @@ const (
 	HTTPHeaderACReqMethod               = "Access-Control-Request-Method"
 	HTTPHeaderACReqHeaders              = "Access-Control-Request-Headers"
 
+	HTTPHeaderBucketType                     = "X-Kss-Bucket-Type"
 	HTTPHeaderKs3ACL                         = "X-Kss-Acl"
 	HTTPHeaderKs3MetaPrefix                  = "X-Kss-Meta-"
+	HTTPHeaderKs3Prefix                      = "X-Kss-"
 	HTTPHeaderKs3ObjectACL                   = "X-Kss-Acl"
 	HTTPHeaderKs3SecurityToken               = "X-Kss-Security-Token"
 	HTTPHeaderKs3ServerSideEncryption        = "X-Kss-Server-Side-Encryption"
@@ -193,6 +208,7 @@ const (
 	HTTPHeaderKs3CallbackVar                 = "X-Kss-Callback-Var"
 	HTTPHeaderKs3Requester                   = "X-Kss-Request-Payer"
 	HTTPHeaderKs3Tagging                     = "X-Kss-Tagging"
+	HTTPHeaderKs3TaggingCount                = "X-Kss-Tagging-Count"
 	HTTPHeaderKs3TaggingDirective            = "X-Kss-Tagging-Directive"
 	HTTPHeaderKs3TrafficLimit                = "X-Kss-Traffic-Limit"
 	HTTPHeaderKs3ForbidOverWrite             = "X-Kss-Forbid-Overwrite"
@@ -220,10 +236,10 @@ const (
 
 // Other constants
 const (
-	MaxPartSize = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
-	MinPartSize = 100 * 1024             // Min part size, 100KB
-
-	FilePermMode = os.FileMode(0664) // Default file permission
+	MaxPartSize    = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
+	MinPartSize    = 100 * 1024             // Min part size, 100KB
+	MinPartSize5MB = 5*1024*1024 + 100      // part size, 5MB
+	FilePermMode   = os.FileMode(0664)      // Default file permission
 
 	TempFilePrefix = "ks3-go-temp-" // Temp file prefix
 	TempFileSuffix = ".temp"        // Temp file suffix
@@ -252,4 +268,14 @@ const (
 	AuthV1 AuthVersionType = "v1"
 	// AuthV2 v2
 	AuthV2 AuthVersionType = "v2"
+)
+
+const ALL_USERS = "http://acs.ksyun.com/groups/global/AllUsers"
+
+type Permission string
+
+const (
+	PermissionFullControl Permission = "FULL_CONTROL"
+	PermissionRead        Permission = "READ"
+	PermissionWrite       Permission = "WRITE"
 )

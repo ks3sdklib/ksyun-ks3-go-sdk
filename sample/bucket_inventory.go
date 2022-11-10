@@ -3,7 +3,7 @@ package sample
 import (
 	"fmt"
 
-	"github.com/chenqichen/ksyun-ks3-go-sdk/ks3"
+	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
 )
 
 // BucketInventorySample shows how to set, get, list and delete the bucket inventory configuration

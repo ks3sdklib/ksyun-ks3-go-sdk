@@ -48,14 +48,14 @@ func New(endpoint, accessKeyID, accessKeySecret string, options ...ClientOption)
 	config.AccessKeySecret = accessKeySecret
 
 	// URL parse
-	url := &urlMaker{}
+	url := &UrlMaker{}
 	err := url.Init(config.Endpoint, config.IsCname, config.IsUseProxy)
 	if err != nil {
 		return nil, err
 	}
 
 	// HTTP connect
-	conn := &Conn{config: config, url: url}
+	conn := &Conn{config: config, Url: url}
 
 	// KS3 client
 	client := &Client{
@@ -108,35 +108,26 @@ func (client Client) Bucket(bucketName string) (*Bucket, error) {
 //
 func (client Client) CreateBucket(bucketName string, options ...Option) error {
 	headers := make(map[string]string)
-	handleOptions(headers, options)
-
-	buffer := new(bytes.Buffer)
-
-	var cbConfig createBucketConfiguration
-	cbConfig.StorageClass = StorageStandard
-
-	isStorageSet, valStroage, _ := IsOptionSet(options, storageClass)
-	isRedundancySet, valRedundancy, _ := IsOptionSet(options, redundancyType)
-	isObjectHashFuncSet, valHashFunc, _ := IsOptionSet(options, objectHashFunc)
-	if isStorageSet {
-		cbConfig.StorageClass = valStroage.(StorageClassType)
-	}
-
-	if isRedundancySet {
-		cbConfig.DataRedundancyType = valRedundancy.(DataRedundancyType)
-	}
-
-	if isObjectHashFuncSet {
-		cbConfig.ObjectHashFunction = valHashFunc.(ObjecthashFuncType)
-	}
-
-	bs, err := xml.Marshal(cbConfig)
+	err := handleOptions(headers, options)
 	if err != nil {
 		return err
 	}
-	buffer.Write(bs)
+
+	buffer := new(bytes.Buffer)
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers[HTTPHeaderContentType] = contentType
+
+	if headers[HTTPHeaderBucketType] == "" {
+		bType := TypeNormal
+		isBucketTypeSet, valBucketType, _ := IsOptionSet(options, bucketType)
+		isStorageSet, valStorage, _ := IsOptionSet(options, storageClass)
+		if isBucketTypeSet {
+			bType = valBucketType.(BucketType)
+		} else if isStorageSet {
+			bType = valStorage.(BucketType)
+		}
+		headers[HTTPHeaderBucketType] = string(bType)
+	}
 
 	params := map[string]interface{}{}
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
@@ -824,6 +815,24 @@ func (client Client) GetBucketInfo(bucketName string, options ...Option) (GetBuc
 		}
 	}
 	return out, err
+}
+
+// HeadBucket head the bucket to check exists or not.
+//
+// bucketName    the bucket name.
+// http.header   the response headers upon successful request. It's only valid when error is nil.
+//
+// error    it's nil if no error, otherwise it's an error object.
+//
+func (client Client) HeadBucket(bucketName string, options ...Option) (http.Header, error) {
+	params := map[string]interface{}{}
+	resp, err := client.do("HEAD", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return resp.Headers, nil
 }
 
 // SetBucketVersioning set bucket versioning:Enabled、Suspended
@@ -1799,7 +1808,7 @@ func (client Client) LimitDownloadSpeed(downSpeed int) error {
 func UseCname(isUseCname bool) ClientOption {
 	return func(client *Client) {
 		client.Config.IsCname = isUseCname
-		client.Conn.url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
 	}
 }
 
@@ -1882,7 +1891,7 @@ func Proxy(proxyHost string) ClientOption {
 	return func(client *Client) {
 		client.Config.IsUseProxy = true
 		client.Config.ProxyHost = proxyHost
-		client.Conn.url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
 	}
 }
 
@@ -1899,7 +1908,7 @@ func AuthProxy(proxyHost, proxyUser, proxyPassword string) ClientOption {
 		client.Config.IsAuthProxy = true
 		client.Config.ProxyUser = proxyUser
 		client.Config.ProxyPassword = proxyPassword
-		client.Conn.url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
 	}
 }
 
