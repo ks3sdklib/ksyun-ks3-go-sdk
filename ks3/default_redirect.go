@@ -10,7 +10,13 @@ func defaultHTTPRedirect(client *http.Client) {
 		if len(via) >= 10 {
 			return errors.New("stopped after 10 redirects")
 		}
-		req.Header.Add("Authorization", via[0].Header.Get("Authorization"))
+
+		// use prev Authorization if request has no Authorization
+		if req.Header.Get("Authorization") == "" {
+			prevAuth := via[len(via)-1].Header.Get("Authorization")
+			req.Header.Set("Authorization", prevAuth)
+		}
+
 		return nil
 	}
 }
