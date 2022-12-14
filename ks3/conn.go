@@ -745,10 +745,11 @@ type UrlMaker struct {
 	NetLoc  string // Host or IP
 	Type    int    // 1 CNAME, 2 IP, 3 ksyun
 	IsProxy bool   // Proxy
+	PathStyleAccess bool // Access by second level domain
 }
 
 // Init parses endpoint
-func (um *UrlMaker) Init(endpoint string, isCname bool, isProxy bool) error {
+func (um *UrlMaker) Init(endpoint string, isCname bool, isProxy bool, pathStyleAccess bool) error {
 	if strings.HasPrefix(endpoint, "http://") {
 		um.Scheme = "http"
 		um.NetLoc = endpoint[len("http://"):]
@@ -760,14 +761,18 @@ func (um *UrlMaker) Init(endpoint string, isCname bool, isProxy bool) error {
 		um.NetLoc = endpoint
 	}
 
+	if strings.HasSuffix(um.NetLoc, "/") {
+		um.NetLoc = um.NetLoc[0:len(um.NetLoc)-1]
+	}
+
 	//use url.Parse() to get real host
 	strUrl := um.Scheme + "://" + um.NetLoc
-	url, err := url.Parse(strUrl)
+	_, err := url.Parse(strUrl)
 	if err != nil {
 		return err
 	}
 
-	um.NetLoc = url.Host
+	//um.NetLoc = url.Host
 	host, _, err := net.SplitHostPort(um.NetLoc)
 	if err != nil {
 		host = um.NetLoc
@@ -785,6 +790,7 @@ func (um *UrlMaker) Init(endpoint string, isCname bool, isProxy bool) error {
 		um.Type = urlTypeksyun
 	}
 	um.IsProxy = isProxy
+	um.PathStyleAccess = pathStyleAccess
 
 	return nil
 }
@@ -841,6 +847,9 @@ func (um UrlMaker) buildURL(bucket, object string) (string, string) {
 		if bucket == "" {
 			host = um.NetLoc
 			path = "/"
+		} else if um.PathStyleAccess {
+			host = um.NetLoc
+			path = "/" + bucket + "/" + object
 		} else {
 			host = bucket + "." + um.NetLoc
 			path = "/" + object
