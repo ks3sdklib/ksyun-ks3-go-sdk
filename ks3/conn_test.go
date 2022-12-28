@@ -15,7 +15,7 @@ var _ = Suite(&Ks3ConnSuite{})
 
 func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 	um := UrlMaker{}
-	um.Init("docs.github.com", true, false)
+	um.Init("docs.github.com", true, false, false)
 	c.Assert(um.Type, Equals, urlTypeCname)
 	c.Assert(um.Scheme, Equals, "http")
 	c.Assert(um.NetLoc, Equals, "docs.github.com")
@@ -31,17 +31,36 @@ func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 	c.Assert(conn.getResource("bucket", "object", ""), Equals, "/bucket/object")
 	c.Assert(conn.getResource("", "object", ""), Equals, "/")
 
-	um.Init("https://docs.github.com", true, false)
+	um.Init("https://docs.github.com", true, false, true)
 	c.Assert(um.Type, Equals, urlTypeCname)
 	c.Assert(um.Scheme, Equals, "https")
 	c.Assert(um.NetLoc, Equals, "docs.github.com")
+	host, path := um.buildURL("bucket", "object")
+	c.Assert(host, Equals, "docs.github.com")
+	c.Assert(path, Equals, "/object")
 
-	um.Init("http://docs.github.com", true, false)
+	um.Init("https://docs.github.com", false, false, true)
+ 	c.Assert(um.Type, Equals, urlTypeksyun)
+	c.Assert(um.Scheme, Equals, "https")
+	c.Assert(um.NetLoc, Equals, "docs.github.com")
+	host, path = um.buildURL("bucket", "object")
+	c.Assert(host, Equals, "docs.github.com")
+	c.Assert(path, Equals, "/bucket/object")
+
+	um.Init("https://docs.github.com", true, false, false)
+	c.Assert(um.Type, Equals, urlTypeCname)
+	c.Assert(um.Scheme, Equals, "https")
+	c.Assert(um.NetLoc, Equals, "docs.github.com")
+	host, path = um.buildURL("bucket", "object")
+	c.Assert(host, Equals, "docs.github.com")
+	c.Assert(path, Equals, "/object")
+
+	um.Init("http://docs.github.com", true, false, false)
 	c.Assert(um.Type, Equals, urlTypeCname)
 	c.Assert(um.Scheme, Equals, "http")
 	c.Assert(um.NetLoc, Equals, "docs.github.com")
 
-	um.Init("docs.github.com:8080", false, true)
+	um.Init("docs.github.com:8080", false, true, false)
 	c.Assert(um.Type, Equals, urlTypeksyun)
 	c.Assert(um.Scheme, Equals, "http")
 	c.Assert(um.NetLoc, Equals, "docs.github.com:8080")
@@ -53,34 +72,34 @@ func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 	c.Assert(conn.getResource("bucket", "object", ""), Equals, "/bucket/object")
 	c.Assert(conn.getResource("", "object", ""), Equals, "/")
 
-	um.Init("https://docs.github.com:8080", false, true)
+	um.Init("https://docs.github.com:8080", false, true, false)
 	c.Assert(um.Type, Equals, urlTypeksyun)
 	c.Assert(um.Scheme, Equals, "https")
 	c.Assert(um.NetLoc, Equals, "docs.github.com:8080")
 
-	um.Init("127.0.0.1", false, true)
+	um.Init("127.0.0.1", false, true, false)
 	c.Assert(um.Type, Equals, urlTypeIP)
 	c.Assert(um.Scheme, Equals, "http")
 	c.Assert(um.NetLoc, Equals, "127.0.0.1")
 
-	um.Init("http://127.0.0.1", false, false)
+	um.Init("http://127.0.0.1", false, false, false)
 	c.Assert(um.Type, Equals, urlTypeIP)
 	c.Assert(um.Scheme, Equals, "http")
 	c.Assert(um.NetLoc, Equals, "127.0.0.1")
 	c.Assert(um.getURL("bucket", "object", "params").String(), Equals, "http://127.0.0.1/bucket/object?params")
 	c.Assert(um.getURL("", "object", "params").String(), Equals, "http://127.0.0.1/?params")
 
-	um.Init("https://127.0.0.1:8080", false, false)
+	um.Init("https://127.0.0.1:8080", false, false, false)
 	c.Assert(um.Type, Equals, urlTypeIP)
 	c.Assert(um.Scheme, Equals, "https")
 	c.Assert(um.NetLoc, Equals, "127.0.0.1:8080")
 
-	um.Init("http://[2401:b180::dc]", false, false)
+	um.Init("http://[2401:b180::dc]", false, false, false)
 	c.Assert(um.Type, Equals, urlTypeIP)
 	c.Assert(um.Scheme, Equals, "http")
 	c.Assert(um.NetLoc, Equals, "[2401:b180::dc]")
 
-	um.Init("https://[2401:b180::dc]:8080", false, false)
+	um.Init("https://[2401:b180::dc]:8080", false, false, false)
 	c.Assert(um.Type, Equals, urlTypeIP)
 	c.Assert(um.Scheme, Equals, "https")
 	c.Assert(um.NetLoc, Equals, "[2401:b180::dc]:8080")
@@ -91,7 +110,7 @@ func (s *Ks3ConnSuite) TestAuth(c *C) {
 	cfg := getDefaultKs3Config()
 	cfg.AuthVersion = AuthV1
 	um := UrlMaker{}
-	um.Init(endpoint, false, false)
+	um.Init(endpoint, false, false, false)
 	conn := Conn{cfg, &um, nil}
 	uri := um.getURL("bucket", "object", "")
 	req := &http.Request{
@@ -154,7 +173,7 @@ func (s *Ks3ConnSuite) TestSignRtmpURL(c *C) {
 	cfg := getDefaultKs3Config()
 
 	um := UrlMaker{}
-	um.Init(endpoint, false, false)
+	um.Init(endpoint, false, false, false)
 	conn := Conn{cfg, &um, nil}
 
 	//Anonymous
@@ -177,7 +196,7 @@ func (s *Ks3ConnSuite) TestSignRtmpURL(c *C) {
 func (s *Ks3ConnSuite) TestGetRtmpSignedStr(c *C) {
 	cfg := getDefaultKs3Config()
 	um := UrlMaker{}
-	um.Init(endpoint, false, false)
+	um.Init(endpoint, false, false, false)
 	conn := Conn{cfg, &um, nil}
 
 	akIf := conn.config.GetCredentials()

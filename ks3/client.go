@@ -49,7 +49,7 @@ func New(endpoint, accessKeyID, accessKeySecret string, options ...ClientOption)
 
 	// URL parse
 	url := &UrlMaker{}
-	err := url.Init(config.Endpoint, config.IsCname, config.IsUseProxy)
+	err := url.Init(config.Endpoint, config.IsCname, config.IsUseProxy, config.PathStyleAccess)
 	if err != nil {
 		return nil, err
 	}
@@ -1808,7 +1808,18 @@ func (client Client) LimitDownloadSpeed(downSpeed int) error {
 func UseCname(isUseCname bool) ClientOption {
 	return func(client *Client) {
 		client.Config.IsCname = isUseCname
-		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy, client.Config.PathStyleAccess)
+	}
+}
+
+// PathStyleAccess sets the flag of using path style. By default, it's false
+//
+// pathStyleAccess true: use second level domain, false: use third level domain, Default is false.
+//
+func PathStyleAccess(pathStyleAccess bool) ClientOption {
+	return func(client *Client) {
+		client.Config.PathStyleAccess = pathStyleAccess
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy, client.Config.PathStyleAccess)
 	}
 }
 
@@ -1891,7 +1902,7 @@ func Proxy(proxyHost string) ClientOption {
 	return func(client *Client) {
 		client.Config.IsUseProxy = true
 		client.Config.ProxyHost = proxyHost
-		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy, client.Config.PathStyleAccess)
 	}
 }
 
@@ -1908,7 +1919,7 @@ func AuthProxy(proxyHost, proxyUser, proxyPassword string) ClientOption {
 		client.Config.IsAuthProxy = true
 		client.Config.ProxyUser = proxyUser
 		client.Config.ProxyPassword = proxyPassword
-		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy)
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy, client.Config.PathStyleAccess)
 	}
 }
 

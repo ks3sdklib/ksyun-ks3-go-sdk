@@ -83,6 +83,7 @@ type Config struct {
 	Timeout             uint                // Timeout in seconds. By default it's 60.
 	SecurityToken       string              // STS Token
 	IsCname             bool                // If cname is in the endpoint.
+	PathStyleAccess     bool                // Access KS3 by second level domain
 	HTTPTimeout         HTTPTimeout         // HTTP timeout
 	HTTPMaxConns        HTTPMaxConns        // Http max connections
 	IsUseProxy          bool                // Flag of using proxy.
