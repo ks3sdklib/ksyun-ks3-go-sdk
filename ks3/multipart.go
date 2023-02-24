@@ -248,7 +248,6 @@ func (bucket Bucket) AbortMultipartUpload(imur InitiateMultipartUploadResult, op
 //
 func (bucket Bucket) ListUploadedParts(imur InitiateMultipartUploadResult, options ...Option) (ListUploadedPartsResult, error) {
 	var out ListUploadedPartsResult
-	options = append(options, EncodingType("url"))
 
 	params := map[string]interface{}{}
 	params, err := GetRawParams(options)
@@ -282,7 +281,6 @@ func (bucket Bucket) ListUploadedParts(imur InitiateMultipartUploadResult, optio
 func (bucket Bucket) ListMultipartUploads(options ...Option) (ListMultipartUploadResult, error) {
 	var out ListMultipartUploadResult
 
-	options = append(options, EncodingType("url"))
 	params, err := GetRawParams(options)
 	if err != nil {
 		return out, err

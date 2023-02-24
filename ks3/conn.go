@@ -252,7 +252,7 @@ func (conn Conn) getResource(bucketName, objectName, subResource string) string 
 	if conn.config.AuthVersion == AuthV2 {
 		return url.QueryEscape("/"+bucketName+"/") + strings.Replace(url.QueryEscape(objectName), "+", "%20", -1) + subResource
 	}
-	tmp := "/" + bucketName + "/" + strings.Replace(url.QueryEscape(objectName), "+", "%20", -1) + subResource
+	tmp := "/" + bucketName + "/" + strings.Replace(objectName, "+", "%20", -1) + subResource
 	//bb := fmt.Sprintf("/%s/%s%s", bucketName, objectName, subResource)
 	// fmt.Println(aa,bb)
 	return tmp
