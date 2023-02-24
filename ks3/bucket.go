@@ -581,7 +581,6 @@ func (bucket Bucket) IsObjectExist(objectKey string, options ...Option) (bool, e
 func (bucket Bucket) ListObjects(options ...Option) (ListObjectsResult, error) {
 	var out ListObjectsResult
 
-	options = append(options, EncodingType("url"))
 	params, err := GetRawParams(options)
 	if err != nil {
 		return out, err
@@ -592,7 +591,6 @@ func (bucket Bucket) ListObjects(options ...Option) (ListObjectsResult, error) {
 		return out, err
 	}
 	defer resp.Body.Close()
-
 	err = xmlUnmarshal(resp.Body, &out)
 	if err != nil {
 		return out, err
@@ -607,7 +605,6 @@ func (bucket Bucket) ListObjects(options ...Option) (ListObjectsResult, error) {
 func (bucket Bucket) ListObjectsV2(options ...Option) (ListObjectsResultV2, error) {
 	var out ListObjectsResultV2
 
-	options = append(options, EncodingType("url"))
 	options = append(options, ListType(2))
 	params, err := GetRawParams(options)
 	if err != nil {
@@ -633,7 +630,6 @@ func (bucket Bucket) ListObjectsV2(options ...Option) (ListObjectsResultV2, erro
 func (bucket Bucket) ListObjectVersions(options ...Option) (ListObjectVersionsResult, error) {
 	var out ListObjectVersionsResult
 
-	options = append(options, EncodingType("url"))
 	params, err := GetRawParams(options)
 	if err != nil {
 		return out, err
@@ -897,7 +893,8 @@ func (bucket Bucket) SignURL(objectKey string, method HTTPMethod, expiredInSec i
 	if expiredInSec < 0 {
 		return "", fmt.Errorf("invalid expires: %d, expires must bigger than 0", expiredInSec)
 	}
-	expiration := time.Now().Unix() + expiredInSec
+	A := time.Now().Unix()
+	expiration := A + expiredInSec
 
 	params, err := GetRawParams(options)
 	if err != nil {

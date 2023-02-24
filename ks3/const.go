@@ -78,15 +78,15 @@ const (
 type BucketType string
 
 const (
-    TypeNormal  BucketType  = "NORMAL"
-    TypeIA      BucketType = "IA"
-    TypeArchive BucketType = "ARCHIVE"
+	TypeNormal  BucketType = "NORMAL"
+	TypeIA      BucketType = "IA"
+	TypeArchive BucketType = "ARCHIVE"
 )
 
 var BucketTypeList = []BucketType{
-    TypeNormal,
-    TypeIA,
-    TypeArchive,
+	TypeNormal,
+	TypeIA,
+	TypeArchive,
 }
 
 var ObjectStorageClassList = []StorageClassType{
@@ -222,7 +222,7 @@ const (
 // HTTP Param
 const (
 	HTTPParamExpires       = "Expires"
-	HTTPParamAccessKeyID   = "KS3AccessKeyId"
+	HTTPParamAccessKeyID   = "KSSAccessKeyId"
 	HTTPParamSignature     = "Signature"
 	HTTPParamSecurityToken = "security-token"
 	HTTPParamPlaylistName  = "playlistName"
