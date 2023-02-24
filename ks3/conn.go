@@ -238,6 +238,17 @@ func (conn Conn) isParamSign(paramKey string) bool {
 	return false
 }
 
+//ks3 encode 字符串
+func encodeKS3Str(str string) string {
+	objectName := url.QueryEscape(str)
+	objectName = strings.ReplaceAll(objectName, "+", "%20")
+	objectName = strings.ReplaceAll(objectName, "*", "%20")
+	objectName = strings.ReplaceAll(objectName, "%7E", "~")
+	objectName = strings.ReplaceAll(objectName, "%2F", "/")
+	objectName = strings.Replace(objectName, "//", "/%2F", 1)
+	return objectName
+}
+
 // getResource gets canonicalized resource
 func (conn Conn) getResource(bucketName, objectName, subResource string) string {
 	if subResource != "" {
@@ -252,9 +263,8 @@ func (conn Conn) getResource(bucketName, objectName, subResource string) string 
 	if conn.config.AuthVersion == AuthV2 {
 		return url.QueryEscape("/"+bucketName+"/") + strings.Replace(url.QueryEscape(objectName), "+", "%20", -1) + subResource
 	}
-	tmp := "/" + bucketName + "/" + strings.Replace(objectName, "+", "%20", -1) + subResource
-	//bb := fmt.Sprintf("/%s/%s%s", bucketName, objectName, subResource)
-	// fmt.Println(aa,bb)
+	objectName = encodeKS3Str(objectName)
+	tmp := "/" + bucketName + "/" + objectName + subResource
 	return tmp
 }
 
@@ -362,7 +372,7 @@ func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expir
 	}
 
 	if conn.config.AuthVersion == AuthV2 {
-		params[HTTPParamSignatureVersion] = "KS32"
+		params[HTTPParamSignatureVersion] = "KSS2"
 		params[HTTPParamExpiresV2] = strconv.FormatInt(expiration, 10)
 		params[HTTPParamAccessKeyIDV2] = conn.config.AccessKeyID
 		additionalList, _ := conn.getAdditionalHeaderKeys(req)
@@ -372,8 +382,8 @@ func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expir
 	}
 
 	subResource := conn.getSubResource(params)
-	canonicalizedResource := conn.getResource(bucketName, objectName, subResource)
-	signedStr := conn.getSignedStr(req, canonicalizedResource, akIf.GetAccessKeySecret())
+	canonicalResource := conn.getResource(bucketName, objectName, subResource)
+	signedStr := conn.getSignedStr(req, canonicalResource, akIf.GetAccessKeySecret())
 
 	if conn.config.AuthVersion == AuthV1 {
 		params[HTTPParamExpires] = strconv.FormatInt(expiration, 10)
@@ -382,8 +392,9 @@ func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expir
 	} else if conn.config.AuthVersion == AuthV2 {
 		params[HTTPParamSignatureV2] = signedStr
 	}
+	str := encodeKS3Str(objectName)
 	urlParams := conn.getURLParams(params)
-	return conn.Url.getSignURL(bucketName, objectName, urlParams)
+	return conn.Url.getSignURL(bucketName, str, urlParams)
 }
 
 func (conn Conn) signRtmpURL(bucketName, channelName, playlistName string, expiration int64) string {
@@ -744,11 +755,11 @@ const (
 )
 
 type UrlMaker struct {
-	Scheme  string // HTTP or HTTPS
-	NetLoc  string // Host or IP
-	Type    int    // 1 CNAME, 2 IP, 3 ksyun
-	IsProxy bool   // Proxy
-	PathStyleAccess bool // Access by second level domain
+	Scheme          string // HTTP or HTTPS
+	NetLoc          string // Host or IP
+	Type            int    // 1 CNAME, 2 IP, 3 ksyun
+	IsProxy         bool   // Proxy
+	PathStyleAccess bool   // Access by second level domain
 }
 
 // Init parses endpoint
@@ -765,7 +776,7 @@ func (um *UrlMaker) Init(endpoint string, isCname bool, isProxy bool, pathStyleA
 	}
 
 	if strings.HasSuffix(um.NetLoc, "/") {
-		um.NetLoc = um.NetLoc[0:len(um.NetLoc)-1]
+		um.NetLoc = um.NetLoc[0 : len(um.NetLoc)-1]
 	}
 
 	//use url.Parse() to get real host
@@ -835,7 +846,7 @@ func (um UrlMaker) buildURL(bucket, object string) (string, string) {
 	var host = ""
 	var path = ""
 
-	object = url.QueryEscape(object)
+	//object = url.QueryEscape(object)
 	object = strings.Replace(object, "+", "%20", -1)
 
 	if um.Type == urlTypeCname {
