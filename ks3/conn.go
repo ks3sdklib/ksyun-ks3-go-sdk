@@ -92,7 +92,8 @@ func (conn Conn) Do(method, bucketName, objectName string, params map[string]int
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
 	urlParams := conn.getURLParams(params)
 	subResource := conn.getSubResource(params)
-	uri := conn.Url.getURL(bucketName, objectName, urlParams)
+	urltmp := encodeKS3Str(objectName)
+	uri := conn.Url.getURL(bucketName, urltmp, urlParams)
 	resource := conn.getResource(bucketName, objectName, subResource)
 	return conn.doRequest(method, uri, resource, headers, data, initCRC, listener)
 }
