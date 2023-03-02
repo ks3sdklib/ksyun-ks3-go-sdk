@@ -243,7 +243,7 @@ func (conn Conn) isParamSign(paramKey string) bool {
 func encodeKS3Str(str string) string {
 	objectName := url.QueryEscape(str)
 	objectName = strings.ReplaceAll(objectName, "+", "%20")
-	objectName = strings.ReplaceAll(objectName, "*", "%2A"uan)
+	objectName = strings.ReplaceAll(objectName, "*", "%2A")
 	objectName = strings.ReplaceAll(objectName, "%7E", "~")
 	objectName = strings.ReplaceAll(objectName, "%2F", "/")
 	objectName = strings.Replace(objectName, "//", "/%2F", 1)
