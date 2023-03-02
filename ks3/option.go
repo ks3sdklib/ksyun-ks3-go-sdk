@@ -449,6 +449,11 @@ func StorageClass(value StorageClassType) Option {
 	return addArg(storageClass, value)
 }
 
+// StorageClass bucket storage class
+func BucketTypeClass(value BucketType) Option {
+	return addArg(bucketType, value)
+}
+
 // RedundancyType bucket data redundancy type
 func ObjectHashFunc(value ObjecthashFuncType) Option {
 	return addArg(objectHashFunc, value)
