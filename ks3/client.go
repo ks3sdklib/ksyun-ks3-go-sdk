@@ -193,13 +193,14 @@ func (client Client) ListBuckets(options ...Option) (ListBucketsResult, error) {
 // error    it's nil if no error, otherwise it's an error object.
 //
 func (client Client) IsBucketExist(bucketName string) (bool, error) {
-	listRes, err := client.ListBuckets(Prefix(bucketName), MaxKeys(1))
+	listRes, err := client.ListBuckets()
 	if err != nil {
 		return false, err
 	}
-
-	if len(listRes.Buckets) == 1 && listRes.Buckets[0].Name == bucketName {
-		return true, nil
+	for _, bucketInfo := range listRes.Buckets {
+		if bucketInfo.Name == bucketName {
+			return true, err
+		}
 	}
 	return false, nil
 }
