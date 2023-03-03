@@ -186,7 +186,7 @@ type GetBucketRefererResult RefererXML
 
 // LoggingXML defines logging configuration
 type LoggingXML struct {
-	XMLName        xml.Name       `xml:"BucketLoggingStatus"`
+	XMLName        xml.Name       `xml:"BucketLoggingStatus" xmlURI:"http://s3.amazonaws.com/doc/2006-03-01/"`
 	LoggingEnabled LoggingEnabled `xml:"LoggingEnabled"` // The logging configuration information
 }
 
