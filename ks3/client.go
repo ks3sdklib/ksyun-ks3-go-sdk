@@ -478,6 +478,7 @@ func (client Client) SetBucketLogging(bucketName, targetBucket, targetPrefix str
 		lxml := LoggingXML{}
 		lxml.LoggingEnabled.TargetBucket = targetBucket
 		lxml.LoggingEnabled.TargetPrefix = targetPrefix
+		lxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
 		bs, err = xml.Marshal(lxml)
 	} else {
 		lxml := loggingXMLEmpty{}
