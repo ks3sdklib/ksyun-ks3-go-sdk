@@ -289,6 +289,7 @@ type GetBucketWebsiteResult WebsiteXML
 type CORSXML struct {
 	XMLName   xml.Name   `xml:"CORSConfiguration"`
 	CORSRules []CORSRule `xml:"CORSRule"` // CORS rules
+	Xmlns     string     `xml:"xmlns,attr"`
 }
 
 // CORSRule defines CORS rules

@@ -4,6 +4,8 @@ package ks3
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -703,6 +705,16 @@ func (client Client) GetBucketWebsiteXml(bucketName string, options ...Option) (
 	return out, err
 }
 
+func computeMD5Hash(input []byte) []byte {
+	h := md5.New()
+	h.Write(input)
+	return h.Sum(nil)
+}
+
+func encodeAsString(bytes []byte) string {
+	return base64.StdEncoding.EncodeToString(bytes)
+}
+
 // SetBucketCORS sets the bucket's CORS rules
 //
 // For more information, please check out https://help.ksyun.com/document_detail/ks3/user_guide/security_management/cors.html
@@ -723,7 +735,7 @@ func (client Client) SetBucketCORS(bucketName string, corsRules []CORSRule, opti
 		cr.MaxAgeSeconds = v.MaxAgeSeconds
 		corsxml.CORSRules = append(corsxml.CORSRules, cr)
 	}
-
+	corsxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
 	bs, err := xml.Marshal(corsxml)
 	if err != nil {
 		return err
@@ -731,9 +743,12 @@ func (client Client) SetBucketCORS(bucketName string, corsRules []CORSRule, opti
 	buffer := new(bytes.Buffer)
 	buffer.Write(bs)
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
 
 	params := map[string]interface{}{}
 	params["cors"] = nil
