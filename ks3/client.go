@@ -312,9 +312,12 @@ func (client Client) SetBucketLifecycle(bucketName string, rules []LifecycleRule
 	buffer := new(bytes.Buffer)
 	buffer.Write(bs)
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
 
 	params := map[string]interface{}{}
 	params["lifecycle"] = nil

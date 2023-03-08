@@ -61,9 +61,8 @@ type LifecycleConfiguration struct {
 type LifecycleRule struct {
 	XMLName              xml.Name                       `xml:"Rule"`
 	ID                   string                         `xml:"ID,omitempty"`                   // The rule ID
-	Prefix               string                         `xml:"Prefix"`                         // The object key prefix
+	Filter               LifecycleFilter                `xml:"Filter"`                         // the fifter property
 	Status               string                         `xml:"Status"`                         // The rule status (enabled or not)
-	Tags                 []Tag                          `xml:"Tag,omitempty"`                  // the tags property
 	Expiration           *LifecycleExpiration           `xml:"Expiration,omitempty"`           // The expiration property
 	Transitions          []LifecycleTransition          `xml:"Transition,omitempty"`           // The transition property
 	AbortMultipartUpload *LifecycleAbortMultipartUpload `xml:"AbortMultipartUpload,omitempty"` // The AbortMultipartUpload property
@@ -73,7 +72,20 @@ type LifecycleRule struct {
 	NonVersionTransitions []LifecycleVersionTransition `xml:"NoncurrentVersionTransition,omitempty"`
 }
 
-// LifecycleExpiration defines the rule's expiration property
+// LifecycleTransition defines the rule's transition propery
+type LifecycleFilter struct {
+	XMLName xml.Name     `xml:"Filter"`
+	And     LifecycleAnd `xml:"And"` // the tags property
+}
+
+type LifecycleAnd struct {
+	XMLName xml.Name `xml:"And"`
+	Prefix  string   `xml:"Prefix,omitempty"`        // The object key prefix
+	Tag     []Tag    `xml:"Tag,omitempty"` // the tags property
+}
+
+// LifecycleExpiration defines the rule's expiratio
+//n property
 type LifecycleExpiration struct {
 	XMLName                   xml.Name `xml:"Expiration"`
 	Days                      int      `xml:"Days,omitempty"`                      // Relative expiration time: The expiration time in days after the last modified time
@@ -86,7 +98,7 @@ type LifecycleExpiration struct {
 type LifecycleTransition struct {
 	XMLName           xml.Name         `xml:"Transition"`
 	Days              int              `xml:"Days,omitempty"`              // Relative transition time: The transition time in days after the last modified time
-	CreatedBeforeDate string           `xml:"CreatedBeforeDate,omitempty"` // objects created before the date will be expired
+	CreatedBeforeDate string           `xml:"Date,omitempty"` // objects created before the date will be expired
 	StorageClass      StorageClassType `xml:"StorageClass,omitempty"`      // Specifies the target storage type
 }
 
@@ -110,7 +122,7 @@ type LifecycleVersionTransition struct {
 	StorageClass   StorageClassType `xml:"StorageClass,omitempty"`
 }
 
-const iso8601DateFormat = "2006-01-02T15:04:05.000Z"
+const Iso8601DateFormat = "2006-01-02T00:00:00+08:00"
 
 // BuildLifecycleRuleByDays builds a lifecycle rule objects will expiration in days after the last modified time
 func BuildLifecycleRuleByDays(id, prefix string, status bool, days int) LifecycleRule {
@@ -118,7 +130,7 @@ func BuildLifecycleRuleByDays(id, prefix string, status bool, days int) Lifecycl
 	if !status {
 		statusStr = "Disabled"
 	}
-	return LifecycleRule{ID: id, Prefix: prefix, Status: statusStr,
+	return LifecycleRule{ID: id, Status: statusStr,
 		Expiration: &LifecycleExpiration{Days: days}}
 }
 
@@ -128,8 +140,8 @@ func BuildLifecycleRuleByDate(id, prefix string, status bool, year, month, day i
 	if !status {
 		statusStr = "Disabled"
 	}
-	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).Format(iso8601DateFormat)
-	return LifecycleRule{ID: id, Prefix: prefix, Status: statusStr,
+	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).Format(Iso8601DateFormat)
+	return LifecycleRule{ID: id, Status: statusStr,
 		Expiration: &LifecycleExpiration{Date: date}}
 }
 
