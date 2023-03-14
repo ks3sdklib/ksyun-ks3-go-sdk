@@ -73,6 +73,9 @@ const (
 
 	// StorageArchive archive
 	StorageArchive StorageClassType = "ARCHIVE"
+
+	// DEEPIA archive
+	StorageDeepIA StorageClassType = "DEEP_IA"
 )
 
 type BucketType string
@@ -81,17 +84,20 @@ const (
 	TypeNormal  BucketType = "NORMAL"
 	TypeIA      BucketType = "IA"
 	TypeArchive BucketType = "ARCHIVE"
+	TypeDeepIA  BucketType = "DEEP_IA"
 )
 
 var BucketTypeList = []BucketType{
 	TypeNormal,
 	TypeIA,
 	TypeArchive,
+	TypeDeepIA,
 }
 
 var ObjectStorageClassList = []StorageClassType{
 	StorageStandard,
 	StorageIA,
+	StorageDeepIA,
 	StorageArchive,
 }
 
