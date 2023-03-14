@@ -61,7 +61,7 @@ type LifecycleConfiguration struct {
 type LifecycleRule struct {
 	XMLName              xml.Name                       `xml:"Rule"`
 	ID                   string                         `xml:"ID,omitempty"`                   // The rule ID
-	Filter               LifecycleFilter                `xml:"Filter"`                         // the fifter property
+	Filter               *LifecycleFilter               `xml:"Filter,omitempty"`               // the fifter property
 	Status               string                         `xml:"Status"`                         // The rule status (enabled or not)
 	Expiration           *LifecycleExpiration           `xml:"Expiration,omitempty"`           // The expiration property
 	Transitions          []LifecycleTransition          `xml:"Transition,omitempty"`           // The transition property
@@ -75,13 +75,13 @@ type LifecycleRule struct {
 // LifecycleTransition defines the rule's transition propery
 type LifecycleFilter struct {
 	XMLName xml.Name     `xml:"Filter"`
-	And     LifecycleAnd `xml:"And"` // the tags property
+	And     LifecycleAnd `xml:"And,omitempty"` // the tags property
 }
 
 type LifecycleAnd struct {
 	XMLName xml.Name `xml:"And"`
-	Prefix  string   `xml:"Prefix,omitempty"`        // The object key prefix
-	Tag     []Tag    `xml:"Tag,omitempty"` // the tags property
+	Prefix  string   `xml:"Prefix,omitempty"` // The object key prefix
+	Tag     []Tag    `xml:"Tag,omitempty"`    // the tags property
 }
 
 // LifecycleExpiration defines the rule's expiratio
@@ -97,9 +97,9 @@ type LifecycleExpiration struct {
 // LifecycleTransition defines the rule's transition propery
 type LifecycleTransition struct {
 	XMLName           xml.Name         `xml:"Transition"`
-	Days              int              `xml:"Days,omitempty"`              // Relative transition time: The transition time in days after the last modified time
-	CreatedBeforeDate string           `xml:"Date,omitempty"` // objects created before the date will be expired
-	StorageClass      StorageClassType `xml:"StorageClass,omitempty"`      // Specifies the target storage type
+	Days              int              `xml:"Days,omitempty"`         // Relative transition time: The transition time in days after the last modified time
+	CreatedBeforeDate string           `xml:"Date,omitempty"`         // objects created before the date will be expired
+	StorageClass      StorageClassType `xml:"StorageClass,omitempty"` // Specifies the target storage type
 }
 
 // LifecycleAbortMultipartUpload defines the rule's abort multipart upload propery
@@ -328,6 +328,7 @@ type BucketInfo struct {
 	XMLName                xml.Name  `xml:"Bucket"`
 	Name                   string    `xml:"Name"`                     // Bucket name
 	Location               string    `xml:"Location"`                 // Bucket datacenter
+	Region                 string    `xml:"Region"`                   // Bucket datacenter
 	CreationDate           time.Time `xml:"CreationDate"`             // Bucket creation time
 	ExtranetEndpoint       string    `xml:"ExtranetEndpoint"`         // Bucket external endpoint
 	IntranetEndpoint       string    `xml:"IntranetEndpoint"`         // Bucket internal endpoint
