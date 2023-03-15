@@ -61,6 +61,7 @@ type LifecycleConfiguration struct {
 type LifecycleRule struct {
 	XMLName              xml.Name                       `xml:"Rule"`
 	ID                   string                         `xml:"ID,omitempty"`                   // The rule ID
+	Prefix               string                         `xml:"Prefix,omitempty"`               // The object key prefix
 	Filter               *LifecycleFilter               `xml:"Filter,omitempty"`               // the fifter property
 	Status               string                         `xml:"Status"`                         // The rule status (enabled or not)
 	Expiration           *LifecycleExpiration           `xml:"Expiration,omitempty"`           // The expiration property
