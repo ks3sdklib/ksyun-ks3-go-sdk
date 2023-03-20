@@ -22,7 +22,7 @@ func BucketLifecycleSample() {
 
 	// Case 1: Set the lifecycle. The rule ID is rule1 and the applied objects' prefix is one and the last modified Date is before 2015/11/11
 	expriation := ks3.LifecycleExpiration{
-		CreatedBeforeDate: "2015-11-11T00:00:00.000Z",
+		Date: "2015-11-11T00:00:00.000Z",
 	}
 	rule1 := ks3.LifecycleRule{
 		ID:         "rule1",
@@ -82,7 +82,7 @@ func BucketLifecycleSample() {
 
 	// Case 5: Set the lifecycle. The rule ID is rule4 and the applied objects' has the tagging which prefix is four and the last modified Date is before 2015/11/11
 	expriation = ks3.LifecycleExpiration{
-		CreatedBeforeDate: "2015-11-11T00:00:00.000Z",
+		Date: "2015-11-11T00:00:00.000Z",
 	}
 	tag1 := ks3.Tag{
 		Key:   "key1",

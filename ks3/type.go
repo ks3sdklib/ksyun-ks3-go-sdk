@@ -157,16 +157,16 @@ func verifyLifecycleRules(rules []LifecycleRule) error {
 
 		abortMPU := rule.AbortMultipartUpload
 		if abortMPU != nil {
-			if (abortMPU.Days != 0 && abortMPU.CreatedBeforeDate != "") || (abortMPU.Days == 0 && abortMPU.CreatedBeforeDate == "") {
-				return fmt.Errorf("invalid abort multipart upload lifecycle, must be set one of CreatedBeforeDate and Days")
+			if (abortMPU.Days != 0 && abortMPU.Date != "") || (abortMPU.Days == 0 && abortMPU.Date == "") {
+				return fmt.Errorf("invalid abort multipart upload lifecycle, must be set one of Date and Days")
 			}
 		}
 
 		transitions := rule.Transitions
 		if len(transitions) > 0 {
 			for _, transition := range transitions {
-				if (transition.Days != 0 && transition.CreatedBeforeDate != "") || (transition.Days == 0 && transition.CreatedBeforeDate == "") {
-					return fmt.Errorf("invalid transition lifecycle, must be set one of CreatedBeforeDate and Days")
+				if (transition.Days != 0 && transition.Date != "") || (transition.Days == 0 && transition.Date == "") {
+					return fmt.Errorf("invalid transition lifecycle, must be set one of Date and Days")
 				}
 			}
 		}
