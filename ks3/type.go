@@ -91,23 +91,22 @@ type LifecycleExpiration struct {
 	XMLName                   xml.Name `xml:"Expiration"`
 	Days                      int      `xml:"Days,omitempty"`                      // Relative expiration time: The expiration time in days after the last modified time
 	Date                      string   `xml:"Date,omitempty"`                      // Absolute expiration time: The expiration time in date, not recommended
-	CreatedBeforeDate         string   `xml:"CreatedBeforeDate,omitempty"`         // objects created before the date will be expired
 	ExpiredObjectDeleteMarker *bool    `xml:"ExpiredObjectDeleteMarker,omitempty"` // Specifies whether the expired delete tag is automatically deleted
 }
 
 // LifecycleTransition defines the rule's transition propery
 type LifecycleTransition struct {
-	XMLName           xml.Name         `xml:"Transition"`
-	Days              int              `xml:"Days,omitempty"`         // Relative transition time: The transition time in days after the last modified time
-	CreatedBeforeDate string           `xml:"Date,omitempty"`         // objects created before the date will be expired
-	StorageClass      StorageClassType `xml:"StorageClass,omitempty"` // Specifies the target storage type
+	XMLName      xml.Name         `xml:"Transition"`
+	Days         int              `xml:"Days,omitempty"`         // Relative transition time: The transition time in days after the last modified time
+	Date         string           `xml:"Date,omitempty"`         // objects created before the date will be expired
+	StorageClass StorageClassType `xml:"StorageClass,omitempty"` // Specifies the target storage type
 }
 
 // LifecycleAbortMultipartUpload defines the rule's abort multipart upload propery
 type LifecycleAbortMultipartUpload struct {
-	XMLName           xml.Name `xml:"AbortMultipartUpload"`
-	Days              int      `xml:"Days,omitempty"`              // Relative expiration time: The expiration time in days after the last modified time
-	CreatedBeforeDate string   `xml:"CreatedBeforeDate,omitempty"` // objects created before the date will be expired
+	XMLName xml.Name `xml:"AbortMultipartUpload"`
+	Days    int      `xml:"Days,omitempty"` // Relative expiration time: The expiration time in days after the last modified time
+	Date    string   `xml:"Date,omitempty"` // objects created before the date will be expired
 }
 
 // LifecycleVersionExpiration defines the rule's NoncurrentVersionExpiration propery
