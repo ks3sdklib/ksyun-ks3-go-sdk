@@ -1211,6 +1211,13 @@ func (bucket Bucket) Do(method, objectName string, params map[string]interface{}
 	data io.Reader, listener ProgressListener) (*Response, error) {
 	return bucket.do(method, objectName, params, options, data, listener)
 }
+func isReaderNil(r io.Reader) bool {
+	if r == nil {
+		return true
+	}
+	_, ok := r.(io.Reader)
+	return !ok
+}
 
 // Private
 func (bucket Bucket) do(method, objectName string, params map[string]interface{}, options []Option,
@@ -1226,6 +1233,9 @@ func (bucket Bucket) do(method, objectName string, params map[string]interface{}
 		return nil, err
 	}
 
+	if !isReaderNil(data) {
+		data = nil
+	}
 	resp, err := bucket.Client.Conn.Do(method, bucket.BucketName, objectName,
 		params, headers, data, 0, listener)
 
