@@ -392,7 +392,7 @@ func (client Client) GetBucketLifecycle(bucketName string, options ...Option) (G
 			out.Rules[k].NonVersionTransition = &(out.Rules[k].NonVersionTransitions[0])
 		}
 		//2023-03-28T00:00:00.000+08:00
-		if strings.Contains(rule.Expiration.Date, ".000") {
+		if rule.Expiration != nil && &rule.Expiration.Date != nil && strings.Contains(rule.Expiration.Date, ".000") {
 			rule.Expiration.Date = strings.ReplaceAll(rule.Expiration.Date, ".000", "")
 		}
 	}
