@@ -84,19 +84,19 @@ func BucketLifecycleSample() {
 	expriation = ks3.LifecycleExpiration{
 		Date: "2015-11-11T00:00:00.000Z",
 	}
-	tag1 := ks3.Tag{
-		Key:   "key1",
-		Value: "value1",
-	}
-	tag2 := ks3.Tag{
-		Key:   "key2",
-		Value: "value2",
-	}
+	//tag1 := ks3.Tag{
+	//	Key:   "key1",
+	//	Value: "value1",
+	//}
+	//tag2 := ks3.Tag{
+	//	Key:   "key2",
+	//	Value: "value2",
+	//}
 	rule4 := ks3.LifecycleRule{
-		ID:         "rule4",
-		Prefix:     "four",
-		Status:     "Enabled",
-		Tags:       []ks3.Tag{tag1, tag2},
+		ID:     "rule4",
+		Prefix: "four",
+		Status: "Enabled",
+		//Tags:       []ks3.Tag{tag1, tag2},
 		Expiration: &expriation,
 	}
 	rules = []ks3.LifecycleRule{rule4}
