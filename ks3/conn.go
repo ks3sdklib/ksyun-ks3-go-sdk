@@ -441,8 +441,10 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	if err == nil {
 		req.ContentLength = readerLen
 	}
+	if readerLen == 0 {
+		reader = nil
+	}
 	req.Header.Set(HTTPHeaderContentLength, strconv.FormatInt(req.ContentLength, 10))
-
 	if reader != nil {
 		reader = TeeReader(reader, nil, req.ContentLength, listener, tracker)
 	}
@@ -457,9 +459,6 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	rc, ok := reader.(io.ReadCloser)
 	if !ok && reader != nil {
 		rc = ioutil.NopCloser(reader)
-		if IsEmpty(rc) {
-			rc = nil
-		}
 	}
 
 	if conn.isUploadLimitReq(req) {
