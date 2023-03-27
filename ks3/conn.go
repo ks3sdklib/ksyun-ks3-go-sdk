@@ -1,6 +1,7 @@
 package ks3
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
@@ -420,6 +421,16 @@ func (conn Conn) signRtmpURL(bucketName, channelName, playlistName string, expir
 	return conn.Url.getSignRtmpURL(bucketName, channelName, urlParams)
 }
 
+func IsEmpty(r io.Reader) bool {
+
+	reader := bufio.NewReader(r)
+	_, err := reader.Peek(1)
+	if err != nil {
+		return true
+	}
+	return false
+}
+
 // handleBody handles request body
 func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	listener ProgressListener, tracker *readerTracker) (*os.File, hash.Hash64) {
@@ -446,6 +457,9 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	rc, ok := reader.(io.ReadCloser)
 	if !ok && reader != nil {
 		rc = ioutil.NopCloser(reader)
+		if IsEmpty(rc) {
+			rc = nil
+		}
 	}
 
 	if conn.isUploadLimitReq(req) {
