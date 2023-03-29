@@ -341,6 +341,19 @@ func (client Client) SetBucketLifecycleXml(bucketName string, xmlBody string, op
 	defer resp.Body.Close()
 	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
 }
+func (client Client) GetBucketLifecycleXml(bucketName string, options ...Option) (string, error) {
+	params := map[string]interface{}{}
+	params["lifecycle"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	out := string(body)
+	return out, err
+}
 
 // DeleteBucketLifecycle deletes the bucket's lifecycle.
 //
