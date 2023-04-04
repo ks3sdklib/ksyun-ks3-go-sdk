@@ -61,9 +61,9 @@ type LifecycleConfiguration struct {
 type LifecycleRule struct {
 	XMLName              xml.Name                       `xml:"Rule"`
 	ID                   string                         `xml:"ID,omitempty"`                   // The rule ID
-	Prefix               string                         `xml:"Prefix"`                         // The object key prefix
+	Prefix               string                         `xml:"Prefix,omitempty"`               // The object key prefix
+	Filter               *LifecycleFilter               `xml:"Filter,omitempty"`               // the fifter property
 	Status               string                         `xml:"Status"`                         // The rule status (enabled or not)
-	Tags                 []Tag                          `xml:"Tag,omitempty"`                  // the tags property
 	Expiration           *LifecycleExpiration           `xml:"Expiration,omitempty"`           // The expiration property
 	Transitions          []LifecycleTransition          `xml:"Transition,omitempty"`           // The transition property
 	AbortMultipartUpload *LifecycleAbortMultipartUpload `xml:"AbortMultipartUpload,omitempty"` // The AbortMultipartUpload property
@@ -73,28 +73,40 @@ type LifecycleRule struct {
 	NonVersionTransitions []LifecycleVersionTransition `xml:"NoncurrentVersionTransition,omitempty"`
 }
 
-// LifecycleExpiration defines the rule's expiration property
+// LifecycleTransition defines the rule's transition propery
+type LifecycleFilter struct {
+	XMLName xml.Name     `xml:"Filter"`
+	And     LifecycleAnd `xml:"And,omitempty"` // the tags property
+}
+
+type LifecycleAnd struct {
+	XMLName xml.Name `xml:"And"`
+	Prefix  string   `xml:"Prefix,omitempty"` // The object key prefix
+	Tag     []Tag    `xml:"Tag,omitempty"`    // the tags property
+}
+
+// LifecycleExpiration defines the rule's expiratio
+//n property
 type LifecycleExpiration struct {
 	XMLName                   xml.Name `xml:"Expiration"`
 	Days                      int      `xml:"Days,omitempty"`                      // Relative expiration time: The expiration time in days after the last modified time
 	Date                      string   `xml:"Date,omitempty"`                      // Absolute expiration time: The expiration time in date, not recommended
-	CreatedBeforeDate         string   `xml:"CreatedBeforeDate,omitempty"`         // objects created before the date will be expired
 	ExpiredObjectDeleteMarker *bool    `xml:"ExpiredObjectDeleteMarker,omitempty"` // Specifies whether the expired delete tag is automatically deleted
 }
 
 // LifecycleTransition defines the rule's transition propery
 type LifecycleTransition struct {
-	XMLName           xml.Name         `xml:"Transition"`
-	Days              int              `xml:"Days,omitempty"`              // Relative transition time: The transition time in days after the last modified time
-	CreatedBeforeDate string           `xml:"CreatedBeforeDate,omitempty"` // objects created before the date will be expired
-	StorageClass      StorageClassType `xml:"StorageClass,omitempty"`      // Specifies the target storage type
+	XMLName      xml.Name         `xml:"Transition"`
+	Days         int              `xml:"Days,omitempty"`         // Relative transition time: The transition time in days after the last modified time
+	Date         string           `xml:"Date,omitempty"`         // objects created before the date will be expired
+	StorageClass StorageClassType `xml:"StorageClass,omitempty"` // Specifies the target storage type
 }
 
 // LifecycleAbortMultipartUpload defines the rule's abort multipart upload propery
 type LifecycleAbortMultipartUpload struct {
-	XMLName           xml.Name `xml:"AbortMultipartUpload"`
-	Days              int      `xml:"Days,omitempty"`              // Relative expiration time: The expiration time in days after the last modified time
-	CreatedBeforeDate string   `xml:"CreatedBeforeDate,omitempty"` // objects created before the date will be expired
+	XMLName xml.Name `xml:"AbortMultipartUpload"`
+	Days    int      `xml:"Days,omitempty"` // Relative expiration time: The expiration time in days after the last modified time
+	Date    string   `xml:"Date,omitempty"` // objects created before the date will be expired
 }
 
 // LifecycleVersionExpiration defines the rule's NoncurrentVersionExpiration propery
@@ -110,7 +122,7 @@ type LifecycleVersionTransition struct {
 	StorageClass   StorageClassType `xml:"StorageClass,omitempty"`
 }
 
-const iso8601DateFormat = "2006-01-02T15:04:05.000Z"
+const Iso8601DateFormat = "2006-01-02T00:00:00+08:00"
 
 // BuildLifecycleRuleByDays builds a lifecycle rule objects will expiration in days after the last modified time
 func BuildLifecycleRuleByDays(id, prefix string, status bool, days int) LifecycleRule {
@@ -118,7 +130,7 @@ func BuildLifecycleRuleByDays(id, prefix string, status bool, days int) Lifecycl
 	if !status {
 		statusStr = "Disabled"
 	}
-	return LifecycleRule{ID: id, Prefix: prefix, Status: statusStr,
+	return LifecycleRule{ID: id, Status: statusStr,
 		Expiration: &LifecycleExpiration{Days: days}}
 }
 
@@ -128,8 +140,8 @@ func BuildLifecycleRuleByDate(id, prefix string, status bool, year, month, day i
 	if !status {
 		statusStr = "Disabled"
 	}
-	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).Format(iso8601DateFormat)
-	return LifecycleRule{ID: id, Prefix: prefix, Status: statusStr,
+	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).Format(Iso8601DateFormat)
+	return LifecycleRule{ID: id, Status: statusStr,
 		Expiration: &LifecycleExpiration{Date: date}}
 }
 
@@ -145,16 +157,16 @@ func verifyLifecycleRules(rules []LifecycleRule) error {
 
 		abortMPU := rule.AbortMultipartUpload
 		if abortMPU != nil {
-			if (abortMPU.Days != 0 && abortMPU.CreatedBeforeDate != "") || (abortMPU.Days == 0 && abortMPU.CreatedBeforeDate == "") {
-				return fmt.Errorf("invalid abort multipart upload lifecycle, must be set one of CreatedBeforeDate and Days")
+			if (abortMPU.Days != 0 && abortMPU.Date != "") || (abortMPU.Days == 0 && abortMPU.Date == "") {
+				return fmt.Errorf("invalid abort multipart upload lifecycle, must be set one of Date and Days")
 			}
 		}
 
 		transitions := rule.Transitions
 		if len(transitions) > 0 {
 			for _, transition := range transitions {
-				if (transition.Days != 0 && transition.CreatedBeforeDate != "") || (transition.Days == 0 && transition.CreatedBeforeDate == "") {
-					return fmt.Errorf("invalid transition lifecycle, must be set one of CreatedBeforeDate and Days")
+				if (transition.Days != 0 && transition.Date != "") || (transition.Days == 0 && transition.Date == "") {
+					return fmt.Errorf("invalid transition lifecycle, must be set one of Date and Days")
 				}
 			}
 		}
@@ -188,6 +200,7 @@ type GetBucketRefererResult RefererXML
 type LoggingXML struct {
 	XMLName        xml.Name       `xml:"BucketLoggingStatus"`
 	LoggingEnabled LoggingEnabled `xml:"LoggingEnabled"` // The logging configuration information
+	Xmlns          string         `xml:"xmlns,attr"`
 }
 
 type loggingXMLEmpty struct {
@@ -288,6 +301,7 @@ type GetBucketWebsiteResult WebsiteXML
 type CORSXML struct {
 	XMLName   xml.Name   `xml:"CORSConfiguration"`
 	CORSRules []CORSRule `xml:"CORSRule"` // CORS rules
+	Xmlns     string     `xml:"xmlns,attr"`
 }
 
 // CORSRule defines CORS rules
@@ -314,6 +328,7 @@ type BucketInfo struct {
 	XMLName                xml.Name  `xml:"Bucket"`
 	Name                   string    `xml:"Name"`                     // Bucket name
 	Location               string    `xml:"Location"`                 // Bucket datacenter
+	Region                 string    `xml:"Region"`                   // Bucket datacenter
 	CreationDate           time.Time `xml:"CreationDate"`             // Bucket creation time
 	ExtranetEndpoint       string    `xml:"ExtranetEndpoint"`         // Bucket external endpoint
 	IntranetEndpoint       string    `xml:"IntranetEndpoint"`         // Bucket internal endpoint
