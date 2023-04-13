@@ -14,7 +14,7 @@ func CreateBucketSample() {
 		HandleError(err)
 	}
 
-	DeleteTestBucketAndObject(bucketName)
+	//	DeleteTestBucketAndObject(bucketName)
 
 	// Case 1: Create a bucket with default parameters
 	err = client.CreateBucket(bucketName)

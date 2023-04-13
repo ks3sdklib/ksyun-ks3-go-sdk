@@ -205,6 +205,7 @@ type LoggingXML struct {
 
 type loggingXMLEmpty struct {
 	XMLName xml.Name `xml:"BucketLoggingStatus"`
+	Xmlns   string   `xml:"xmlns,attr"`
 }
 
 // LoggingEnabled defines the logging configuration information

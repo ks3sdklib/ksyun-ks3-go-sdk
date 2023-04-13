@@ -334,10 +334,11 @@ func (client Client) SetBucketLifecycleXml(bucketName string, xmlBody string, op
 	buffer := new(bytes.Buffer)
 	buffer.Write([]byte(xmlBody))
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
-
+	headers[HTTPHeaderContentMD5] = md5
 	params := map[string]interface{}{}
 	params["lifecycle"] = nil
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
@@ -504,6 +505,7 @@ func (client Client) SetBucketLogging(bucketName, targetBucket, targetPrefix str
 		bs, err = xml.Marshal(lxml)
 	} else {
 		lxml := loggingXMLEmpty{}
+		lxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
 		bs, err = xml.Marshal(lxml)
 	}
 
@@ -535,12 +537,27 @@ func (client Client) SetBucketLogging(bucketName, targetBucket, targetPrefix str
 // error    it's nil if no error, otherwise it's an error object.
 //
 func (client Client) DeleteBucketLogging(bucketName string, options ...Option) error {
-	params := map[string]interface{}{}
-	params["logging"] = nil
-	resp, err := client.do("DELETE", bucketName, params, nil, nil, options...)
+	var err error
+	var bs []byte
+
+	lxml := loggingXMLEmpty{}
+	lxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
+	bs, err = xml.Marshal(lxml)
+
 	if err != nil {
 		return err
 	}
+
+	buffer := new(bytes.Buffer)
+	buffer.Write(bs)
+
+	contentType := http.DetectContentType(buffer.Bytes())
+	headers := map[string]string{}
+	headers[HTTPHeaderContentType] = contentType
+
+	params := map[string]interface{}{}
+	params["logging"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
 	defer resp.Body.Close()
 	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
 }
