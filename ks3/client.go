@@ -559,7 +559,7 @@ func (client Client) DeleteBucketLogging(bucketName string, options ...Option) e
 	params["logging"] = nil
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
 	defer resp.Body.Close()
-	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
 }
 
 // GetBucketLogging gets the bucket's logging settings
