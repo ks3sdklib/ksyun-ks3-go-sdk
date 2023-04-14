@@ -4,6 +4,8 @@ package ks3
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -193,13 +195,14 @@ func (client Client) ListBuckets(options ...Option) (ListBucketsResult, error) {
 // error    it's nil if no error, otherwise it's an error object.
 //
 func (client Client) IsBucketExist(bucketName string) (bool, error) {
-	listRes, err := client.ListBuckets(Prefix(bucketName), MaxKeys(1))
+	listRes, err := client.ListBuckets()
 	if err != nil {
 		return false, err
 	}
-
-	if len(listRes.Buckets) == 1 && listRes.Buckets[0].Name == bucketName {
-		return true, nil
+	for _, bucketInfo := range listRes.Buckets {
+		if bucketInfo.Name == bucketName {
+			return true, err
+		}
 	}
 	return false, nil
 }
@@ -309,9 +312,12 @@ func (client Client) SetBucketLifecycle(bucketName string, rules []LifecycleRule
 	buffer := new(bytes.Buffer)
 	buffer.Write(bs)
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
 
 	params := map[string]interface{}{}
 	params["lifecycle"] = nil
@@ -328,10 +334,11 @@ func (client Client) SetBucketLifecycleXml(bucketName string, xmlBody string, op
 	buffer := new(bytes.Buffer)
 	buffer.Write([]byte(xmlBody))
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
-
+	headers[HTTPHeaderContentMD5] = md5
 	params := map[string]interface{}{}
 	params["lifecycle"] = nil
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
@@ -340,6 +347,19 @@ func (client Client) SetBucketLifecycleXml(bucketName string, xmlBody string, op
 	}
 	defer resp.Body.Close()
 	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+}
+func (client Client) GetBucketLifecycleXml(bucketName string, options ...Option) (string, error) {
+	params := map[string]interface{}{}
+	params["lifecycle"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	out := string(body)
+	return out, err
 }
 
 // DeleteBucketLifecycle deletes the bucket's lifecycle.
@@ -384,6 +404,10 @@ func (client Client) GetBucketLifecycle(bucketName string, options ...Option) (G
 	for k, rule := range out.Rules {
 		if len(rule.NonVersionTransitions) > 0 {
 			out.Rules[k].NonVersionTransition = &(out.Rules[k].NonVersionTransitions[0])
+		}
+		//2023-03-28T00:00:00.000+08:00
+		if rule.Expiration != nil && &rule.Expiration.Date != nil && strings.Contains(rule.Expiration.Date, ".000") {
+			rule.Expiration.Date = strings.ReplaceAll(rule.Expiration.Date, ".000", "")
 		}
 	}
 	return out, err
@@ -477,9 +501,11 @@ func (client Client) SetBucketLogging(bucketName, targetBucket, targetPrefix str
 		lxml := LoggingXML{}
 		lxml.LoggingEnabled.TargetBucket = targetBucket
 		lxml.LoggingEnabled.TargetPrefix = targetPrefix
+		lxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
 		bs, err = xml.Marshal(lxml)
 	} else {
 		lxml := loggingXMLEmpty{}
+		lxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
 		bs, err = xml.Marshal(lxml)
 	}
 
@@ -511,14 +537,29 @@ func (client Client) SetBucketLogging(bucketName, targetBucket, targetPrefix str
 // error    it's nil if no error, otherwise it's an error object.
 //
 func (client Client) DeleteBucketLogging(bucketName string, options ...Option) error {
-	params := map[string]interface{}{}
-	params["logging"] = nil
-	resp, err := client.do("DELETE", bucketName, params, nil, nil, options...)
+	var err error
+	var bs []byte
+
+	lxml := loggingXMLEmpty{}
+	lxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
+	bs, err = xml.Marshal(lxml)
+
 	if err != nil {
 		return err
 	}
+
+	buffer := new(bytes.Buffer)
+	buffer.Write(bs)
+
+	contentType := http.DetectContentType(buffer.Bytes())
+	headers := map[string]string{}
+	headers[HTTPHeaderContentType] = contentType
+
+	params := map[string]interface{}{}
+	params["logging"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
 	defer resp.Body.Close()
-	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
 }
 
 // GetBucketLogging gets the bucket's logging settings
@@ -701,6 +742,16 @@ func (client Client) GetBucketWebsiteXml(bucketName string, options ...Option) (
 	return out, err
 }
 
+func computeMD5Hash(input []byte) []byte {
+	h := md5.New()
+	h.Write(input)
+	return h.Sum(nil)
+}
+
+func encodeAsString(bytes []byte) string {
+	return base64.StdEncoding.EncodeToString(bytes)
+}
+
 // SetBucketCORS sets the bucket's CORS rules
 //
 // For more information, please check out https://help.ksyun.com/document_detail/ks3/user_guide/security_management/cors.html
@@ -721,7 +772,7 @@ func (client Client) SetBucketCORS(bucketName string, corsRules []CORSRule, opti
 		cr.MaxAgeSeconds = v.MaxAgeSeconds
 		corsxml.CORSRules = append(corsxml.CORSRules, cr)
 	}
-
+	corsxml.Xmlns = "http://s3.amazonaws.com/doc/2006-03-01/"
 	bs, err := xml.Marshal(corsxml)
 	if err != nil {
 		return err
@@ -729,9 +780,12 @@ func (client Client) SetBucketCORS(bucketName string, corsRules []CORSRule, opti
 	buffer := new(bytes.Buffer)
 	buffer.Write(bs)
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
 
 	params := map[string]interface{}{}
 	params["cors"] = nil
