@@ -137,12 +137,12 @@ func IfNoneMatch(value string) Option {
 
 // CopySource is an option to set X-Kss-Copy-Source header
 func CopySource(sourceBucket, sourceObject string) Option {
-	return setHeader(HTTPHeaderKs3CopySource, "/"+sourceBucket+"/"+sourceObject)
+	return setHeader(HTTPHeaderKs3CopySource, "/"+sourceBucket+"/"+encodeKS3Str(sourceObject))
 }
 
 // CopySourceVersion is an option to set X-Kss-Copy-Source header,include versionId
 func CopySourceVersion(sourceBucket, sourceObject string, versionId string) Option {
-	return setHeader(HTTPHeaderKs3CopySource, "/"+sourceBucket+"/"+sourceObject+"?"+"versionId="+versionId)
+	return setHeader(HTTPHeaderKs3CopySource, "/"+sourceBucket+"/"+encodeKS3Str(sourceObject)+"?"+"versionId="+versionId)
 }
 
 // CopySourceRange is an option to set X-Kss-Copy-Source header
