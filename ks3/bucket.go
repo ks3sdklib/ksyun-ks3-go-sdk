@@ -238,10 +238,10 @@ func (bucket Bucket) CopyObject(srcObjectKey, destObjectKey string, options ...O
 	versionIdKey := "versionId"
 	versionId, _ := FindOption(options, versionIdKey, nil)
 	if versionId == nil {
-		options = append(options, CopySource(bucket.BucketName, url.QueryEscape(srcObjectKey)))
+		options = append(options, CopySource(bucket.BucketName, srcObjectKey))
 	} else {
 		options = DeleteOption(options, versionIdKey)
-		options = append(options, CopySourceVersion(bucket.BucketName, url.QueryEscape(srcObjectKey), versionId.(string)))
+		options = append(options, CopySourceVersion(bucket.BucketName, srcObjectKey, versionId.(string)))
 	}
 
 	params := map[string]interface{}{}
@@ -296,10 +296,10 @@ func (bucket Bucket) copy(srcObjectKey, destBucketName, destObjectKey string, op
 	versionIdKey := "versionId"
 	versionId, _ := FindOption(options, versionIdKey, nil)
 	if versionId == nil {
-		options = append(options, CopySource(bucket.BucketName, url.QueryEscape(srcObjectKey)))
+		options = append(options, CopySource(bucket.BucketName, srcObjectKey))
 	} else {
 		options = DeleteOption(options, versionIdKey)
-		options = append(options, CopySourceVersion(bucket.BucketName, url.QueryEscape(srcObjectKey), versionId.(string)))
+		options = append(options, CopySourceVersion(bucket.BucketName, srcObjectKey, versionId.(string)))
 	}
 
 	headers := make(map[string]string)
