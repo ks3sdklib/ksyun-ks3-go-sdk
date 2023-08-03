@@ -247,7 +247,7 @@ func encodeKS3Str(str string) string {
 	objectName = strings.ReplaceAll(objectName, "*", "%2A")
 	objectName = strings.ReplaceAll(objectName, "%7E", "~")
 	objectName = strings.ReplaceAll(objectName, "%2F", "/")
-	objectName = strings.Replace(objectName, "//", "/%2F", 1)
+	objectName = strings.ReplaceAll(objectName, "//", "/%2F")
 	return objectName
 }
 
