@@ -124,7 +124,6 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 
 	expiration = LifecycleExpiration{
 		Date: "2015-11-11T00:00:00.000Z",
-		Date: "2015-11-11T00:00:00.000Z",
 	}
 	rule = LifecycleRule{
 		ID:         "ruleID",
@@ -138,7 +137,6 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 
 	expiration = LifecycleExpiration{
 		Days: 0,
-		Date: "",
 		Date: "",
 	}
 	rule = LifecycleRule{
