@@ -332,12 +332,14 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 	}
 
 	if err == nil && resp != nil {
-		ks3Resp, err := conn.handleResponse(resp, crc)
-		if err == nil {
+		ks3Resp, e := conn.handleResponse(resp, crc)
+		if e == nil {
 			// Transfer completed
 			event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength, 0)
 			publishProgress(listener, event)
-			return ks3Resp, err
+			return ks3Resp, e
+		} else {
+			err = e
 		}
 	}
 
