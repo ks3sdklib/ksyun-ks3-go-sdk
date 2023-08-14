@@ -65,40 +65,61 @@ const (
 type StorageClassType string
 
 const (
-	// StorageStandard standard
+	StorageExtremePL1 StorageClassType = "EXTREME_PL1"
+
+	StorageExtremePL2 StorageClassType = "EXTREME_PL2"
+
+	StorageExtremePL3 StorageClassType = "EXTREME_PL3"
+
+	// StorageStandard STANDARD
 	StorageStandard StorageClassType = "STANDARD"
 
-	// StorageIA infrequent access
+	// StorageIA STANDARD_IA
 	StorageIA StorageClassType = "STANDARD_IA"
 
-	// StorageArchive archive
+	// StorageDeepIA DEEP_IA
+	StorageDeepIA StorageClassType = "DEEP_IA"
+
+	// StorageArchive ARCHIVE
 	StorageArchive StorageClassType = "ARCHIVE"
 
-	// DEEPIA archive
-	StorageDeepIA StorageClassType = "DEEP_IA"
+	// StorageDeepColdArchive DEEP_COLD_ARCHIVE
+	StorageDeepColdArchive StorageClassType = "DEEP_COLD_ARCHIVE"
 )
 
 type BucketType string
 
 const (
+	TypeExtremePL1  BucketType = "EXTREME_PL1"
+	TypeExtremePL2  BucketType = "EXTREME_PL2"
+	TypeExtremePL3  BucketType = "EXTREME_PL3"
 	TypeNormal  BucketType = "NORMAL"
 	TypeIA      BucketType = "IA"
 	TypeArchive BucketType = "ARCHIVE"
 	TypeDeepIA  BucketType = "DEEP_IA"
+	TypeDeepColdArchive  BucketType = "DEEP_COLD_ARCHIVE"
 )
 
 var BucketTypeList = []BucketType{
+	TypeExtremePL1,
+	TypeExtremePL2,
+	TypeExtremePL3,
 	TypeNormal,
 	TypeIA,
 	TypeArchive,
 	TypeDeepIA,
+	TypeDeepColdArchive,
 }
 
 var ObjectStorageClassList = []StorageClassType{
+	StorageExtremePL1,
+	StorageExtremePL2,
+	StorageExtremePL3,
 	StorageStandard,
 	StorageIA,
 	StorageDeepIA,
 	StorageArchive,
+	StorageDeepColdArchive,
 }
 
 type DataRedundancyType string
