@@ -97,7 +97,6 @@ const (
 	TypeIA      BucketType = "IA"
 	TypeArchive BucketType = "ARCHIVE"
 	TypeDeepIA  BucketType = "DEEP_IA"
-	TypeDeepColdArchive  BucketType = "DEEP_COLD_ARCHIVE"
 )
 
 var BucketTypeList = []BucketType{
@@ -108,7 +107,6 @@ var BucketTypeList = []BucketType{
 	TypeIA,
 	TypeArchive,
 	TypeDeepIA,
-	TypeDeepColdArchive,
 }
 
 var ObjectStorageClassList = []StorageClassType{
