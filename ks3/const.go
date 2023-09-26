@@ -226,7 +226,7 @@ const (
 	HTTPHeaderKs3MetadataDirective           = "X-Kss-Metadata-Directive"
 	HTTPHeaderKs3NextAppendPosition          = "X-Kss-Next-Append-Position"
 	HTTPHeaderKs3RequestID                   = "X-Kss-Request-Id"
-	HTTPHeaderKs3CRC64                       = "X-Kss-Hash-Crc64ecma"
+	HTTPHeaderKs3CRC64                       = "X-Kss-Checksum-Crc64ecma"
 	HTTPHeaderKs3SymlinkTarget               = "X-Kss-Symlink-Target"
 	HTTPHeaderKs3StorageClass                = "X-Kss-Storage-Class"
 	HTTPHeaderKs3Callback                    = "X-Kss-Callback"

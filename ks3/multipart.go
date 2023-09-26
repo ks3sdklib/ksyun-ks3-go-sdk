@@ -123,6 +123,7 @@ func (bucket Bucket) DoUploadPart(request *UploadPartRequest, options []Option) 
 	part := UploadPart{
 		ETag:       resp.Headers.Get(HTTPHeaderEtag),
 		PartNumber: request.PartNumber,
+		Crc64:      resp.Headers.Get(HTTPHeaderKs3CRC64),
 	}
 
 	if bucket.GetConfig().IsEnableCRC {
@@ -184,6 +185,7 @@ func (bucket Bucket) UploadPartCopy(imur InitiateMultipartUploadResult, srcBucke
 	}
 	part.ETag = out.ETag
 	part.PartNumber = partNumber
+	part.Crc64 = out.Crc64
 
 	return part, nil
 }
