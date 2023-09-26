@@ -65,11 +65,11 @@ const (
 type StorageClassType string
 
 const (
-	StorageExtremePL1 StorageClassType = "EXTREME_PL1"
+	StorageExtremePL3 StorageClassType = "EXTREME_PL3"
 
 	StorageExtremePL2 StorageClassType = "EXTREME_PL2"
 
-	StorageExtremePL3 StorageClassType = "EXTREME_PL3"
+	StorageExtremePL1 StorageClassType = "EXTREME_PL1"
 
 	// StorageStandard STANDARD
 	StorageStandard StorageClassType = "STANDARD"
@@ -90,9 +90,9 @@ const (
 type BucketType string
 
 const (
-	TypeExtremePL1  BucketType = "EXTREME_PL1"
-	TypeExtremePL2  BucketType = "EXTREME_PL2"
 	TypeExtremePL3  BucketType = "EXTREME_PL3"
+	TypeExtremePL2  BucketType = "EXTREME_PL2"
+	TypeExtremePL1  BucketType = "EXTREME_PL1"
 	TypeNormal  BucketType = "NORMAL"
 	TypeIA      BucketType = "IA"
 	TypeArchive BucketType = "ARCHIVE"
@@ -100,9 +100,9 @@ const (
 )
 
 var BucketTypeList = []BucketType{
-	TypeExtremePL1,
-	TypeExtremePL2,
 	TypeExtremePL3,
+	TypeExtremePL2,
+	TypeExtremePL1,
 	TypeNormal,
 	TypeIA,
 	TypeArchive,
@@ -110,9 +110,9 @@ var BucketTypeList = []BucketType{
 }
 
 var ObjectStorageClassList = []StorageClassType{
-	StorageExtremePL1,
-	StorageExtremePL2,
 	StorageExtremePL3,
+	StorageExtremePL2,
+	StorageExtremePL1,
 	StorageStandard,
 	StorageIA,
 	StorageDeepIA,
