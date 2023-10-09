@@ -458,6 +458,12 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 		req.Header.Set(HTTPHeaderContentMD5, md5)
 	}
 
+	// crc64
+	if body != nil && conn.config.IsEnableCRC && req.Header.Get(HTTPHeaderKs3CRC64) == "" {
+		crc = NewCRC(CrcTable(), initCRC)
+		reader = TeeReader(reader, crc, req.ContentLength, listener, tracker)
+	}
+
 	// HTTP body
 	rc, ok := reader.(io.ReadCloser)
 	if !ok && reader != nil {
