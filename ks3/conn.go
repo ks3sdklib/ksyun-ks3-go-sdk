@@ -329,24 +329,28 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 
 	resp, err := conn.client.Do(req)
 
-	if err != nil {
-		// Transfer failed
-		event = newProgressEvent(TransferFailedEvent, tracker.completedBytes, req.ContentLength, 0)
-		publishProgress(listener, event)
-		conn.config.WriteLog(Debug, "[Resp:%p]http error:%s\n", req, err.Error())
-		return nil, err
-	}
-
-	if conn.config.LogLevel >= Debug {
-		//print out http resp
+	if conn.config.LogLevel >= Debug && resp != nil {
+		// print out http resp
 		conn.LoggerHTTPResp(req, resp)
 	}
 
-	// Transfer completed
-	event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength, 0)
-	publishProgress(listener, event)
+	if err == nil && resp != nil {
+		ks3Resp, e := conn.handleResponse(resp, crc)
+		if e == nil {
+			// Transfer completed
+			event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength, 0)
+			publishProgress(listener, event)
+			return ks3Resp, e
+		} else {
+			err = e
+		}
+	}
 
-	return conn.handleResponse(resp, crc)
+	// Transfer failed
+	event = newProgressEvent(TransferFailedEvent, tracker.completedBytes, req.ContentLength, 0)
+	publishProgress(listener, event)
+	conn.config.WriteLog(Debug, "[Resp:%p]http error:%s\n", req, err.Error())
+	return nil, err
 }
 
 func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) string {
