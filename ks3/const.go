@@ -65,22 +65,34 @@ const (
 type StorageClassType string
 
 const (
-	// StorageStandard standard
+	StorageExtremePL3 StorageClassType = "EXTREME_PL3"
+
+	StorageExtremePL2 StorageClassType = "EXTREME_PL2"
+
+	StorageExtremePL1 StorageClassType = "EXTREME_PL1"
+
+	// StorageStandard STANDARD
 	StorageStandard StorageClassType = "STANDARD"
 
-	// StorageIA infrequent access
+	// StorageIA STANDARD_IA
 	StorageIA StorageClassType = "STANDARD_IA"
 
-	// StorageArchive archive
+	// StorageDeepIA DEEP_IA
+	StorageDeepIA StorageClassType = "DEEP_IA"
+
+	// StorageArchive ARCHIVE
 	StorageArchive StorageClassType = "ARCHIVE"
 
-	// DEEPIA archive
-	StorageDeepIA StorageClassType = "DEEP_IA"
+	// StorageDeepColdArchive DEEP_COLD_ARCHIVE
+	StorageDeepColdArchive StorageClassType = "DEEP_COLD_ARCHIVE"
 )
 
 type BucketType string
 
 const (
+	TypeExtremePL3  BucketType = "EXTREME_PL3"
+	TypeExtremePL2  BucketType = "EXTREME_PL2"
+	TypeExtremePL1  BucketType = "EXTREME_PL1"
 	TypeNormal  BucketType = "NORMAL"
 	TypeIA      BucketType = "IA"
 	TypeArchive BucketType = "ARCHIVE"
@@ -88,6 +100,9 @@ const (
 )
 
 var BucketTypeList = []BucketType{
+	TypeExtremePL3,
+	TypeExtremePL2,
+	TypeExtremePL1,
 	TypeNormal,
 	TypeIA,
 	TypeArchive,
@@ -95,10 +110,14 @@ var BucketTypeList = []BucketType{
 }
 
 var ObjectStorageClassList = []StorageClassType{
+	StorageExtremePL3,
+	StorageExtremePL2,
+	StorageExtremePL1,
 	StorageStandard,
 	StorageIA,
 	StorageDeepIA,
 	StorageArchive,
+	StorageDeepColdArchive,
 }
 
 type DataRedundancyType string
@@ -207,7 +226,7 @@ const (
 	HTTPHeaderKs3MetadataDirective           = "X-Kss-Metadata-Directive"
 	HTTPHeaderKs3NextAppendPosition          = "X-Kss-Next-Append-Position"
 	HTTPHeaderKs3RequestID                   = "X-Kss-Request-Id"
-	HTTPHeaderKs3CRC64                       = "X-Kss-Hash-Crc64ecma"
+	HTTPHeaderKs3CRC64                       = "X-Kss-Checksum-Crc64ecma"
 	HTTPHeaderKs3SymlinkTarget               = "X-Kss-Symlink-Target"
 	HTTPHeaderKs3StorageClass                = "X-Kss-Storage-Class"
 	HTTPHeaderKs3Callback                    = "X-Kss-Callback"
@@ -244,7 +263,7 @@ const (
 const (
 	MaxPartSize    = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
 	MinPartSize    = 100 * 1024             // Min part size, 100KB
-	MinPartSize5MB = 5*1024*1024 + 100      // part size, 5MB
+	MinPartSize5MB = 5*1024*1024      // part size, 5MB
 	FilePermMode   = os.FileMode(0664)      // Default file permission
 
 	TempFilePrefix = "ks3-go-temp-" // Temp file prefix
@@ -254,7 +273,7 @@ const (
 
 	NullVersion = "null"
 
-	Version = "v1.0.10" // Go SDK version
+	Version = "v1.0.15" // Go SDK version
 )
 
 // FrameType

@@ -490,6 +490,7 @@ type UploadPart struct {
 	XMLName    xml.Name `xml:"Part"`
 	PartNumber int      `xml:"PartNumber"` // Part number
 	ETag       string   `xml:"ETag"`       // ETag value of the part's data
+	Crc64      string   `xml:"ChecksumCRC64ECMA"` // checksum crc64 ecma
 }
 
 type UploadParts []UploadPart
@@ -511,6 +512,7 @@ type UploadPartCopyResult struct {
 	XMLName      xml.Name  `xml:"CopyObjectResult"`
 	LastModified time.Time `xml:"LastModified"` // Last modified time
 	ETag         string    `xml:"ETag"`         // ETag
+	Crc64        string     `xml:"ChecksumCRC64ECMA"` // checksum crc64 ecma
 }
 
 type completeMultipartUploadXML struct {
