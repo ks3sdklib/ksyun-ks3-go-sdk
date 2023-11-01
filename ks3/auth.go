@@ -47,6 +47,9 @@ func (conn Conn) getAdditionalHeaderKeys(req *http.Request) ([]string, map[strin
 // signHeader signs the header and sets it as the authorization header.
 func (conn Conn) signHeader(req *http.Request, canonicalizedResource string) {
 	akIf := conn.config.GetCredentials()
+	if akIf.GetAccessKeyID() == "" && akIf.GetAccessKeySecret() == "" && akIf.GetSecurityToken() == "" {
+		return
+	}
 	authorizationStr := ""
 	if conn.config.AuthVersion == AuthV2 {
 		additionalList, _ := conn.getAdditionalHeaderKeys(req)
