@@ -240,7 +240,7 @@ func (conn Conn) isParamSign(paramKey string) bool {
 	return false
 }
 
-//ks3 encode 字符串
+// ks3 encode 字符串
 func encodeKS3Str(str string) string {
 	objectName := url.QueryEscape(str)
 	objectName = strings.ReplaceAll(objectName, "+", "%20")
@@ -463,7 +463,7 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	}
 
 	// crc64
-	if body != nil && conn.config.IsEnableCRC && req.Header.Get(HTTPHeaderKs3CRC64) == "" {
+	if body != nil && reader != nil && conn.config.IsEnableCRC && req.Header.Get(HTTPHeaderKs3CRC64) == "" {
 		crc = NewCRC(CrcTable(), initCRC)
 		reader = TeeReader(reader, crc, req.ContentLength, listener, tracker)
 	}
