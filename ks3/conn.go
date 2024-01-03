@@ -443,6 +443,7 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	listener ProgressListener, tracker *readerTracker) (*os.File, hash.Hash64) {
 	var file *os.File
 	var crc hash.Hash64
+	var teeReader io.ReadCloser
 	reader := body
 	readerLen, err := GetReaderLen(reader)
 	if err == nil {
@@ -453,7 +454,7 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	}
 	req.Header.Set(HTTPHeaderContentLength, strconv.FormatInt(req.ContentLength, 10))
 	if reader != nil {
-		reader = TeeReader(reader, nil, req.ContentLength, listener, tracker)
+		teeReader = TeeReader(reader, nil, req.ContentLength, listener, tracker)
 	}
 	// MD5
 	if body != nil && conn.config.IsEnableMD5 && req.Header.Get(HTTPHeaderContentMD5) == "" {
@@ -465,11 +466,11 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	// crc64
 	if body != nil && reader != nil && conn.config.IsEnableCRC && req.Header.Get(HTTPHeaderKs3CRC64) == "" {
 		crc = NewCRC(CrcTable(), initCRC)
-		reader = TeeReader(reader, crc, req.ContentLength, listener, tracker)
+		teeReader = TeeReader(reader, crc, req.ContentLength, listener, tracker)
 	}
 
 	// HTTP body
-	rc, ok := reader.(io.ReadCloser)
+	rc, ok := teeReader.(io.ReadCloser)
 	if !ok && reader != nil {
 		rc = ioutil.NopCloser(reader)
 	}
