@@ -831,13 +831,6 @@ func (bucket Bucket) RestoreObject(objectKey string, options ...Option) error {
 
 // RestoreObjectDetail support more features than RestoreObject
 func (bucket Bucket) RestoreObjectDetail(objectKey string, restoreConfig RestoreConfiguration, options ...Option) error {
-	if restoreConfig.JobParameters != nil {
-		if restoreConfig.JobParameters.Tier == "" {
-			// Expedited, Standard, Bulk
-			restoreConfig.JobParameters.Tier = string(RestoreStandard)
-		}
-	}
-
 	if restoreConfig.Days == 0 {
 		restoreConfig.Days = 1
 	}
