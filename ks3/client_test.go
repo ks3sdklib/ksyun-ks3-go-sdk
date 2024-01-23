@@ -755,9 +755,9 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	err = client.SetBucketLifecycle(bucketNameTest, rules)
 	c.Assert(err, NotNil)
 
-	//invalid value of CreatedBeforeDate
+	//invalid value of Date
 	expiration = LifecycleExpiration{
-		CreatedBeforeDate: RandStr(10),
+		Date: RandStr(10),
 	}
 	rule = LifecycleRule{
 		ID:         "rule1",
@@ -770,21 +770,21 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	c.Assert(err, NotNil)
 
 	//invalid value of Days
-	abortMPU := LifecycleAbortMultipartUpload{
-		Days: -30,
+	abortMPU := LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: -30,
 	}
 	rule = LifecycleRule{
-		ID:                   "rule1",
-		Prefix:               "one",
-		Status:               "Enabled",
-		AbortMultipartUpload: &abortMPU,
+		ID:                             "rule1",
+		Prefix:                         "one",
+		Status:                         "Enabled",
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 	rules = []LifecycleRule{rule}
 	err = client.SetBucketLifecycle(bucketNameTest, rules)
 	c.Assert(err, NotNil)
 
 	expiration = LifecycleExpiration{
-		CreatedBeforeDate: "2015-11-11T00:00:00.000Z",
+		Date: "2015-11-11T00:00:00.000Z",
 	}
 	rule1 := LifecycleRule{
 		ID:         "rule1",
@@ -793,15 +793,15 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 		Expiration: &expiration,
 	}
 
-	abortMPU = LifecycleAbortMultipartUpload{
-		Days: 30,
+	abortMPU = LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 30,
 	}
 	rule2 := LifecycleRule{
-		ID:                   "rule2",
-		Prefix:               "two",
-		Status:               "Enabled",
-		Expiration:           &expiration,
-		AbortMultipartUpload: &abortMPU,
+		ID:                             "rule2",
+		Prefix:                         "two",
+		Status:                         "Enabled",
+		Expiration:                     &expiration,
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 
 	transition1 := LifecycleTransition{
@@ -814,11 +814,11 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	}
 	transitions := []LifecycleTransition{transition1, transition2}
 	rule3 := LifecycleRule{
-		ID:                   "rule3",
-		Prefix:               "three",
-		Status:               "Enabled",
-		AbortMultipartUpload: &abortMPU,
-		Transitions:          transitions,
+		ID:                             "rule3",
+		Prefix:                         "three",
+		Status:                         "Enabled",
+		AbortIncompleteMultipartUpload: &abortMPU,
+		Transitions:                    transitions,
 	}
 
 	// Set single rule
@@ -831,7 +831,7 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	c.Assert(len(res.Rules), Equals, 1)
 	c.Assert(res.Rules[0].ID, Equals, "rule1")
 	c.Assert(res.Rules[0].Expiration, NotNil)
-	c.Assert(res.Rules[0].Expiration.CreatedBeforeDate, Equals, "2015-11-11T00:00:00.000Z")
+	c.Assert(res.Rules[0].Expiration.Date, Equals, "2015-11-11T00:00:00.000Z")
 
 	err = client.DeleteBucketLifecycle(bucketNameTest)
 	c.Assert(err, IsNil)
@@ -846,12 +846,12 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	c.Assert(len(res.Rules), Equals, 2)
 	c.Assert(res.Rules[0].ID, Equals, "rule1")
 	c.Assert(res.Rules[0].Expiration, NotNil)
-	c.Assert(res.Rules[0].Expiration.CreatedBeforeDate, Equals, "2015-11-11T00:00:00.000Z")
+	c.Assert(res.Rules[0].Expiration.Date, Equals, "2015-11-11T00:00:00.000Z")
 	c.Assert(res.Rules[1].ID, Equals, "rule2")
 	c.Assert(res.Rules[1].Expiration, NotNil)
-	c.Assert(res.Rules[1].Expiration.CreatedBeforeDate, Equals, "2015-11-11T00:00:00.000Z")
-	c.Assert(res.Rules[1].AbortMultipartUpload, NotNil)
-	c.Assert(res.Rules[1].AbortMultipartUpload.Days, Equals, 30)
+	c.Assert(res.Rules[1].Expiration.Date, Equals, "2015-11-11T00:00:00.000Z")
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload, NotNil)
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload.DaysAfterInitiation, Equals, 30)
 
 	err = client.DeleteBucketLifecycle(bucketNameTest)
 	c.Assert(err, IsNil)
@@ -866,12 +866,12 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	c.Assert(len(res.Rules), Equals, 2)
 	c.Assert(res.Rules[0].ID, Equals, "rule2")
 	c.Assert(res.Rules[0].Expiration, NotNil)
-	c.Assert(res.Rules[0].Expiration.CreatedBeforeDate, Equals, "2015-11-11T00:00:00.000Z")
-	c.Assert(res.Rules[0].AbortMultipartUpload, NotNil)
-	c.Assert(res.Rules[0].AbortMultipartUpload.Days, Equals, 30)
+	c.Assert(res.Rules[0].Expiration.Date, Equals, "2015-11-11T00:00:00.000Z")
+	c.Assert(res.Rules[0].AbortIncompleteMultipartUpload, NotNil)
+	c.Assert(res.Rules[0].AbortIncompleteMultipartUpload.DaysAfterInitiation, Equals, 30)
 	c.Assert(res.Rules[1].ID, Equals, "rule3")
-	c.Assert(res.Rules[1].AbortMultipartUpload, NotNil)
-	c.Assert(res.Rules[1].AbortMultipartUpload.Days, Equals, 30)
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload, NotNil)
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload.DaysAfterInitiation, Equals, 30)
 	c.Assert(len(res.Rules[1].Transitions), Equals, 2)
 	c.Assert(res.Rules[1].Transitions[0].StorageClass, Equals, StorageIA)
 	c.Assert(res.Rules[1].Transitions[0].Days, Equals, 3)
@@ -891,10 +891,10 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	c.Assert(len(res.Rules), Equals, 2)
 	c.Assert(res.Rules[0].ID, Equals, "rule1")
 	c.Assert(res.Rules[0].Expiration, NotNil)
-	c.Assert(res.Rules[0].Expiration.CreatedBeforeDate, Equals, "2015-11-11T00:00:00.000Z")
+	c.Assert(res.Rules[0].Expiration.Date, Equals, "2015-11-11T00:00:00.000Z")
 	c.Assert(res.Rules[1].ID, Equals, "rule3")
-	c.Assert(res.Rules[1].AbortMultipartUpload, NotNil)
-	c.Assert(res.Rules[1].AbortMultipartUpload.Days, Equals, 30)
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload, NotNil)
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload.DaysAfterInitiation, Equals, 30)
 	c.Assert(len(res.Rules[1].Transitions), Equals, 2)
 	c.Assert(res.Rules[1].Transitions[0].StorageClass, Equals, StorageIA)
 	c.Assert(res.Rules[1].Transitions[0].Days, Equals, 3)
@@ -914,15 +914,15 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 	c.Assert(len(res.Rules), Equals, 3)
 	c.Assert(res.Rules[0].ID, Equals, "rule1")
 	c.Assert(res.Rules[0].Expiration, NotNil)
-	c.Assert(res.Rules[0].Expiration.CreatedBeforeDate, Equals, "2015-11-11T00:00:00.000Z")
+	c.Assert(res.Rules[0].Expiration.Date, Equals, "2015-11-11T00:00:00.000Z")
 	c.Assert(res.Rules[1].ID, Equals, "rule2")
 	c.Assert(res.Rules[1].Expiration, NotNil)
-	c.Assert(res.Rules[1].Expiration.CreatedBeforeDate, Equals, "2015-11-11T00:00:00.000Z")
-	c.Assert(res.Rules[1].AbortMultipartUpload, NotNil)
-	c.Assert(res.Rules[1].AbortMultipartUpload.Days, Equals, 30)
+	c.Assert(res.Rules[1].Expiration.Date, Equals, "2015-11-11T00:00:00.000Z")
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload, NotNil)
+	c.Assert(res.Rules[1].AbortIncompleteMultipartUpload.DaysAfterInitiation, Equals, 30)
 	c.Assert(res.Rules[2].ID, Equals, "rule3")
-	c.Assert(res.Rules[2].AbortMultipartUpload, NotNil)
-	c.Assert(res.Rules[2].AbortMultipartUpload.Days, Equals, 30)
+	c.Assert(res.Rules[2].AbortIncompleteMultipartUpload, NotNil)
+	c.Assert(res.Rules[2].AbortIncompleteMultipartUpload.DaysAfterInitiation, Equals, 30)
 	c.Assert(len(res.Rules[2].Transitions), Equals, 2)
 	c.Assert(res.Rules[2].Transitions[0].StorageClass, Equals, StorageIA)
 	c.Assert(res.Rules[2].Transitions[0].Days, Equals, 3)
@@ -1038,16 +1038,18 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleAboutVersionObject(c *C) {
 		NoncurrentDays: 20,
 	}
 
-	versionTransition := LifecycleVersionTransition{
+	versionTransition1 := LifecycleVersionTransition{
 		NoncurrentDays: 10,
 		StorageClass:   "IA",
 	}
 
+	versionTransitions := []LifecycleVersionTransition{versionTransition1}
+
 	rule := LifecycleRule{
-		Status:               "Enabled",
-		Expiration:           &expiration,
-		NonVersionExpiration: &versionExpiration,
-		NonVersionTransition: &versionTransition,
+		Status:                "Enabled",
+		Expiration:            &expiration,
+		NonVersionExpiration:  &versionExpiration,
+		NonVersionTransitions: versionTransitions,
 	}
 	rules := []LifecycleRule{rule}
 
@@ -1063,8 +1065,8 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleAboutVersionObject(c *C) {
 	c.Assert(*(res.Rules[0].Expiration.ExpiredObjectDeleteMarker), Equals, true)
 
 	c.Assert(res.Rules[0].NonVersionExpiration.NoncurrentDays, Equals, 20)
-	c.Assert(res.Rules[0].NonVersionTransition.NoncurrentDays, Equals, 10)
-	c.Assert(res.Rules[0].NonVersionTransition.StorageClass, Equals, StorageClassType("IA"))
+	c.Assert(res.Rules[0].NonVersionTransitions[0].NoncurrentDays, Equals, 10)
+	c.Assert(res.Rules[0].NonVersionTransitions[0].StorageClass, Equals, StorageClassType("IA"))
 
 	err = client.DeleteBucket(bucketNameTest)
 	c.Assert(err, IsNil)
@@ -1089,18 +1091,19 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleAboutVersionObjectError(c *C) {
 		NoncurrentDays: 20,
 	}
 
-	versionTransition := LifecycleVersionTransition{
+	versionTransition1 := LifecycleVersionTransition{
 		NoncurrentDays: 10,
 		StorageClass:   "IA",
 	}
+
+	versionTransitions := []LifecycleVersionTransition{versionTransition1}
 
 	// NonVersionTransition and NonVersionTransitions can not both have value
 	rule := LifecycleRule{
 		Status:                "Enabled",
 		Expiration:            &expiration,
 		NonVersionExpiration:  &versionExpiration,
-		NonVersionTransition:  &versionTransition,
-		NonVersionTransitions: []LifecycleVersionTransition{versionTransition},
+		NonVersionTransitions: versionTransitions,
 	}
 	rules := []LifecycleRule{rule}
 
@@ -1160,8 +1163,8 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleAboutVersionObjectNew(c *C) {
 	c.Assert(*(res.Rules[0].Expiration.ExpiredObjectDeleteMarker), Equals, true)
 
 	c.Assert(res.Rules[0].NonVersionExpiration.NoncurrentDays, Equals, 40)
-	c.Assert(res.Rules[0].NonVersionTransition.NoncurrentDays, Equals, 25)
-	c.Assert(res.Rules[0].NonVersionTransition.StorageClass, Equals, StorageClassType("IA"))
+	c.Assert(res.Rules[0].NonVersionTransitions[0].NoncurrentDays, Equals, 25)
+	c.Assert(res.Rules[0].NonVersionTransitions[0].StorageClass, Equals, StorageClassType("IA"))
 	c.Assert(len(res.Rules[0].NonVersionTransitions), Equals, 2)
 
 	err = client.DeleteBucket(bucketNameTest)

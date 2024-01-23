@@ -107,7 +107,7 @@ func (s *Ks3TypeSuite) TestSortUploadPart(c *C) {
 	c.Assert(parts[4].ETag, Equals, "E5")
 }
 
-func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
+func (s *Ks3TypeSuite) TestValidateLifecycleRules(c *C) {
 	expiration := LifecycleExpiration{
 		Days: 30,
 		Date: "2015-11-11T00:00:00.000Z",
@@ -149,29 +149,29 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 	err = verifyLifecycleRules(rules)
 	c.Assert(err, IsNil)
 
-	abortMPU := LifecycleAbortMultipartUpload{
-		Days: 30,
-		Date: "2015-11-11T00:00:00.000Z",
+	abortMPU := LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 30,
+		Date:                "2015-11-11T00:00:00.000Z",
 	}
 	rule = LifecycleRule{
-		ID:                   "ruleID",
-		Prefix:               "prefix",
-		Status:               "Enabled",
-		AbortMultipartUpload: &abortMPU,
+		ID:                             "ruleID",
+		Prefix:                         "prefix",
+		Status:                         "Enabled",
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 	rules = []LifecycleRule{rule}
 	err = verifyLifecycleRules(rules)
 	c.Assert(err, NotNil)
 
-	abortMPU = LifecycleAbortMultipartUpload{
-		Days: 0,
-		Date: "",
+	abortMPU = LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 0,
+		Date:                "",
 	}
 	rule = LifecycleRule{
-		ID:                   "ruleID",
-		Prefix:               "prefix",
-		Status:               "Enabled",
-		AbortMultipartUpload: &abortMPU,
+		ID:                             "ruleID",
+		Prefix:                         "prefix",
+		Status:                         "Enabled",
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 	rules = []LifecycleRule{rule}
 	err = verifyLifecycleRules(rules)
@@ -296,27 +296,27 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 	err = verifyLifecycleRules(rules)
 	c.Assert(err, IsNil)
 
-	abortMPU = LifecycleAbortMultipartUpload{
-		Days: 30,
+	abortMPU = LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 30,
 	}
 	rule = LifecycleRule{
-		ID:                   "ruleID",
-		Prefix:               "prefix",
-		Status:               "Enabled",
-		AbortMultipartUpload: &abortMPU,
+		ID:                             "ruleID",
+		Prefix:                         "prefix",
+		Status:                         "Enabled",
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 	rules = []LifecycleRule{rule}
 	err = verifyLifecycleRules(rules)
 	c.Assert(err, IsNil)
 
-	abortMPU = LifecycleAbortMultipartUpload{
+	abortMPU = LifecycleAbortIncompleteMultipartUpload{
 		Date: "2015-11-11T00:00:00.000Z",
 	}
 	rule = LifecycleRule{
-		ID:                   "ruleID",
-		Prefix:               "prefix",
-		Status:               "Enabled",
-		AbortMultipartUpload: &abortMPU,
+		ID:                             "ruleID",
+		Prefix:                         "prefix",
+		Status:                         "Enabled",
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 	rules = []LifecycleRule{rule}
 	err = verifyLifecycleRules(rules)
@@ -325,15 +325,15 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 	expiration = LifecycleExpiration{
 		Days: 30,
 	}
-	abortMPU = LifecycleAbortMultipartUpload{
-		Days: 30,
+	abortMPU = LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 30,
 	}
 	rule = LifecycleRule{
-		ID:                   "ruleID",
-		Prefix:               "prefix",
-		Status:               "Enabled",
-		Expiration:           &expiration,
-		AbortMultipartUpload: &abortMPU,
+		ID:                             "ruleID",
+		Prefix:                         "prefix",
+		Status:                         "Enabled",
+		Expiration:                     &expiration,
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 	rules = []LifecycleRule{rule}
 	err = verifyLifecycleRules(rules)
@@ -342,20 +342,20 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 	expiration = LifecycleExpiration{
 		Date: "2015-11-11T00:00:00.000Z",
 	}
-	abortMPU = LifecycleAbortMultipartUpload{
-		Days: 30,
+	abortMPU = LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 30,
 	}
 	transition = LifecycleTransition{
 		Days:         30,
 		StorageClass: StorageIA,
 	}
 	rule = LifecycleRule{
-		ID:                   "ruleID",
-		Prefix:               "prefix",
-		Status:               "Enabled",
-		Expiration:           &expiration,
-		AbortMultipartUpload: &abortMPU,
-		Transitions:          []LifecycleTransition{transition},
+		ID:                             "ruleID",
+		Prefix:                         "prefix",
+		Status:                         "Enabled",
+		Expiration:                     &expiration,
+		AbortIncompleteMultipartUpload: &abortMPU,
+		Transitions:                    []LifecycleTransition{transition},
 	}
 	rules = []LifecycleRule{rule}
 	err = verifyLifecycleRules(rules)
@@ -364,8 +364,8 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 	expiration = LifecycleExpiration{
 		Date: "2015-11-11T00:00:00.000Z",
 	}
-	abortMPU = LifecycleAbortMultipartUpload{
-		Days: 30,
+	abortMPU = LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 30,
 	}
 	transition1 = LifecycleTransition{
 		Days:         30,
@@ -376,12 +376,12 @@ func (s *Ks3TypeSuite) TestValidateLifecleRules(c *C) {
 		StorageClass: StorageArchive,
 	}
 	rule = LifecycleRule{
-		ID:                   "ruleID",
-		Prefix:               "prefix",
-		Status:               "Enabled",
-		Expiration:           &expiration,
-		AbortMultipartUpload: &abortMPU,
-		Transitions:          []LifecycleTransition{transition1, transition2},
+		ID:                             "ruleID",
+		Prefix:                         "prefix",
+		Status:                         "Enabled",
+		Expiration:                     &expiration,
+		AbortIncompleteMultipartUpload: &abortMPU,
+		Transitions:                    []LifecycleTransition{transition1, transition2},
 	}
 	rules = []LifecycleRule{rule}
 	err = verifyLifecycleRules(rules)
