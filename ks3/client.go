@@ -399,13 +399,7 @@ func (client Client) GetBucketLifecycle(bucketName string, options ...Option) (G
 
 	err = xmlUnmarshal(resp.Body, &out)
 
-	// NonVersionTransition is not suggested to use
-	// to keep compatible
-	for k, rule := range out.Rules {
-		if len(rule.NonVersionTransitions) > 0 {
-			out.Rules[k].NonVersionTransition = &(out.Rules[k].NonVersionTransitions[0])
-		}
-		//2023-03-28T00:00:00.000+08:00
+	for _, rule := range out.Rules {
 		if rule.Expiration != nil && &rule.Expiration.Date != nil && strings.Contains(rule.Expiration.Date, ".000") {
 			rule.Expiration.Date = strings.ReplaceAll(rule.Expiration.Date, ".000", "")
 		}
@@ -1129,7 +1123,7 @@ func (client Client) SetBucketPolicy(bucketName string, policy string, options .
 	}
 	defer resp.Body.Close()
 
-	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
 }
 
 // DeleteBucketPolicy API operation for Object Storage Service.

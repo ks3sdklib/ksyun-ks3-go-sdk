@@ -2356,7 +2356,9 @@ func (s *Ks3BucketSuite) TestRestoreObjectWithConfig(c *C) {
 	objectName = objectNamePrefix + RandStr(8)
 	err = bucket.PutObject(objectName, strings.NewReader("123456789"), ObjectStorageClass(StorageArchive))
 	c.Assert(err, IsNil)
-	restoreConfig.Tier = string(RestoreBulk)
+	restoreConfig.JobParameters = &RestoreJobParameters{
+		Tier: string(RestoreBulk),
+	}
 	err = bucket.RestoreObjectDetail(objectName, restoreConfig)
 	c.Assert(err, IsNil)
 
