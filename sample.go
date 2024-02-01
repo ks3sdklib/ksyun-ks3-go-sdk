@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/wilac-pv/ksyun-ks3-go-sdk/sample"
+	"github.com/ks3sdklib/ksyun-ks3-go-sdk/sample"
 )
 
 // sampleMap contains all samples

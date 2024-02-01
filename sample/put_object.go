@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
+	"github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"
 )
 
 // PutObjectSample illustrates two methods for uploading a file: simple upload and multipart upload.

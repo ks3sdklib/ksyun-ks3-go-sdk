@@ -1,6 +1,6 @@
 # Ksyun Cloud KS3 SDK for Go
 
-## [README in Chinese](https://github.com/wilac-pv/ksyun-ks3-go-sdk/blob/master/README-CN.md)
+## [README in Chinese](https://github.com/ks3sdklib/ksyun-ks3-go-sdk/blob/master/README-CN.md)
 
 ## About
 > - This Go SDK is based on the official APIs of [Ksyun Cloud KS3](https://docs.ksyun.com/documents/39060/).
@@ -16,8 +16,8 @@
 
 ## Installing
 ### Install the SDK through GitHub
-> - Run the 'go get github.com/wilac-pv/ksyun-ks3-go-sdk/ks3' command to get the remote code package.
-> - Use 'import "github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"' in your code to introduce KS3 Go SDK package.
+> - Run the 'go get github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3' command to get the remote code package.
+> - Use 'import "github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"' in your code to introduce KS3 Go SDK package.
 
 ## Getting Started
 ### List Bucket
@@ -141,7 +141,7 @@
 
 ##  Complete Example
 More example projects can be found at 'src\github.com\ksyun\ksyun-ks3-go-sdk\sample' under the installation path of the KS3 Go SDK (the first path of the GOPATH variable). The directory contains example projects. 
-Or you can refer to the example objects in the sample directory under 'https://github.com/wilac-pv/ksyun-ks3-go-sdk'.
+Or you can refer to the example objects in the sample directory under 'https://github.com/ks3sdklib/ksyun-ks3-go-sdk'.
 
 ### Running Example
 > - Copy the example file. Go to the installation path of KS3 Go SDK (the first path of the GOPATH variable), enter the code directory of the KS3 Go SDK, namely 'src\github.com\ksyun\ksyun-ks3-go-sdk',

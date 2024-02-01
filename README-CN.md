@@ -1,7 +1,7 @@
 # ksyun KS3 SDK for Go
 
 
-## [README in English](https://github.com/wilac-pv/ksyun-ks3-go-sdk/blob/master/README.md)
+## [README in English](https://github.com/ks3sdklib/ksyun-ks3-go-sdk/blob/master/README.md)
 
 ## 关于
 > - 此Go SDK基于[金山云对象存储服务](https://docs.ksyun.com/documents/39060)官方API构建。
@@ -17,8 +17,8 @@
 
 ## 安装方法
 ### GitHub安装
-> - 执行命令`go get github.com/wilac-pv/ksyun-ks3-go-sdk/ks3`获取远程代码包。
-> - 在您的代码中使用`import "github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"`引入KS3 Go SDK的包。
+> - 执行命令`go get github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3`获取远程代码包。
+> - 在您的代码中使用`import "github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"`引入KS3 Go SDK的包。
 
 ## 快速使用
 #### 获取存储空间列表（List Bucket）
@@ -142,7 +142,7 @@
 
 #### 其它
 更多的示例程序，请参看KS3 Go SDK安装路径（即GOPATH变量中的第一个路径）下的`src\github.com\ksyun\ksyun-ks3-go-sdk\sample`，该目录下为示例程序，
-或者参看`https://github.com/wilac-pv/ksyun-ks3-go-sdk`下sample目录中的示例文件。
+或者参看`https://github.com/ks3sdklib/ksyun-ks3-go-sdk`下sample目录中的示例文件。
 
 ## 注意事项
 ### 运行sample

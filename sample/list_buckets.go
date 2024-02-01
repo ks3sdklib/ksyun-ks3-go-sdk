@@ -3,7 +3,7 @@ package sample
 import (
 	"fmt"
 
-	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
+	"github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"
 )
 
 // ListBucketsSample shows the list bucket, including default and specified parameters.
