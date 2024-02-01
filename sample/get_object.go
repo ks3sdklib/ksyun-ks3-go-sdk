@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
+	"github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"
 )
 
 // GetObjectSample shows the streaming download, range download and resumable download.

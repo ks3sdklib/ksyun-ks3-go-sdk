@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/wilac-pv/ksyun-ks3-go-sdk/ks3"
+	"github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"
 )
 
 // AppendObjectSample shows the append file's usage
