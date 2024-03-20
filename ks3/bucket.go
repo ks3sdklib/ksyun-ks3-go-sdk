@@ -103,6 +103,7 @@ func (bucket Bucket) DoPutObject(request *PutObjectRequest, options []Option) (*
 
 	if bucket.GetConfig().IsEnableCRC {
 		err = CheckCRC(resp, "DoPutObject")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", resp.ClientCRC, resp.ServerCRC)
 		if err != nil {
 			return resp, err
 		}
@@ -173,6 +174,7 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 	if bucket.GetConfig().IsEnableCRC && !hasRange && acceptEncoding != "gzip" {
 		result.Response.ClientCRC = result.ClientCRC.Sum64()
 		err = CheckCRC(result.Response, "GetObjectToFile")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", result.Response.ClientCRC, result.Response.ServerCRC)
 		if err != nil {
 			os.Remove(tempFilePath)
 			return err
@@ -406,6 +408,7 @@ func (bucket Bucket) DoAppendObject(request *AppendObjectRequest, options []Opti
 
 	if bucket.GetConfig().IsEnableCRC && isCRCSet {
 		err = CheckCRC(resp, "AppendObject")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", resp.ClientCRC, resp.ServerCRC)
 		if err != nil {
 			return result, err
 		}
@@ -971,6 +974,7 @@ func (bucket Bucket) DoPutObjectWithURL(signedURL string, reader io.Reader, opti
 
 	if bucket.GetConfig().IsEnableCRC {
 		err = CheckCRC(resp, "DoPutObjectWithURL")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", resp.ClientCRC, resp.ServerCRC)
 		if err != nil {
 			return resp, err
 		}
@@ -1041,6 +1045,7 @@ func (bucket Bucket) GetObjectToFileWithURL(signedURL, filePath string, options 
 	if bucket.GetConfig().IsEnableCRC && !hasRange && acceptEncoding != "gzip" {
 		result.Response.ClientCRC = result.ClientCRC.Sum64()
 		err = CheckCRC(result.Response, "GetObjectToFileWithURL")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", result.Response.ClientCRC, result.Response.ServerCRC)
 		if err != nil {
 			os.Remove(tempFilePath)
 			return err

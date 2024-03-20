@@ -7,10 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,7 +23,6 @@ import (
 // options    the options for uploading object.
 //
 // error    it's nil if the operation succeeds, otherwise it's an error object.
-//
 func (bucket Bucket) UploadFile(objectKey, filePath string, partSize int64, options ...Option) error {
 	if partSize < MinPartSize || partSize > MaxPartSize {
 		return errors.New("ks3: part size invalid range (100KB, 5GB]")
@@ -100,7 +100,7 @@ func getRoutines(options []Option) int {
 	return rs
 }
 
-// getPayer return the payer of the request
+// getPayer return the request payer
 func getPayer(options []Option) string {
 	payerOpt, err := FindOption(options, HTTPHeaderKs3Requester, nil)
 	if err != nil || payerOpt == nil {
@@ -191,6 +191,20 @@ func getTotalBytes(chunks []FileChunk) int64 {
 	return tb
 }
 
+func combineCRCInUploadParts(parts []cpPart) uint64 {
+	if parts == nil || len(parts) == 0 {
+		return 0
+	}
+
+	crc, _ := strconv.ParseUint(parts[0].Part.Crc64, 10, 64)
+	for i := 1; i < len(parts); i++ {
+		crc2, _ := strconv.ParseUint(parts[i].Part.Crc64, 10, 64)
+		crc = CRC64Combine(crc, crc2, (uint64)(parts[i].Chunk.Size))
+	}
+
+	return crc
+}
+
 // uploadFile is a concurrent upload, without checkpoint
 func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, options []Option, routines int) error {
 	listener := GetProgressListener(options)
@@ -208,6 +222,11 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 	imur, err := bucket.InitiateMultipartUpload(objectKey, options...)
 	if err != nil {
 		return err
+	}
+
+	enableCRC := false
+	if bucket.GetConfig().IsEnableCRC {
+		enableCRC = true
 	}
 
 	jobs := make(chan FileChunk, len(chunks))
@@ -231,12 +250,15 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 
 	// Waiting for the upload finished
 	completed := 0
-	parts := make([]UploadPart, len(chunks))
+	parts := make([]cpPart, len(chunks))
+	for i := range parts {
+		parts[i].Chunk = chunks[i]
+	}
 	for completed < len(chunks) {
 		select {
 		case part := <-results:
 			completed++
-			parts[part.PartNumber-1] = part
+			parts[part.PartNumber-1].Part = part
 			completedBytes += chunks[part.PartNumber-1].Size
 
 			// why RwBytes in ProgressEvent is 0 ?
@@ -259,12 +281,32 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 	event = newProgressEvent(TransferStartedEvent, completedBytes, totalBytes, 0)
 	publishProgress(listener, event)
 
+	ps := []UploadPart{}
+	for _, part := range parts {
+		ps = append(ps, part.Part)
+	}
+
 	// Complete the multpart upload
-	_, err = bucket.CompleteMultipartUpload(imur, parts, completeOptions...)
+	_, err = bucket.CompleteMultipartUpload(imur, ps, completeOptions...)
 	if err != nil {
 		bucket.AbortMultipartUpload(imur, abortOptions...)
 		return err
 	}
+
+	if enableCRC {
+		meta, err := bucket.GetObjectMeta(objectKey)
+		if err != nil {
+			return err
+		}
+		clientCRC := combineCRCInUploadParts(parts)
+		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
+		err = CheckDownloadCRC(clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -278,6 +320,7 @@ type uploadCheckpoint struct {
 	FileStat  cpStat   // File state
 	ObjectKey string   // Key
 	UploadID  string   // Upload ID
+	EnableCRC bool     // Whether it has CRC check
 	Parts     []cpPart // All parts of the local file
 }
 
@@ -335,7 +378,7 @@ func (cp uploadCheckpoint) isValid(filePath string) (bool, error) {
 
 // load loads from the file
 func (cp *uploadCheckpoint) load(filePath string) error {
-	contents, err := ioutil.ReadFile(filePath)
+	contents, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -365,7 +408,7 @@ func (cp *uploadCheckpoint) dump(filePath string) error {
 	}
 
 	// Dump
-	return ioutil.WriteFile(filePath, js, FilePermMode)
+	return os.WriteFile(filePath, js, FilePermMode)
 }
 
 // updatePart updates the part status
@@ -436,6 +479,10 @@ func prepare(cp *uploadCheckpoint, objectKey, filePath string, partSize int64, b
 	}
 	cp.FileStat.MD5 = md
 
+	if bucket.GetConfig().IsEnableCRC {
+		cp.EnableCRC = true
+	}
+
 	// Chunks
 	parts, err := SplitFileByPartSize(filePath, partSize)
 	if err != nil {
@@ -470,6 +517,17 @@ func complete(cp *uploadCheckpoint, bucket *Bucket, parts []UploadPart, cpFilePa
 	return err
 }
 
+func isUploadIdExist(imur InitiateMultipartUploadResult, bucket *Bucket) (bool, error) {
+	_, err := bucket.ListUploadedParts(imur)
+	if err == nil {
+		return true, nil
+	}
+	if strings.Contains(err.Error(), "ErrorCode=NoSuchUpload") {
+		return false, nil
+	}
+	return false, err
+}
+
 // uploadFileWithCp handles concurrent upload with checkpoint
 func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64, options []Option, cpFilePath string, routines int) error {
 	listener := GetProgressListener(options)
@@ -477,11 +535,26 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 	partOptions := ChoiceTransferPartOption(options)
 	completeOptions := ChoiceCompletePartOption(options)
 
-	// Load CP data
 	ucp := uploadCheckpoint{}
-	err := ucp.load(cpFilePath)
-	if err != nil {
-		os.Remove(cpFilePath)
+
+	isExist, cpFileErr := isFileExist(cpFilePath)
+	if cpFileErr == nil && isExist {
+		// Load CP data
+		err := ucp.load(cpFilePath)
+		if err == nil {
+			// 判断uploadId是否存在，若不存在，则删除checkpoint文件
+			uploadIdExist, uploadIdErr := isUploadIdExist(InitiateMultipartUploadResult{
+				Bucket:   bucket.BucketName,
+				Key:      objectKey,
+				UploadID: ucp.UploadID,
+			}, &bucket)
+			if uploadIdErr == nil && !uploadIdExist {
+				os.Remove(cpFilePath)
+				ucp = uploadCheckpoint{}
+			}
+		} else {
+			os.Remove(cpFilePath)
+		}
 	}
 
 	// Load error or the CP data is invalid.
@@ -548,5 +621,20 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 
 	// Complete the multipart upload
 	err = complete(&ucp, &bucket, ucp.allParts(), cpFilePath, completeOptions)
+
+	if ucp.EnableCRC {
+		meta, err := bucket.GetObjectMeta(objectKey)
+		if err != nil {
+			return err
+		}
+		clientCRC := combineCRCInUploadParts(ucp.Parts)
+		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
+		err = CheckDownloadCRC(clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }
