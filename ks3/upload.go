@@ -537,7 +537,7 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 
 	ucp := uploadCheckpoint{}
 
-	isExist, cpFileErr := isFileExist(cpFilePath)
+	isExist, cpFileErr := IsFileExist(cpFilePath)
 	if cpFileErr == nil && isExist {
 		// Load CP data
 		err := ucp.load(cpFilePath)

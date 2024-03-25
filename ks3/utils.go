@@ -521,7 +521,7 @@ func ConvertEmptyValueToNil(params map[string]interface{}, keys []string) {
 	}
 }
 
-func isFileExist(filePath string) (bool, error) {
+func IsFileExist(filePath string) (bool, error) {
 	_, err := os.Stat(filePath)
 	if err == nil {
 		return true, nil
