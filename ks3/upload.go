@@ -550,6 +550,7 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 				UploadID: ucp.UploadID,
 			}, &bucket)
 			if !uploadIdExist {
+				bucket.Client.Config.WriteLog(Info, "uploadId: %s is not exist, delete checkpoint file", ucp.UploadID)
 				os.Remove(cpFilePath)
 				ucp = uploadCheckpoint{}
 			}

@@ -485,6 +485,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 			// 判断.temp是否存在，若不存在，则删除checkpoint文件，重新下载
 			tempFileExist, _ := IsFileExist(tempFilePath)
 			if !tempFileExist {
+				bucket.Client.Config.WriteLog(Info, ".temp is not exist, delete checkpoint file")
 				os.Remove(cpFilePath)
 				dcp = downloadCheckpoint{}
 			}
