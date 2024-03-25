@@ -476,14 +476,15 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 	// Load checkpoint data.
 	dcp := downloadCheckpoint{}
 
-	isExist, cpFileErr := IsFileExist(cpFilePath)
-	if cpFileErr == nil && isExist {
+	// 判断checkpoint文件是否存在
+	fileExist, _ := IsFileExist(cpFilePath)
+	if fileExist {
 		// Load CP data
 		err := dcp.load(cpFilePath)
 		if err == nil {
-			// 判断.temp是否存在，若不存在，则删除checkpoint文件
-			tempFileExist, tempFileErr := IsFileExist(tempFilePath)
-			if tempFileErr == nil && !tempFileExist {
+			// 判断.temp是否存在，若不存在，则删除checkpoint文件，重新下载
+			tempFileExist, _ := IsFileExist(tempFilePath)
+			if !tempFileExist {
 				os.Remove(cpFilePath)
 				dcp = downloadCheckpoint{}
 			}

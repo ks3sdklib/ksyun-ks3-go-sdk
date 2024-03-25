@@ -537,18 +537,19 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 
 	ucp := uploadCheckpoint{}
 
-	isExist, cpFileErr := IsFileExist(cpFilePath)
-	if cpFileErr == nil && isExist {
+	// 判断checkpoint文件是否存在
+	fileExist, _ := IsFileExist(cpFilePath)
+	if fileExist {
 		// Load CP data
 		err := ucp.load(cpFilePath)
 		if err == nil {
-			// 判断uploadId是否存在，若不存在，则删除checkpoint文件
-			uploadIdExist, uploadIdErr := isUploadIdExist(InitiateMultipartUploadResult{
+			// 判断uploadId是否存在，若不存在，则删除checkpoint文件，重新上传
+			uploadIdExist, _ := isUploadIdExist(InitiateMultipartUploadResult{
 				Bucket:   bucket.BucketName,
 				Key:      objectKey,
 				UploadID: ucp.UploadID,
 			}, &bucket)
-			if uploadIdErr == nil && !uploadIdExist {
+			if !uploadIdExist {
 				os.Remove(cpFilePath)
 				ucp = uploadCheckpoint{}
 			}
