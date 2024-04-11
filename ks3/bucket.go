@@ -359,6 +359,37 @@ func (bucket Bucket) AppendObject(objectKey string, reader io.Reader, appendPosi
 	return result.NextPosition, err
 }
 
+// AppendObjectFromFile append object from the local file.
+//
+// objectKey      object key.
+// filePath       the local file path to upload.
+// appendPosition the position for append.
+// options        the options for uploading the object. Refer to the parameter options in PutObject for more details.
+//
+// int64          the next append position.
+// error          it's nil if no error, otherwise it's an error object.
+//
+func (bucket Bucket) AppendObjectFromFile(objectKey string, filePath string, appendPosition int64, options ...Option) (int64, error) {
+	fd, err := os.Open(filePath)
+	if err != nil {
+		return appendPosition, err
+	}
+	defer fd.Close()
+
+	request := &AppendObjectRequest{
+		ObjectKey: objectKey,
+		Reader:    fd,
+		Position:  appendPosition,
+	}
+
+	result, err := bucket.DoAppendObject(request, options)
+	if err != nil {
+		return appendPosition, err
+	}
+
+	return result.NextPosition, err
+}
+
 // DoAppendObject is the actual API that does the object append.
 //
 // request    the request object for appending object.
