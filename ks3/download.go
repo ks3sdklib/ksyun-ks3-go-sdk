@@ -9,7 +9,6 @@ import (
 	"hash"
 	"hash/crc64"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -25,7 +24,6 @@ import (
 // options    object's constraints, check out GetObject for the reference.
 //
 // error    it's nil when the call succeeds, otherwise it's an error object.
-//
 func (bucket Bucket) DownloadFile(objectKey, filePath string, partSize int64, options ...Option) error {
 	if partSize < 1 {
 		return errors.New("ks3: part size smaller than 1")
@@ -121,7 +119,7 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 		if arg.enableCRC {
 			crcCalc = crc64.New(CrcTable())
 			contentLen := part.End - part.Start + 1
-			rd = ioutil.NopCloser(TeeReader(rd, crcCalc, contentLen, nil, nil))
+			rd = io.NopCloser(TeeReader(rd, crcCalc, contentLen, nil, nil))
 		}
 		defer rd.Close()
 
@@ -202,9 +200,22 @@ func getDownloadParts(objectSize, partSize int64, uRange *UnpackedRange) []downl
 func getObjectBytes(parts []downloadPart) int64 {
 	var ob int64
 	for _, part := range parts {
-		ob += (part.End - part.Start + 1)
+		ob += part.End - part.Start + 1
 	}
 	return ob
+}
+
+func combineCRCInDownloadParts(parts []downloadPart) uint64 {
+	if parts == nil || len(parts) == 0 {
+		return 0
+	}
+
+	crc := parts[0].CRC64
+	for i := 1; i < len(parts); i++ {
+		crc = CRC64Combine(crc, parts[i].CRC64, (uint64)(parts[i].End-parts[i].Start+1))
+	}
+
+	return crc
 }
 
 // downloadFile downloads file concurrently without checkpoint.
@@ -233,6 +244,11 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 	}
 
 	enableCRC := false
+	if bucket.GetConfig().IsEnableCRC && meta.Get(HTTPHeaderKs3CRC64) != "" {
+		if uRange == nil || (!uRange.HasStart && !uRange.HasEnd) {
+			enableCRC = true
+		}
+	}
 
 	// Get the parts of the file
 	parts := getDownloadParts(objectSize, partSize, uRange)
@@ -261,7 +277,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 		select {
 		case part := <-results:
 			completed++
-			downBytes := (part.End - part.Start + 1)
+			downBytes := part.End - part.Start + 1
 			completedBytes += downBytes
 			parts[part.Index].CRC64 = part.CRC64
 			event = newProgressEvent(TransferDataEvent, completedBytes, totalBytes, downBytes)
@@ -281,10 +297,20 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 	event = newProgressEvent(TransferCompletedEvent, completedBytes, totalBytes, 0)
 	publishProgress(listener, event)
 
+	if enableCRC {
+		clientCRC := combineCRCInDownloadParts(parts)
+		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
+		err = CheckDownloadCRC(clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
+		if err != nil {
+			return err
+		}
+	}
+
 	return os.Rename(tempFilePath, filePath)
 }
 
-// ----- Concurrent download with chcekpoint  -----
+// ----- Concurrent download with checkpoint  -----
 
 const downloadCpMagic = "92611BED-89E2-46B6-89E5-72F273D4B0A3"
 
@@ -293,13 +319,13 @@ type downloadCheckpoint struct {
 	MD5       string         // Checkpoint content MD5
 	FilePath  string         // Local file
 	Object    string         // Key
+	Start     int64          // Start point of the file
+	End       int64          // End point of the file
+	EnableCRC bool           // Whether it has CRC check
+	CRC       uint64         // CRC check value
 	ObjStat   objectStat     // Object status
 	Parts     []downloadPart // All download parts
 	PartStat  []bool         // Parts' download status
-	Start     int64          // Start point of the file
-	End       int64          // End point of the file
-	enableCRC bool           // Whether has CRC check
-	CRC       uint64         // CRC check value
 }
 
 type objectStat struct {
@@ -310,7 +336,7 @@ type objectStat struct {
 
 // isValid flags of checkpoint data is valid. It returns true when the data is valid and the checkpoint is valid and the object is not updated.
 func (cp downloadCheckpoint) isValid(meta http.Header, uRange *UnpackedRange) (bool, error) {
-	// Compare the CP's Magic and the MD5
+	// Compare the CP Magic and the MD5
 	cpb := cp
 	cpb.MD5 = ""
 	js, _ := json.Marshal(cpb)
@@ -346,7 +372,7 @@ func (cp downloadCheckpoint) isValid(meta http.Header, uRange *UnpackedRange) (b
 
 // load checkpoint from local file
 func (cp *downloadCheckpoint) load(filePath string) error {
-	contents, err := ioutil.ReadFile(filePath)
+	contents, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
@@ -355,7 +381,7 @@ func (cp *downloadCheckpoint) load(filePath string) error {
 	return err
 }
 
-// dump funciton dumps to file
+// dump function dumps to file
 func (cp *downloadCheckpoint) dump(filePath string) error {
 	bcp := *cp
 
@@ -376,7 +402,7 @@ func (cp *downloadCheckpoint) dump(filePath string) error {
 	}
 
 	// Dump
-	return ioutil.WriteFile(filePath, js, FilePermMode)
+	return os.WriteFile(filePath, js, FilePermMode)
 }
 
 // todoParts gets unfinished parts
@@ -395,7 +421,7 @@ func (cp downloadCheckpoint) getCompletedBytes() int64 {
 	var completedBytes int64
 	for i, part := range cp.Parts {
 		if cp.PartStat[i] {
-			completedBytes += (part.End - part.Start + 1)
+			completedBytes += part.End - part.Start + 1
 		}
 	}
 	return completedBytes
@@ -419,7 +445,7 @@ func (cp *downloadCheckpoint) prepare(meta http.Header, bucket *Bucket, objectKe
 
 	if bucket.GetConfig().IsEnableCRC && meta.Get(HTTPHeaderKs3CRC64) != "" {
 		if uRange == nil || (!uRange.HasStart && !uRange.HasEnd) {
-			cp.enableCRC = true
+			cp.EnableCRC = true
 			cp.CRC, _ = strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
 		}
 	}
@@ -449,9 +475,23 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 
 	// Load checkpoint data.
 	dcp := downloadCheckpoint{}
-	err := dcp.load(cpFilePath)
-	if err != nil {
-		os.Remove(cpFilePath)
+
+	// 判断checkpoint文件是否存在
+	fileExist, _ := IsFileExist(cpFilePath)
+	if fileExist {
+		// Load CP data
+		err := dcp.load(cpFilePath)
+		if err == nil {
+			// 判断.temp是否存在，若不存在，则删除checkpoint文件，重新下载
+			tempFileExist, _ := IsFileExist(tempFilePath)
+			if !tempFileExist {
+				bucket.Client.Config.WriteLog(Info, ".temp is not exist, delete checkpoint file")
+				os.Remove(cpFilePath)
+				dcp = downloadCheckpoint{}
+			}
+		} else {
+			os.Remove(cpFilePath)
+		}
 	}
 
 	// Get the object detailed meta for object whole size
@@ -471,7 +511,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		os.Remove(cpFilePath)
 	}
 
-	// Create the file if not exists. Otherwise the parts download will overwrite it.
+	// Create the file if not exists, otherwise the parts download will overwrite it.
 	fd, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE, FilePermMode)
 	if err != nil {
 		return err
@@ -490,7 +530,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 	publishProgress(listener, event)
 
 	// Start the download workers routine
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.enableCRC}
+	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC}
 	for w := 1; w <= routines; w++ {
 		go downloadWorker(w, arg, jobs, results, failed, die)
 	}
@@ -507,7 +547,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 			dcp.PartStat[part.Index] = true
 			dcp.Parts[part.Index].CRC64 = part.CRC64
 			dcp.dump(cpFilePath)
-			downBytes := (part.End - part.Start + 1)
+			downBytes := part.End - part.Start + 1
 			completedBytes += downBytes
 			event = newProgressEvent(TransferDataEvent, completedBytes, dcp.ObjStat.Size, downBytes)
 			publishProgress(listener, event)
@@ -525,6 +565,16 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 
 	event = newProgressEvent(TransferCompletedEvent, completedBytes, dcp.ObjStat.Size, 0)
 	publishProgress(listener, event)
+
+	if dcp.EnableCRC {
+		clientCRC := combineCRCInDownloadParts(dcp.Parts)
+		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
+		err = CheckDownloadCRC(clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
+		if err != nil {
+			return err
+		}
+	}
 
 	return dcp.complete(cpFilePath, tempFilePath)
 }

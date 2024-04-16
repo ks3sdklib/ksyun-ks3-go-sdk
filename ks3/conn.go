@@ -621,13 +621,12 @@ func (conn Conn) isDownloadLimitResponse(resp *http.Response) bool {
 
 // LoggerHTTPReq Print the header information of the http request
 func (conn Conn) LoggerHTTPReq(req *http.Request) {
+	conn.config.WriteLog(Debug, "[Req:%p]Method:%s", req, req.Method)
+	conn.config.WriteLog(Debug, "[Req:%p]Host:%s", req, req.URL.Host)
+	conn.config.WriteLog(Debug, "[Req:%p]Path:%s", req, req.URL.Path)
+	conn.config.WriteLog(Debug, "[Req:%p]Query:%s", req, req.URL.RawQuery)
 	var logBuffer bytes.Buffer
-	logBuffer.WriteString(fmt.Sprintf("[Req:%p]Method:%s\t", req, req.Method))
-	logBuffer.WriteString(fmt.Sprintf("Host:%s\t", req.URL.Host))
-	logBuffer.WriteString(fmt.Sprintf("Path:%s\t", req.URL.Path))
-	logBuffer.WriteString(fmt.Sprintf("Query:%s\t", req.URL.RawQuery))
-	logBuffer.WriteString(fmt.Sprintf("Header info:"))
-
+	logBuffer.WriteString(fmt.Sprintf("Request Header info:\n"))
 	for k, v := range req.Header {
 		var valueBuffer bytes.Buffer
 		for j := 0; j < len(v); j++ {
@@ -636,16 +635,18 @@ func (conn Conn) LoggerHTTPReq(req *http.Request) {
 			}
 			valueBuffer.WriteString(v[j])
 		}
-		logBuffer.WriteString(fmt.Sprintf("\t%s:%s", k, valueBuffer.String()))
+		logBuffer.WriteString(fmt.Sprintf("\t%s: %s\n", k, valueBuffer.String()))
 	}
-	conn.config.WriteLog(Debug, "%s\n", logBuffer.String())
+	conn.config.WriteLog(Debug, "[Req:%p]%s", req, logBuffer.String())
 }
 
 // LoggerHTTPResp Print Response to http request
 func (conn Conn) LoggerHTTPResp(req *http.Request, resp *http.Response) {
+	conn.config.WriteLog(Debug, "[Resp:%p]StatusCode:%d", req, resp.StatusCode)
+	conn.config.WriteLog(Debug, "[Resp:%p]Status:%s", req, resp.Status)
+	conn.config.WriteLog(Debug, "[Resp:%p]RequestId:%s", req, resp.Header.Get(HTTPHeaderKs3RequestID))
 	var logBuffer bytes.Buffer
-	logBuffer.WriteString(fmt.Sprintf("[Resp:%p]StatusCode:%d\t", req, resp.StatusCode))
-	logBuffer.WriteString(fmt.Sprintf("Header info:"))
+	logBuffer.WriteString(fmt.Sprintf("Response Header info:\n"))
 	for k, v := range resp.Header {
 		var valueBuffer bytes.Buffer
 		for j := 0; j < len(v); j++ {
@@ -654,9 +655,9 @@ func (conn Conn) LoggerHTTPResp(req *http.Request, resp *http.Response) {
 			}
 			valueBuffer.WriteString(v[j])
 		}
-		logBuffer.WriteString(fmt.Sprintf("\t%s:%s", k, valueBuffer.String()))
+		logBuffer.WriteString(fmt.Sprintf("\t%s: %s\n", k, valueBuffer.String()))
 	}
-	conn.config.WriteLog(Debug, "%s\n", logBuffer.String())
+	conn.config.WriteLog(Debug, "[Resp:%p]%s", req, logBuffer.String())
 }
 
 func calcMD5(body io.Reader, contentLen, md5Threshold int64) (reader io.Reader, b64 string, tempFile *os.File, err error) {

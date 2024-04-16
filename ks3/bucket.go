@@ -103,6 +103,7 @@ func (bucket Bucket) DoPutObject(request *PutObjectRequest, options []Option) (*
 
 	if bucket.GetConfig().IsEnableCRC {
 		err = CheckCRC(resp, "DoPutObject")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", resp.ClientCRC, resp.ServerCRC)
 		if err != nil {
 			return resp, err
 		}
@@ -173,6 +174,7 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 	if bucket.GetConfig().IsEnableCRC && !hasRange && acceptEncoding != "gzip" {
 		result.Response.ClientCRC = result.ClientCRC.Sum64()
 		err = CheckCRC(result.Response, "GetObjectToFile")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", result.Response.ClientCRC, result.Response.ServerCRC)
 		if err != nil {
 			os.Remove(tempFilePath)
 			return err
@@ -357,6 +359,37 @@ func (bucket Bucket) AppendObject(objectKey string, reader io.Reader, appendPosi
 	return result.NextPosition, err
 }
 
+// AppendObjectFromFile append object from the local file.
+//
+// objectKey      object key.
+// filePath       the local file path to upload.
+// appendPosition the position for append.
+// options        the options for uploading the object. Refer to the parameter options in PutObject for more details.
+//
+// int64          the next append position.
+// error          it's nil if no error, otherwise it's an error object.
+//
+func (bucket Bucket) AppendObjectFromFile(objectKey string, filePath string, appendPosition int64, options ...Option) (int64, error) {
+	fd, err := os.Open(filePath)
+	if err != nil {
+		return appendPosition, err
+	}
+	defer fd.Close()
+
+	request := &AppendObjectRequest{
+		ObjectKey: objectKey,
+		Reader:    fd,
+		Position:  appendPosition,
+	}
+
+	result, err := bucket.DoAppendObject(request, options)
+	if err != nil {
+		return appendPosition, err
+	}
+
+	return result.NextPosition, err
+}
+
 // DoAppendObject is the actual API that does the object append.
 //
 // request    the request object for appending object.
@@ -406,6 +439,7 @@ func (bucket Bucket) DoAppendObject(request *AppendObjectRequest, options []Opti
 
 	if bucket.GetConfig().IsEnableCRC && isCRCSet {
 		err = CheckCRC(resp, "AppendObject")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", resp.ClientCRC, resp.ServerCRC)
 		if err != nil {
 			return result, err
 		}
@@ -971,6 +1005,7 @@ func (bucket Bucket) DoPutObjectWithURL(signedURL string, reader io.Reader, opti
 
 	if bucket.GetConfig().IsEnableCRC {
 		err = CheckCRC(resp, "DoPutObjectWithURL")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", resp.ClientCRC, resp.ServerCRC)
 		if err != nil {
 			return resp, err
 		}
@@ -1041,6 +1076,7 @@ func (bucket Bucket) GetObjectToFileWithURL(signedURL, filePath string, options 
 	if bucket.GetConfig().IsEnableCRC && !hasRange && acceptEncoding != "gzip" {
 		result.Response.ClientCRC = result.ClientCRC.Sum64()
 		err = CheckCRC(result.Response, "GetObjectToFileWithURL")
+		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", result.Response.ClientCRC, result.Response.ServerCRC)
 		if err != nil {
 			os.Remove(tempFilePath)
 			return err
