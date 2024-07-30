@@ -311,11 +311,11 @@ func PartMd5CtxHeader(value string) Option {
 }
 
 func PartHashCtxParam(value string) Option {
-	return addParam("x-ks3-hash-ctx", value)
+	return addParam("x-kss-hash-ctx", value)
 }
 
 func PartMd5CtxParam(value string) Option {
-	return addParam("x-ks3-md5-ctx", value)
+	return addParam("x-kss-md5-ctx", value)
 }
 
 // Delimiter is an option to set delimiler parameter
@@ -398,19 +398,19 @@ func WithHashContext() Option {
 	return addParam("withHashContext", "")
 }
 
-// EnableMd5 is an option to set x-ks3-enable-md5 parameter for InitiateMultipartUpload
+// EnableMd5 is an option to set x-kss-enable-md5 parameter for InitiateMultipartUpload
 func EnableMd5() Option {
-	return addParam("x-ks3-enable-md5", "")
+	return addParam("x-kss-enable-md5", "")
 }
 
-// EnableSha1 is an option to set x-ks3-enable-sha1 parameter for InitiateMultipartUpload
+// EnableSha1 is an option to set x-kss-enable-sha1 parameter for InitiateMultipartUpload
 func EnableSha1() Option {
-	return addParam("x-ks3-enable-sha1", "")
+	return addParam("x-kss-enable-sha1", "")
 }
 
-// EnableSha256 is an option to set x-ks3-enable-sha256 parameter for InitiateMultipartUpload
+// EnableSha256 is an option to set x-kss-enable-sha256 parameter for InitiateMultipartUpload
 func EnableSha256() Option {
-	return addParam("x-ks3-enable-sha256", "")
+	return addParam("x-kss-enable-sha256", "")
 }
 
 // ListType is an option to set List-type parameter for ListObjectsV2
@@ -526,14 +526,14 @@ func ResponseContentEncoding(value string) Option {
 	return addParam("response-content-encoding", value)
 }
 
-// Process is an option to set x-ks3-process param
+// Process is an option to set x-kss-process param
 func Process(value string) Option {
-	return addParam("x-ks3-process", value)
+	return addParam("x-kss-process", value)
 }
 
-// TrafficLimitParam is a option to set x-ks3-traffic-limit
+// TrafficLimitParam is a option to set x-kss-traffic-limit
 func TrafficLimitParam(value int64) Option {
-	return addParam("x-ks3-traffic-limit", strconv.FormatInt(value, 10))
+	return addParam("x-kss-traffic-limit", strconv.FormatInt(value, 10))
 }
 
 // SetHeader Allow users to set personalized http headers
@@ -667,19 +667,19 @@ func DeleteOption(options []Option, strKey string) []Option {
 }
 
 func GetRequestId(header http.Header) string {
-	return header.Get("x-ks3-request-id")
+	return header.Get("x-kss-request-id")
 }
 
 func GetVersionId(header http.Header) string {
-	return header.Get("x-ks3-version-id")
+	return header.Get("x-kss-version-id")
 }
 
 func GetCopySrcVersionId(header http.Header) string {
-	return header.Get("x-ks3-copy-source-version-id")
+	return header.Get("x-kss-copy-source-version-id")
 }
 
 func GetDeleteMark(header http.Header) bool {
-	value := header.Get("x-ks3-delete-marker")
+	value := header.Get("x-kss-delete-marker")
 	if strings.ToUpper(value) == "TRUE" {
 		return true
 	}
@@ -687,7 +687,7 @@ func GetDeleteMark(header http.Header) bool {
 }
 
 func GetQosDelayTime(header http.Header) string {
-	return header.Get("x-ks3-qos-delay-time")
+	return header.Get("x-kss-qos-delay-time")
 }
 
 // ForbidOverWrite  is an option to set X-Kss-Forbid-Overwrite
@@ -697,4 +697,14 @@ func AllowSameActionOverLap(enabled bool) Option {
 	} else {
 		return setHeader(HTTPHeaderAllowSameActionOverLap, "false")
 	}
+}
+
+// RetentionId is an option to set X-Kss-Retention-Id header
+func RetentionId(value string) Option {
+	return setHeader(HTTPHeaderKs3RetentionId, value)
+}
+
+// RetentionOverwrite is an option to set X-Kss-Retention-Overwrite header
+func RetentionOverwrite(value string) Option {
+	return setHeader(HTTPHeaderKs3RetentionOverwrite, value)
 }

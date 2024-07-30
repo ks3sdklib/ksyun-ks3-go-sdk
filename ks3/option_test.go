@@ -124,13 +124,13 @@ var headerTestcases = []optionTestCase{
 	},
 	{
 		option: ObjectACL(ACLPrivate),
-		key:    "X-Kss-Object-Acl",
+		key: "X-Kss-Acl",
 		value:  "private",
 	},
 	{
 		option: ObjectStorageClass(StorageStandard),
 		key:    "X-Kss-Storage-Class",
-		value:  "Standard",
+		value: "STANDARD",
 	},
 	{
 		option: Callback("JTdCJTIyY2FsbGJhY2tVcmwlMjIlM0ElMjJleGFtcGxlLmNvbS9pbmRleC5odG1sJTIyJTdE"),
@@ -216,11 +216,6 @@ var paramTestCases = []optionTestCase{
 		key:    "part-number-marker",
 		value:  "1",
 	},
-	{
-		option: Process("image/format,png"),
-		key:    "x-ks3-process",
-		value:  "image/format,png",
-	},
 }
 
 func (s *Ks3OptionSuite) TestParamOptions(c *C) {
@@ -271,7 +266,7 @@ func (s *Ks3OptionSuite) TestHandleParams(c *C) {
 	c.Assert(err, IsNil)
 
 	out := client.Conn.getURLParams(params)
-	c.Assert(len(out), Equals, 191)
+	c.Assert(len(out), Equals, 156)
 
 	options = []Option{KeyMarker(""), nil}
 

@@ -316,7 +316,9 @@ func (bucket Bucket) copy(srcObjectKey, destBucketName, destObjectKey string, op
 	respHeader, _ := FindOption(options, responseHeader, nil)
 	if respHeader != nil {
 		pRespHeader := respHeader.(*http.Header)
-		*pRespHeader = resp.Headers
+		if resp != nil {
+			*pRespHeader = resp.Headers
+		}
 	}
 
 	if err != nil {
@@ -423,7 +425,9 @@ func (bucket Bucket) DoAppendObject(request *AppendObjectRequest, options []Opti
 	respHeader, _ := FindOption(options, responseHeader, nil)
 	if respHeader != nil {
 		pRespHeader := respHeader.(*http.Header)
-		*pRespHeader = resp.Headers
+		if resp != nil {
+			*pRespHeader = resp.Headers
+		}
 	}
 
 	if err != nil {
@@ -1237,6 +1241,53 @@ func (bucket Bucket) OptionsMethod(objectKey string, options ...Option) (http.He
 	return out, nil
 }
 
+func (bucket Bucket) ListRetention(options ...Option) (ListRetentionResult, error) {
+	var out ListRetentionResult
+
+	params, err := GetRawParams(options)
+	params["recycle"] = nil
+	if err != nil {
+		return out, err
+	}
+
+	resp, err := bucket.do("GET", "", params, options, nil, nil)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+	err = xmlUnmarshal(resp.Body, &out)
+	if err != nil {
+		return out, err
+	}
+
+	return out, err
+}
+
+func (bucket Bucket) RecoverObject(objectKey string, options ...Option) error {
+	params, _ := GetRawParams(options)
+	params["recover"] = nil
+	resp, err := bucket.do("POST", objectKey, params, options, nil, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+}
+
+func (bucket Bucket) ClearObject(objectKey string, retentionId string, options ...Option) error {
+	params, _ := GetRawParams(options)
+	params["clear"] = nil
+
+	options = append(options, RetentionId(retentionId))
+
+	resp, err := bucket.do("DELETE", objectKey, params, options, nil, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
+}
+
 // public
 func (bucket Bucket) Do(method, objectName string, params map[string]interface{}, options []Option,
 	data io.Reader, listener ProgressListener) (*Response, error) {
@@ -1264,7 +1315,9 @@ func (bucket Bucket) do(method, objectName string, params map[string]interface{}
 	respHeader, _ := FindOption(options, responseHeader, nil)
 	if respHeader != nil && resp != nil {
 		pRespHeader := respHeader.(*http.Header)
-		*pRespHeader = resp.Headers
+		if resp != nil {
+			*pRespHeader = resp.Headers
+		}
 	}
 
 	return resp, err
@@ -1284,7 +1337,9 @@ func (bucket Bucket) doURL(method HTTPMethod, signedURL string, params map[strin
 	respHeader, _ := FindOption(options, responseHeader, nil)
 	if respHeader != nil {
 		pRespHeader := respHeader.(*http.Header)
-		*pRespHeader = resp.Headers
+		if resp != nil {
+			*pRespHeader = resp.Headers
+		}
 	}
 
 	return resp, err

@@ -242,6 +242,8 @@ const (
 	HTTPHeaderKs3HashCtx                     = "X-Kss-Hash-Ctx"
 	HTTPHeaderKs3Md5Ctx                      = "X-Kss-Md5-Ctx"
 	HTTPHeaderAllowSameActionOverLap         = "X-Kss-Allow-Same-Action-Overlap"
+	HTTPHeaderKs3RetentionId                 = "X-Kss-Retention-Id"
+	HTTPHeaderKs3RetentionOverwrite          = "X-Kss-Retention-Overwrite"
 )
 
 // HTTP Param

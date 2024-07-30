@@ -67,8 +67,6 @@ type LifecycleRule struct {
 	Expiration                     *LifecycleExpiration                     `xml:"Expiration,omitempty"`                     // The expiration property
 	Transitions                    []LifecycleTransition                    `xml:"Transition,omitempty"`                     // The transition property
 	AbortIncompleteMultipartUpload *LifecycleAbortIncompleteMultipartUpload `xml:"AbortIncompleteMultipartUpload,omitempty"` // The AbortIncompleteMultipartUpload property
-	NonVersionExpiration           *LifecycleVersionExpiration              `xml:"NoncurrentVersionExpiration,omitempty"`
-	NonVersionTransitions          []LifecycleVersionTransition             `xml:"NoncurrentVersionTransition,omitempty"`
 }
 
 // LifecycleTransition defines the rule's transition propery
@@ -128,8 +126,16 @@ func BuildLifecycleRuleByDays(id, prefix string, status bool, days int) Lifecycl
 	if !status {
 		statusStr = "Disabled"
 	}
-	return LifecycleRule{ID: id, Status: statusStr,
-		Expiration: &LifecycleExpiration{Days: days}}
+	return LifecycleRule{
+		ID:     id,
+		Status: statusStr,
+		Filter: &LifecycleFilter{
+			Prefix: prefix,
+		},
+		Expiration: &LifecycleExpiration{
+			Days: days,
+		},
+	}
 }
 
 // BuildLifecycleRuleByDate builds a lifecycle rule objects will expiration in specified date
@@ -139,8 +145,16 @@ func BuildLifecycleRuleByDate(id, prefix string, status bool, year, month, day i
 		statusStr = "Disabled"
 	}
 	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC).Format(Iso8601DateFormat)
-	return LifecycleRule{ID: id, Status: statusStr,
-		Expiration: &LifecycleExpiration{Date: date}}
+	return LifecycleRule{
+		ID:     id,
+		Status: statusStr,
+		Filter: &LifecycleFilter{
+			Prefix: prefix,
+		},
+		Expiration: &LifecycleExpiration{
+			Date: date,
+		},
+	}
 }
 
 // ValidateLifecycleRule Determine if a lifecycle rule is valid, if it is invalid, it will return an error.
@@ -972,8 +986,8 @@ type JsonMetaRequest struct {
 
 type InputSerialization struct {
 	XMLName         xml.Name `xml:"InputSerialization"`
-	CSV             CSV      `xml:CSV,omitempty`
-	JSON            JSON     `xml:JSON,omitempty`
+	CSV             CSV      `xml:"CSV,omitempty"`
+	JSON            JSON     `xml:"JSON,omitempty"`
 	CompressionType string   `xml:"CompressionType,omitempty"`
 }
 type CSV struct {
@@ -998,8 +1012,8 @@ type SelectRequest struct {
 }
 type InputSerializationSelect struct {
 	XMLName         xml.Name        `xml:"InputSerialization"`
-	CsvBodyInput    CSVSelectInput  `xml:CSV,omitempty`
-	JsonBodyInput   JSONSelectInput `xml:JSON,omitempty`
+	CsvBodyInput    CSVSelectInput  `xml:"CSV,omitempty"`
+	JsonBodyInput   JSONSelectInput `xml:"JSON,omitempty"`
 	CompressionType string          `xml:"CompressionType,omitempty"`
 }
 type CSVSelectInput struct {
@@ -1154,49 +1168,48 @@ type MetaEndFrameJSON struct {
 
 // InventoryConfiguration is Inventory config
 type InventoryConfiguration struct {
-	XMLName                xml.Name             `xml:"InventoryConfiguration"`
-	Id                     string               `xml:"Id,omitempty"`
-	IsEnabled              *bool                `xml:"IsEnabled,omitempty"`
-	Prefix                 string               `xml:"Filter>Prefix,omitempty"`
-	KS3BucketDestination   KS3BucketDestination `xml:"Destination>KS3BucketDestination,omitempty"`
-	Frequency              string               `xml:"Schedule>Frequency,omitempty"`
-	IncludedObjectVersions string               `xml:"IncludedObjectVersions,omitempty"`
-	OptionalFields         OptionalFields       `xml:OptionalFields,omitempty`
+	XMLName        xml.Name        `xml:"InventoryConfiguration"`
+	Id             string          `xml:"Id,omitempty"`
+	IsEnabled      *bool           `xml:"IsEnabled,omitempty"`
+	Filter         InventoryFilter `xml:"Filter,omitempty"`
+	Destination    Destination     `xml:"Destination,omitempty"`
+	Schedule       Schedule        `xml:"Schedule,omitempty"`
+	OptionalFields OptionalFields  `xml:"OptionalFields,omitempty"`
 }
 
-type OptionalFields struct {
-	XMLName xml.Name `xml:"OptionalFields,omitempty`
-	Field   []string `xml:"Field,omitempty`
+type InventoryFilter struct {
+	XMLName                  xml.Name `xml:"Filter"`
+	Prefix                   string   `xml:"Prefix,omitempty"`
+	LastModifyBeginTimeStamp string   `xml:"LastModifyBeginTimeStamp,omitempty"`
+	LastModifyEndTimeStamp   string   `xml:"LastModifyEndTimeStamp,omitempty"`
+}
+
+type Destination struct {
+	XMLName              xml.Name             `xml:"Destination"`
+	KS3BucketDestination KS3BucketDestination `xml:"KS3BucketDestination,omitempty"`
 }
 
 type KS3BucketDestination struct {
-	XMLName    xml.Name       `xml:"KS3BucketDestination"`
-	Format     string         `xml:"Format,omitempty"`
-	AccountId  string         `xml:"AccountId,omitempty"`
-	RoleArn    string         `xml:"RoleArn,omitempty"`
-	Bucket     string         `xml:"Bucket,omitempty"`
-	Prefix     string         `xml:"Prefix,omitempty"`
-	Encryption *InvEncryption `xml:"Encryption,omitempty"`
+	XMLName   xml.Name `xml:"KS3BucketDestination"`
+	Format    string   `xml:"Format,omitempty"`
+	AccountId string   `xml:"AccountId,omitempty"`
+	Bucket    string   `xml:"Bucket,omitempty"`
+	Prefix    string   `xml:"Prefix,omitempty"`
 }
 
-type InvEncryption struct {
-	XMLName xml.Name   `xml:"Encryption"`
-	SseKs3  *InvSseKs3 `xml:"SSE-KS3"`
-	SseKms  *InvSseKms `xml:"SSE-KMS"`
+type Schedule struct {
+	XMLName   xml.Name `xml:"Schedule"`
+	Frequency string   `xml:"Frequency,omitempty"`
 }
 
-type InvSseKs3 struct {
-	XMLName xml.Name `xml:"SSE-KS3"`
-}
-
-type InvSseKms struct {
-	XMLName xml.Name `xml:"SSE-KMS"`
-	KmsId   string   `xml:"KeyId,omitempty"`
+type OptionalFields struct {
+	XMLName xml.Name `xml:"OptionalFields,omitempty"`
+	Field   []string `xml:"Field,omitempty"`
 }
 
 type ListInventoryConfigurationsResult struct {
 	XMLName                xml.Name                 `xml:"ListInventoryConfigurationsResult"`
-	InventoryConfiguration []InventoryConfiguration `xml:"InventoryConfiguration,omitempty`
+	InventoryConfiguration []InventoryConfiguration `xml:"InventoryConfiguration,omitempty"`
 	IsTruncated            *bool                    `xml:"IsTruncated,omitempty"`
 	NextContinuationToken  string                   `xml:"NextContinuationToken,omitempty"`
 }
@@ -1283,4 +1296,115 @@ type TransferAccConfiguration struct {
 type ReplicationXML struct {
 	XMLName xml.Name `xml:"ReplicationRules"`
 	ID      string   `xml:"ID,omitempty"`
+}
+
+// RetentionConfiguration is the Bucket Retention configuration
+type RetentionConfiguration struct {
+	XMLName xml.Name      `xml:"RetentionConfiguration"`
+	Rule    RetentionRule `xml:"Rule"`
+}
+
+// RetentionRule defines Retention rules
+type RetentionRule struct {
+	XMLName xml.Name `xml:"Rule"`
+	Status  string   `xml:"Status,omitempty"`
+	Days    int      `xml:"Days,omitempty"`
+}
+
+// GetBucketRetentionResult defines GetBucketRetention's result
+type GetBucketRetentionResult RetentionConfiguration
+
+// ListRetentionResult defines the result from ListRetention request
+type ListRetentionResult struct {
+	XMLName        xml.Name                    `xml:"ListRetentionResult"`
+	Prefix         string                      `xml:"Prefix"`                // The object prefix
+	Marker         string                      `xml:"Marker"`                // The marker filter.
+	MaxKeys        int                         `xml:"MaxKeys"`               // Max keys to return
+	Delimiter      string                      `xml:"Delimiter"`             // The delimiter for grouping objects' name
+	IsTruncated    bool                        `xml:"IsTruncated"`           // Flag indicates if all results are returned (when it's false)
+	NextMarker     string                      `xml:"NextMarker"`            // The start point of the next query
+	Objects        []RetentionObjectProperties `xml:"Contents"`              // Object list
+	CommonPrefixes []string                    `xml:"CommonPrefixes>Prefix"` // You can think of commonprefixes as "folders" whose names end with the delimiter
+}
+
+// RetentionObjectProperties defines Object properties
+type RetentionObjectProperties struct {
+	XMLName            xml.Name  `xml:"Contents"`
+	Key                string    `xml:"Key"`                // Object key
+	RetentionId        string    `xml:"RetentionId"`        // Object RetentionId
+	Size               int64     `xml:"Size"`               // Object size
+	ETag               string    `xml:"ETag"`               // Object ETag
+	Owner              Owner     `xml:"Owner"`              // Object owner information
+	LastModified       time.Time `xml:"LastModified"`       // Object last modified time
+	StorageClass       string    `xml:"StorageClass"`       // Object storage class (Standard, IA, Archive)
+	RecycleTime        time.Time `xml:"RecycleTime"`        // Object recycle time
+	EstimatedClearTime time.Time `xml:"EstimatedClearTime"` // Object estimated clear time
+}
+
+// Replication defines Replication configuration
+type Replication struct {
+	XMLName                     xml.Name `xml:"http://s3.amazonaws.com/doc/2006-03-01/ Replication"`
+	Prefix                      []string `xml:"prefix,omitempty"`
+	DeleteMarkerStatus          string   `xml:"DeleteMarkerStatus,omitempty"`
+	TargetBucket                string   `xml:"targetBucket,omitempty"`
+	Region                      string   `xml:"region,omitempty"`
+	HistoricalObjectReplication string   `xml:"HistoricalObjectReplication,omitempty"`
+}
+
+// GetBucketReplicationResult defines GetBucketReplication's result
+type GetBucketReplicationResult Replication
+
+// BucketMirror defines BucketMirror configuration
+type BucketMirror struct {
+	Version          string            `json:"version"`
+	UseDefaultRobots *bool             `json:"use_default_robots,omitempty"`
+	AsyncMirrorRule  AsyncMirrorRule   `json:"async_mirror_rule,omitempty"`
+	SyncMirrorRules  []SyncMirrorRules `json:"sync_mirror_rules,omitempty"`
+}
+type SavingSetting struct {
+	ACL string `json:"acl,omitempty"`
+}
+type AsyncMirrorRule struct {
+	MirrorUrls    []string      `json:"mirror_urls,omitempty"`
+	SavingSetting SavingSetting `json:"saving_setting,omitempty"`
+}
+type MatchCondition struct {
+	HTTPCodes   []string `json:"http_codes"`
+	KeyPrefixes []string `json:"key_prefixes"`
+}
+type SetHeaders struct {
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
+}
+type RemoveHeaders struct {
+	Key string `json:"key,omitempty"`
+}
+type PassHeaders struct {
+	Key string `json:"key,omitempty"`
+}
+type HeaderSetting struct {
+	SetHeaders    []SetHeaders    `json:"set_headers,omitempty"`
+	RemoveHeaders []RemoveHeaders `json:"remove_headers,omitempty"`
+	PassAll       *bool           `json:"pass_all,omitempty"`
+	PassHeaders   []PassHeaders   `json:"pass_headers,omitempty"`
+}
+type MirrorRequestSetting struct {
+	PassQueryString *bool         `json:"pass_query_string,omitempty"`
+	Follow3Xx       *bool         `json:"follow3xx,omitempty"`
+	HeaderSetting   HeaderSetting `json:"header_setting,omitempty"`
+}
+type SyncMirrorRules struct {
+	MatchCondition       MatchCondition       `json:"match_condition"`
+	MirrorURL            string               `json:"mirror_url,omitempty"`
+	MirrorRequestSetting MirrorRequestSetting `json:"mirror_request_setting,omitempty"`
+	SavingSetting        SavingSetting        `json:"saving_setting,omitempty"`
+}
+
+type GetBucketMirrorResult struct {
+	Version          string            `json:"version"`
+	UseDefaultRobots *bool             `json:"use_default_robots,omitempty"`
+	AsyncMirrorRule  AsyncMirrorRule   `json:"async_mirror_rule,omitempty"`
+	SyncMirrorRules  []SyncMirrorRules `json:"sync_mirror_rules,omitempty"`
+	CreatedTime      string            `json:"created_time,omitempty"`
+	LastModifiedTime string            `json:"last_modified_time,omitempty"`
 }

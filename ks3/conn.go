@@ -30,6 +30,8 @@ type Conn struct {
 
 var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"logging", "website", "referer", "lifecycle",
+	"retention", "recycle", "recover", "clear",
+	"crr", "mirror", "inventory", "id",
 	"delete", "append", "tagging", "objectMeta",
 	"uploadId", "partNumber", "security-token",
 	"position", "img", "style", "styleName",
@@ -44,8 +46,7 @@ var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"udfId", "udfImageDesc", "udfApplication", "comp",
 	"udfApplicationLog", "restore", "callback", "callback-var", "qosInfo",
 	"policy", "stat", "encryption", "versions", "versioning", "versionId", "requestPayment",
-	"x-ks3-request-payer", "sequential",
-	"inventory", "inventoryId", "continuation-token", "asyncFetch",
+	"x-ks3-request-payer", "sequential", "asyncFetch",
 	"worm", "wormId", "wormExtend", "withHashContext",
 	"x-ks3-enable-md5", "x-ks3-enable-sha1", "x-ks3-enable-sha256",
 	"x-ks3-hash-ctx", "x-ks3-md5-ctx", "transferAcceleration",
@@ -334,8 +335,10 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 		conn.LoggerHTTPResp(req, resp)
 	}
 
+	var ks3Resp *Response
 	if err == nil && resp != nil {
-		ks3Resp, e := conn.handleResponse(resp, crc)
+		var e error
+		ks3Resp, e = conn.handleResponse(resp, crc)
 		if e == nil {
 			// Transfer completed
 			event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength, 0)
@@ -350,7 +353,7 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 	event = newProgressEvent(TransferFailedEvent, tracker.completedBytes, req.ContentLength, 0)
 	publishProgress(listener, event)
 	conn.config.WriteLog(Debug, "[Resp:%p]http error:%s\n", req, err.Error())
-	return nil, err
+	return ks3Resp, err
 }
 
 func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) string {
