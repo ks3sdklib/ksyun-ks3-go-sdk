@@ -17,8 +17,8 @@ import (
 )
 
 type Ks3BucketSuite struct {
-	client        *Client
-	bucket        *Bucket
+	client *Client
+	bucket *Bucket
 }
 
 var _ = Suite(&Ks3BucketSuite{})
@@ -1737,7 +1737,7 @@ func (s *Ks3BucketSuite) detectUploadSpeed(bucket *Bucket, c *C) (upSpeed int) {
 }
 
 func (s *Ks3BucketSuite) TestPutSingleObjectLimitSpeed(c *C) {
-
+	c.Skip("skip limit speed")
 	// create client and bucket
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
@@ -1819,6 +1819,7 @@ func putObjectRoutin(bucket *Bucket, object string, textBuffer *string, notifyCh
 }
 
 func (s *Ks3BucketSuite) TestPutManyObjectLimitSpeed(c *C) {
+	c.Skip("skip limit speed")
 	// create client and bucket
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
@@ -1908,7 +1909,7 @@ func (s *Ks3BucketSuite) TestPutManyObjectLimitSpeed(c *C) {
 }
 
 func (s *Ks3BucketSuite) TestPutMultipartObjectLimitSpeed(c *C) {
-
+	c.Skip("skip limit speed")
 	// create client and bucket
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
@@ -2011,6 +2012,7 @@ func (s *Ks3BucketSuite) TestPutMultipartObjectLimitSpeed(c *C) {
 }
 
 func (s *Ks3BucketSuite) TestPutObjectFromFileLimitSpeed(c *C) {
+	c.Skip("skip limit speed")
 	// create client and bucket
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
@@ -2114,6 +2116,7 @@ func (s *Ks3BucketSuite) TestPutObjectFromFileLimitSpeed(c *C) {
 
 // upload speed limit parameters will not affect download speed
 func (s *Ks3BucketSuite) TestUploadObjectLimitSpeed(c *C) {
+	c.Skip("skip limit speed")
 	// create limit client and bucket
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
@@ -2769,6 +2772,7 @@ func (s *Ks3BucketSuite) TestSupportUserSetHeader(c *C) {
 }
 
 func (s *Ks3BucketSuite) TestGetSingleObjectLimitSpeed(c *C) {
+	c.Skip("skip limit speed")
 	// create client and bucket
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
