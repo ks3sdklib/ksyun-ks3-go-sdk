@@ -224,11 +224,6 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 		return err
 	}
 
-	enableCRC := false
-	if bucket.GetConfig().IsEnableCRC {
-		enableCRC = true
-	}
-
 	jobs := make(chan FileChunk, len(chunks))
 	results := make(chan UploadPart, len(chunks))
 	failed := make(chan error)
@@ -287,19 +282,15 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 	}
 
 	// Complete the multpart upload
-	_, err = bucket.CompleteMultipartUpload(imur, ps, completeOptions...)
+	result, err := bucket.CompleteMultipartUpload(imur, ps, completeOptions...)
 	if err != nil {
 		bucket.AbortMultipartUpload(imur, abortOptions...)
 		return err
 	}
 
-	if enableCRC {
-		meta, err := bucket.GetObjectMeta(objectKey)
-		if err != nil {
-			return err
-		}
+	if bucket.GetConfig().IsEnableCRC {
 		clientCRC := combineCRCInUploadParts(parts)
-		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
+		serverCRC, _ := strconv.ParseUint(result.Crc64, 10, 64)
 		err = CheckDownloadCRC(clientCRC, serverCRC)
 		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
 		if err != nil {
@@ -506,15 +497,14 @@ func prepare(cp *uploadCheckpoint, objectKey, filePath string, partSize int64, b
 }
 
 // complete completes the multipart upload and deletes the local CP files
-func complete(cp *uploadCheckpoint, bucket *Bucket, parts []UploadPart, cpFilePath string, options []Option) error {
-	imur := InitiateMultipartUploadResult{Bucket: bucket.BucketName,
-		Key: cp.ObjectKey, UploadID: cp.UploadID}
-	_, err := bucket.CompleteMultipartUpload(imur, parts, options...)
+func complete(cp *uploadCheckpoint, bucket *Bucket, parts []UploadPart, cpFilePath string, options []Option) (CompleteMultipartUploadResult, error) {
+	imur := InitiateMultipartUploadResult{Bucket: bucket.BucketName, Key: cp.ObjectKey, UploadID: cp.UploadID}
+	result, err := bucket.CompleteMultipartUpload(imur, parts, options...)
 	if err != nil {
-		return err
+		return CompleteMultipartUploadResult{}, err
 	}
 	os.Remove(cpFilePath)
-	return err
+	return result, err
 }
 
 func isUploadIdExist(imur InitiateMultipartUploadResult, bucket *Bucket) (bool, error) {
@@ -622,15 +612,11 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 	publishProgress(listener, event)
 
 	// Complete the multipart upload
-	err = complete(&ucp, &bucket, ucp.allParts(), cpFilePath, completeOptions)
+	result, err := complete(&ucp, &bucket, ucp.allParts(), cpFilePath, completeOptions)
 
 	if ucp.EnableCRC {
-		meta, err := bucket.GetObjectMeta(objectKey)
-		if err != nil {
-			return err
-		}
 		clientCRC := combineCRCInUploadParts(ucp.Parts)
-		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
+		serverCRC, _ := strconv.ParseUint(result.Crc64, 10, 64)
 		err = CheckDownloadCRC(clientCRC, serverCRC)
 		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
 		if err != nil {

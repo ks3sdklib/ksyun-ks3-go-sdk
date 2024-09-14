@@ -527,10 +527,11 @@ type completeMultipartUploadXML struct {
 // CompleteMultipartUploadResult defines result object of CompleteMultipartUploadRequest
 type CompleteMultipartUploadResult struct {
 	XMLName  xml.Name `xml:"CompleteMultipartUploadResult"`
-	Location string   `xml:"Location"` // Object URL
-	Bucket   string   `xml:"Bucket"`   // Bucket name
-	ETag     string   `xml:"ETag"`     // Object ETag
-	Key      string   `xml:"Key"`      // Object name
+	Location string   `xml:"Location"`          // Object URL
+	Bucket   string   `xml:"Bucket"`            // Bucket name
+	ETag     string   `xml:"ETag"`              // Object ETag
+	Key      string   `xml:"Key"`               // Object name
+	Crc64    string   `xml:"ChecksumCRC64ECMA"` // checksum crc64 ecma
 }
 
 // ListUploadedPartsResult defines result object of ListUploadedParts
