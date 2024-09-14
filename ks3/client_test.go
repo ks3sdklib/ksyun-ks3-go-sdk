@@ -1489,7 +1489,9 @@ func (s *Ks3ClientSuite) TestHttpLogNotSignUrl(c *C) {
 	httpContent := string(contents)
 
 	c.Assert(strings.Contains(httpContent, "signStr"), Equals, true)
-	c.Assert(strings.Contains(httpContent, "Method:"), Equals, true)
+	c.Assert(strings.Contains(httpContent, "HTTP/"), Equals, true)
+	c.Assert(strings.Contains(httpContent, "Request Headers:"), Equals, true)
+	c.Assert(strings.Contains(httpContent, "Response Headers:"), Equals, true)
 
 	// delete test bucket and log
 	os.Remove(logName)
