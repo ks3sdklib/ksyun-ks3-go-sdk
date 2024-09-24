@@ -625,42 +625,44 @@ func (conn Conn) isDownloadLimitResponse(resp *http.Response) bool {
 
 // LoggerHTTPReq Print the header information of the http request
 func (conn Conn) LoggerHTTPReq(req *http.Request) {
-	if conn.config.LogLevel >= Debug && req != nil {
-		conn.config.WriteLog(Debug, "[Req:%p]%s %s %s", req, req.Method, req.URL.String(), req.Proto)
-		var logBuffer bytes.Buffer
-		logBuffer.WriteString(fmt.Sprintf("Request Headers:\n"))
-		for k, v := range req.Header {
-			var valueBuffer bytes.Buffer
-			for j := 0; j < len(v); j++ {
-				if j > 0 {
-					valueBuffer.WriteString(" ")
-				}
-				valueBuffer.WriteString(v[j])
-			}
-			logBuffer.WriteString(fmt.Sprintf("\t%s: %s\n", k, valueBuffer.String()))
-		}
-		conn.config.WriteLog(Debug, "[Req:%p]%s", req, logBuffer.String())
+	if conn.config.LogLevel < Debug || req == nil {
+		return
 	}
+	conn.config.WriteLog(Debug, "[Req:%p]%s %s %s", req, req.Method, req.URL.String(), req.Proto)
+	var logBuffer bytes.Buffer
+	logBuffer.WriteString(fmt.Sprintf("Request Headers:\n"))
+	for k, v := range req.Header {
+		var valueBuffer bytes.Buffer
+		for j := 0; j < len(v); j++ {
+			if j > 0 {
+				valueBuffer.WriteString(" ")
+			}
+			valueBuffer.WriteString(v[j])
+		}
+		logBuffer.WriteString(fmt.Sprintf("\t%s: %s\n", k, valueBuffer.String()))
+	}
+	conn.config.WriteLog(Debug, "[Req:%p]%s", req, logBuffer.String())
 }
 
 // LoggerHTTPResp Print Response to http request
 func (conn Conn) LoggerHTTPResp(req *http.Request, resp *http.Response) {
-	if conn.config.LogLevel >= Debug && resp != nil {
-		conn.config.WriteLog(Debug, "[Resp:%p]%s %s", req, resp.Proto, resp.Status)
-		var logBuffer bytes.Buffer
-		logBuffer.WriteString(fmt.Sprintf("Response Headers:\n"))
-		for k, v := range resp.Header {
-			var valueBuffer bytes.Buffer
-			for j := 0; j < len(v); j++ {
-				if j > 0 {
-					valueBuffer.WriteString(" ")
-				}
-				valueBuffer.WriteString(v[j])
-			}
-			logBuffer.WriteString(fmt.Sprintf("\t%s: %s\n", k, valueBuffer.String()))
-		}
-		conn.config.WriteLog(Debug, "[Resp:%p]%s", req, logBuffer.String())
+	if conn.config.LogLevel < Debug || resp == nil {
+		return
 	}
+	conn.config.WriteLog(Debug, "[Resp:%p]%s %s", req, resp.Proto, resp.Status)
+	var logBuffer bytes.Buffer
+	logBuffer.WriteString(fmt.Sprintf("Response Headers:\n"))
+	for k, v := range resp.Header {
+		var valueBuffer bytes.Buffer
+		for j := 0; j < len(v); j++ {
+			if j > 0 {
+				valueBuffer.WriteString(" ")
+			}
+			valueBuffer.WriteString(v[j])
+		}
+		logBuffer.WriteString(fmt.Sprintf("\t%s: %s\n", k, valueBuffer.String()))
+	}
+	conn.config.WriteLog(Debug, "[Resp:%p]%s", req, logBuffer.String())
 }
 
 func calcMD5(body io.Reader, contentLen, md5Threshold int64) (reader io.Reader, b64 string, tempFile *os.File, err error) {
