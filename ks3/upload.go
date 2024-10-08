@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -507,15 +506,18 @@ func complete(cp *uploadCheckpoint, bucket *Bucket, parts []UploadPart, cpFilePa
 	return result, err
 }
 
-func isUploadIdExist(imur InitiateMultipartUploadResult, bucket *Bucket) (bool, error) {
+// isUploadIdExist 判断uploadId是否存在
+// 只有当响应码为NoSuchUpload时，才返回false，其他情况均返回true，以防止因为网络或权限等问题，导致续传异常
+func isUploadIdExist(imur InitiateMultipartUploadResult, bucket *Bucket) bool {
 	_, err := bucket.ListUploadedParts(imur)
-	if err == nil {
-		return true, nil
+	if err != nil {
+		var serviceError ServiceError
+		isServiceError := errors.As(err, &serviceError)
+		if isServiceError && serviceError.Code == "NoSuchUpload" {
+			return false
+		}
 	}
-	if strings.Contains(err.Error(), "ErrorCode=NoSuchUpload") {
-		return false, nil
-	}
-	return false, err
+	return true
 }
 
 // uploadFileWithCp handles concurrent upload with checkpoint
@@ -534,7 +536,7 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 		err := ucp.load(cpFilePath)
 		if err == nil {
 			// 判断uploadId是否存在，若不存在，则删除checkpoint文件，重新上传
-			uploadIdExist, _ := isUploadIdExist(InitiateMultipartUploadResult{
+			uploadIdExist := isUploadIdExist(InitiateMultipartUploadResult{
 				Bucket:   bucket.BucketName,
 				Key:      objectKey,
 				UploadID: ucp.UploadID,
