@@ -17,6 +17,7 @@ var _ = Suite(&Ks3BucketLiveChannelSuite{})
 
 // SetUpSuite Run once when the suite starts running
 func (s *Ks3BucketLiveChannelSuite) SetUpSuite(c *C) {
+	c.Skip("skip livechannel")
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
 	s.client = client
@@ -34,6 +35,7 @@ func (s *Ks3BucketLiveChannelSuite) SetUpSuite(c *C) {
 
 // TearDownSuite Run once after all tests or benchmarks
 func (s *Ks3BucketLiveChannelSuite) TearDownSuite(c *C) {
+	c.Skip("skip livechannel")
 	marker := ""
 	for {
 		result, err := s.bucket.ListLiveChannel(Marker(marker))

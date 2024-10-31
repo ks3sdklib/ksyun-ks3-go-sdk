@@ -22,7 +22,7 @@ func BucketLifecycleSample() {
 
 	// Case 1: Set the lifecycle. The rule ID is rule1 and the applied objects' prefix is one and the last modified Date is before 2015/11/11
 	expriation := ks3.LifecycleExpiration{
-		Date: "2015-11-11T00:00:00.000Z",
+		Date: "2018-01-01T00:00:00+08:00",
 	}
 	rule1 := ks3.LifecycleRule{
 		ID:         "rule1",
@@ -65,14 +65,14 @@ func BucketLifecycleSample() {
 	}
 
 	// Case 4: Set the lifecycle, The rule ID is rule3 and the applied objects' prefix is three. The object start with the prefix will be transited to IA storage Type 3 days latter, and to archive storage type 30 days latter, the uncompleted multipart upload will be abort 3 days latter.
-	abortMPU := ks3.LifecycleAbortMultipartUpload{
-		Days: 3,
+	abortMPU := ks3.LifecycleAbortIncompleteMultipartUpload{
+		DaysAfterInitiation: 3,
 	}
 	rule3 := ks3.LifecycleRule{
 		ID:                   "rule3",
 		Prefix:               "three",
 		Status:               "Enabled",
-		AbortMultipartUpload: &abortMPU,
+		AbortIncompleteMultipartUpload: &abortMPU,
 	}
 	rules = append(lc.Rules, rule3)
 	err = client.SetBucketLifecycle(bucketName, rules)
@@ -82,7 +82,7 @@ func BucketLifecycleSample() {
 
 	// Case 5: Set the lifecycle. The rule ID is rule4 and the applied objects' has the tagging which prefix is four and the last modified Date is before 2015/11/11
 	expriation = ks3.LifecycleExpiration{
-		Date: "2015-11-11T00:00:00.000Z",
+		Date: "2018-01-01T00:00:00+08:00",
 	}
 	//tag1 := ks3.Tag{
 	//	Key:   "key1",

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -552,6 +553,9 @@ func (client Client) DeleteBucketLogging(bucketName string, options ...Option) e
 	params := map[string]interface{}{}
 	params["logging"] = nil
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
+	if err != nil {
+		return err
+	}
 	defer resp.Body.Close()
 	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
 }
@@ -1311,9 +1315,11 @@ func (client Client) DeleteBucketQosInfo(bucketName string, options ...Option) e
 	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
 }
 
-// SetBucketInventory API operation for Object Storage Service
+//-------------------------------- Bucket Inventory --------------------------------
+
+// PutBucketInventory API operation for Object Storage Service
 //
-// Set the Bucket inventory.
+// Put the Bucket inventory.
 //
 // bucketName tht bucket name.
 //
@@ -1321,10 +1327,10 @@ func (client Client) DeleteBucketQosInfo(bucketName string, options ...Option) e
 //
 // error    it's nil if no error, otherwise it's an error.
 //
-func (client Client) SetBucketInventory(bucketName string, inventoryConfig InventoryConfiguration, options ...Option) error {
+func (client Client) PutBucketInventory(bucketName string, inventoryConfig InventoryConfiguration, options ...Option) error {
 	params := map[string]interface{}{}
-	params["inventoryId"] = inventoryConfig.Id
 	params["inventory"] = nil
+	params["id"] = inventoryConfig.Id
 
 	var bs []byte
 	bs, err := xml.Marshal(inventoryConfig)
@@ -1336,9 +1342,11 @@ func (client Client) SetBucketInventory(bucketName string, inventoryConfig Inven
 	buffer := new(bytes.Buffer)
 	buffer.Write(bs)
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := make(map[string]string)
 	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
 
 	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
 
@@ -1357,17 +1365,17 @@ func (client Client) SetBucketInventory(bucketName string, inventoryConfig Inven
 //
 // bucketName tht bucket name.
 //
-// strInventoryId the inventory id.
+// inventoryId the inventory id.
 //
 // InventoryConfiguration the inventory configuration.
 //
 // error    it's nil if no error, otherwise it's an error.
 //
-func (client Client) GetBucketInventory(bucketName string, strInventoryId string, options ...Option) (InventoryConfiguration, error) {
+func (client Client) GetBucketInventory(bucketName string, inventoryId string, options ...Option) (InventoryConfiguration, error) {
 	var out InventoryConfiguration
 	params := map[string]interface{}{}
 	params["inventory"] = nil
-	params["inventoryId"] = strInventoryId
+	params["id"] = inventoryId
 
 	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
 	if err != nil {
@@ -1417,14 +1425,14 @@ func (client Client) ListBucketInventory(bucketName, continuationToken string, o
 //
 // bucketName tht bucket name.
 //
-// strInventoryId the inventory id.
+// inventoryId the inventory id.
 //
 // error    it's nil if no error, otherwise it's an error.
 //
-func (client Client) DeleteBucketInventory(bucketName, strInventoryId string, options ...Option) error {
+func (client Client) DeleteBucketInventory(bucketName, inventoryId string, options ...Option) error {
 	params := map[string]interface{}{}
 	params["inventory"] = nil
-	params["inventoryId"] = strInventoryId
+	params["id"] = inventoryId
 
 	resp, err := client.do("DELETE", bucketName, params, nil, nil, options...)
 	if err != nil {
@@ -1682,23 +1690,55 @@ func (client Client) DeleteBucketTransferAcc(bucketName string, options ...Optio
 	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
 }
 
+//-------------------------------- Bucket Replication --------------------------------
+
 // PutBucketReplication put bucket replication configuration
+// bucketName    the bucket name.
+// replication    the replication configuration.
+// error    it's nil if no error, otherwise it's an error object.
+//
+func (client Client) PutBucketReplication(bucketName string, replication Replication, options ...Option) error {
+	bs, err := xml.Marshal(replication)
+	if err != nil {
+		return err
+	}
+	buffer := new(bytes.Buffer)
+	buffer.Write(bs)
+
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+	contentType := http.DetectContentType(buffer.Bytes())
+	headers := map[string]string{}
+	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
+
+	params := map[string]interface{}{}
+	params["crr"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+}
+
+// PutBucketReplicationXml put bucket replication configuration
 // bucketName    the bucket name.
 // xmlBody    the replication configuration.
 // error    it's nil if no error, otherwise it's an error object.
 //
-func (client Client) PutBucketReplication(bucketName string, xmlBody string, options ...Option) error {
+func (client Client) PutBucketReplicationXml(bucketName string, xmlBody string, options ...Option) error {
 	buffer := new(bytes.Buffer)
 	buffer.Write([]byte(xmlBody))
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
 
 	params := map[string]interface{}{}
-	params["replication"] = nil
-	params["comp"] = "add"
-	resp, err := client.do("POST", bucketName, params, headers, buffer, options...)
+	params["crr"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
 	if err != nil {
 		return err
 	}
@@ -1708,12 +1748,32 @@ func (client Client) PutBucketReplication(bucketName string, xmlBody string, opt
 
 // GetBucketReplication get bucket replication configuration
 // bucketName    the bucket name.
+// GetBucketReplicationResult    the replication configuration.
+// error    it's nil if no error, otherwise it's an error object.
+//
+func (client Client) GetBucketReplication(bucketName string, options ...Option) (GetBucketReplicationResult, error) {
+	var out GetBucketReplicationResult
+	params := map[string]interface{}{}
+	params["crr"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	err = xmlUnmarshal(resp.Body, &out)
+
+	return out, err
+}
+
+// GetBucketReplicationXml get bucket replication configuration
+// bucketName    the bucket name.
 // string    the replication configuration.
 // error    it's nil if no error, otherwise it's an error object.
 //
-func (client Client) GetBucketReplication(bucketName string, options ...Option) (string, error) {
+func (client Client) GetBucketReplicationXml(bucketName string, options ...Option) (string, error) {
 	params := map[string]interface{}{}
-	params["replication"] = nil
+	params["crr"] = nil
 
 	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
 	if err != nil {
@@ -1721,7 +1781,7 @@ func (client Client) GetBucketReplication(bucketName string, options ...Option) 
 	}
 	defer resp.Body.Close()
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -1730,29 +1790,12 @@ func (client Client) GetBucketReplication(bucketName string, options ...Option) 
 
 // DeleteBucketReplication delete bucket replication configuration
 // bucketName    the bucket name.
-// ruleId    the ID of the replication configuration.
 // error    it's nil if no error, otherwise it's an error object.
 //
-func (client Client) DeleteBucketReplication(bucketName string, ruleId string, options ...Option) error {
-	replicationxml := ReplicationXML{}
-	replicationxml.ID = ruleId
-
-	bs, err := xml.Marshal(replicationxml)
-	if err != nil {
-		return err
-	}
-
-	buffer := new(bytes.Buffer)
-	buffer.Write(bs)
-
-	contentType := http.DetectContentType(buffer.Bytes())
-	headers := map[string]string{}
-	headers[HTTPHeaderContentType] = contentType
-
+func (client Client) DeleteBucketReplication(bucketName string, options ...Option) error {
 	params := map[string]interface{}{}
-	params["replication"] = nil
-	params["comp"] = "delete"
-	resp, err := client.do("POST", bucketName, params, headers, buffer, options...)
+	params["crr"] = nil
+	resp, err := client.do("DELETE", bucketName, params, nil, nil, options...)
 	if err != nil {
 		return err
 	}
@@ -1827,6 +1870,169 @@ func (client Client) GetBucketCname(bucketName string, options ...Option) (strin
 		return "", err
 	}
 	return string(data), err
+}
+
+//-------------------------------- Bucket Retention --------------------------------
+
+func (client Client) PutBucketRetention(bucketName string, retentionRule RetentionRule, options ...Option) error {
+	retentionCfg := RetentionConfiguration{Rule: retentionRule}
+	bs, err := xml.Marshal(retentionCfg)
+	if err != nil {
+		return err
+	}
+	buffer := new(bytes.Buffer)
+	buffer.Write(bs)
+
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+	contentType := http.DetectContentType(buffer.Bytes())
+	headers := map[string]string{}
+	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
+
+	params := map[string]interface{}{}
+	params["retention"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+}
+
+// PutBucketRetentionXml sets the bucket's retention rule from xml config
+func (client Client) PutBucketRetentionXml(bucketName string, xmlBody string, options ...Option) error {
+	buffer := new(bytes.Buffer)
+	buffer.Write([]byte(xmlBody))
+
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+	contentType := http.DetectContentType(buffer.Bytes())
+	headers := map[string]string{}
+	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
+
+	params := map[string]interface{}{}
+	params["retention"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+}
+
+func (client Client) GetBucketRetention(bucketName string, options ...Option) (GetBucketRetentionResult, error) {
+	var out GetBucketRetentionResult
+	params := map[string]interface{}{}
+	params["retention"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	err = xmlUnmarshal(resp.Body, &out)
+
+	return out, err
+}
+
+// GetBucketRetentionXml gets the bucket's retention rule in xml format
+func (client Client) GetBucketRetentionXml(bucketName string, options ...Option) (string, error) {
+	params := map[string]interface{}{}
+	params["retention"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	out := string(body)
+	return out, err
+}
+
+//-------------------------------- Bucket Mirror --------------------------------
+
+func (client Client) PutBucketMirror(bucketName string, bucketMirror BucketMirror, options ...Option) error {
+	bs, err := json.Marshal(bucketMirror)
+	if err != nil {
+		return err
+	}
+	buffer := new(bytes.Buffer)
+	buffer.Write(bs)
+
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+	contentType := http.DetectContentType(buffer.Bytes())
+	headers := map[string]string{}
+	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
+
+	params := map[string]interface{}{}
+	params["mirror"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+}
+
+func (client Client) PutBucketMirrorJson(bucketName string, jsonBody string, options ...Option) error {
+	buffer := new(bytes.Buffer)
+	buffer.Write([]byte(jsonBody))
+
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
+	contentType := http.DetectContentType(buffer.Bytes())
+	headers := map[string]string{}
+	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
+
+	params := map[string]interface{}{}
+	params["mirror"] = nil
+	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+}
+
+func (client Client) GetBucketMirror(bucketName string, options ...Option) (GetBucketMirrorResult, error) {
+	var out GetBucketMirrorResult
+	params := map[string]interface{}{}
+	params["mirror"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	err = jsonUnmarshal(resp.Body, &out)
+	return out, err
+}
+
+func (client Client) GetBucketMirrorJson(bucketName string, options ...Option) (string, error) {
+	params := map[string]interface{}{}
+	params["mirror"] = nil
+	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	out := string(body)
+	return out, err
+}
+
+func (client Client) DeleteBucketMirror(bucketName string, options ...Option) error {
+	params := map[string]interface{}{}
+	params["mirror"] = nil
+	resp, err := client.do("DELETE", bucketName, params, nil, nil, options...)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
 }
 
 // LimitUploadSpeed set upload bandwidth limit speed,default is 0,unlimited
@@ -2072,7 +2278,9 @@ func (client Client) do(method, bucketName string, params map[string]interface{}
 	respHeader, _ := FindOption(options, responseHeader, nil)
 	if respHeader != nil {
 		pRespHeader := respHeader.(*http.Header)
-		*pRespHeader = resp.Headers
+		if resp != nil {
+			*pRespHeader = resp.Headers
+		}
 	}
 
 	return resp, err

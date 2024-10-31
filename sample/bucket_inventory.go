@@ -21,20 +21,23 @@ func BucketInventorySample() {
 	}
 
 	// the inventory configuration,not use any encryption
-	bl := true
 	invConfig := ks3.InventoryConfiguration{
 		Id:        "report1",
-		IsEnabled: &bl,
-		Prefix:    "filterPrefix/",
-		KS3BucketDestination: ks3.KS3BucketDestination{
-			Format:    "CSV",
-			AccountId: accountID,
-			RoleArn:   stsARN,
-			Bucket:    "acs:ks3:::" + bucketName,
-			Prefix:    "prefix1",
+		IsEnabled: ks3.Boolean(true),
+		Filter: ks3.InventoryFilter{
+			Prefix: "filterPrefix/",
 		},
-		Frequency:              "Daily",
-		IncludedObjectVersions: "All",
+		Destination: ks3.Destination{
+			KS3BucketDestination: ks3.KS3BucketDestination{
+				Format:    "CSV",
+				AccountId: accountID,
+				Bucket:    bucketName,
+				Prefix:    "prefix1",
+			},
+		},
+		Schedule: ks3.Schedule{
+			Frequency: "Once",
+		},
 		OptionalFields: ks3.OptionalFields{
 			Field: []string{
 				"Size", "LastModifiedDate", "ETag", "StorageClass", "IsMultipartUploaded", "EncryptionStatus",
@@ -43,7 +46,7 @@ func BucketInventorySample() {
 	}
 
 	// case 1: Set inventory
-	err = client.SetBucketInventory(bucketName, invConfig)
+	err = client.PutBucketInventory(bucketName, invConfig)
 	if err != nil {
 		HandleError(err)
 	}
@@ -58,24 +61,28 @@ func BucketInventorySample() {
 	// case 3: List Bucket inventory
 	invConfig2 := ks3.InventoryConfiguration{
 		Id:        "report2",
-		IsEnabled: &bl,
-		Prefix:    "filterPrefix/",
-		KS3BucketDestination: ks3.KS3BucketDestination{
-			Format:    "CSV",
-			AccountId: accountID,
-			RoleArn:   stsARN,
-			Bucket:    "acs:ks3:::" + bucketName,
-			Prefix:    "prefix1",
+		IsEnabled: ks3.Boolean(true),
+		Filter: ks3.InventoryFilter{
+			Prefix: "filterPrefix/",
 		},
-		Frequency:              "Daily",
-		IncludedObjectVersions: "All",
+		Destination: ks3.Destination{
+			KS3BucketDestination: ks3.KS3BucketDestination{
+				Format:    "CSV",
+				AccountId: accountID,
+				Bucket:    bucketName,
+				Prefix:    "prefix2",
+			},
+		},
+		Schedule: ks3.Schedule{
+			Frequency: "Once",
+		},
 		OptionalFields: ks3.OptionalFields{
 			Field: []string{
 				"Size", "LastModifiedDate", "ETag", "StorageClass", "IsMultipartUploaded", "EncryptionStatus",
 			},
 		},
 	}
-	err = client.SetBucketInventory(bucketName, invConfig2)
+	err = client.PutBucketInventory(bucketName, invConfig2)
 	if err != nil {
 		HandleError(err)
 	}

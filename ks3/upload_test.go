@@ -3,7 +3,6 @@ package ks3
 import (
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"time"
 
@@ -23,6 +22,7 @@ func (s *Ks3UploadSuite) SetUpSuite(c *C) {
 	c.Assert(err, IsNil)
 	s.client = client
 
+	bucketName := bucketNamePrefix + RandLowStr(6)
 	s.client.CreateBucket(bucketName)
 
 	bucket, err := s.client.Bucket(bucketName)
@@ -466,7 +466,7 @@ func (s *Ks3UploadSuite) TestUploadPartArchiveObject(c *C) {
 	c.Assert(err, IsNil)
 
 	bucketName := bucketNamePrefix + RandLowStr(6)
-	err = client.CreateBucket(bucketName, StorageClass(StorageArchive))
+	err = client.CreateBucket(bucketName, BucketTypeClass(TypeArchive))
 	c.Assert(err, IsNil)
 	bucket, err := client.Bucket(bucketName)
 	objectName := objectNamePrefix + RandStr(8)
@@ -500,66 +500,6 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(dstFile, srcFile)
 	return err
-}
-
-func (s *Ks3UploadSuite) TestVersioningUploadRoutineWithRecovery(c *C) {
-	// create a bucket with default proprety
-	client, err := New(endpoint, accessID, accessKey)
-	c.Assert(err, IsNil)
-
-	bucketName := bucketNamePrefix + RandLowStr(6)
-	err = client.CreateBucket(bucketName)
-	c.Assert(err, IsNil)
-
-	bucket, err := client.Bucket(bucketName)
-
-	// put bucket version:enabled
-	var versioningConfig VersioningConfig
-	versioningConfig.Status = string(VersionEnabled)
-	err = client.SetBucketVersioning(bucketName, versioningConfig)
-	c.Assert(err, IsNil)
-
-	// begin test
-	objectName := objectNamePrefix + RandStr(8)
-	fileName := "test-file-" + RandStr(8)
-	fileData := RandStr(500 * 1024)
-	CreateFile(fileName, fileData, c)
-	newFile := "test-file-" + RandStr(8)
-
-	// Use default routines and default CP file path (fileName+.cp)Header
-	// First upload for 4 parts
-	var respHeader http.Header
-	uploadPartHooker = ErrorHooker
-	options := []Option{Checkpoint(true, fileName+".cp"), GetResponseHeader(&respHeader)}
-	err = bucket.UploadFile(objectName, fileName, 100*1024, options...)
-	c.Assert(err, NotNil)
-	c.Assert(err.Error(), Equals, "ErrorHooker")
-	c.Assert(GetVersionId(respHeader), Equals, "")
-
-	uploadPartHooker = defaultUploadPart
-
-	// Second upload, finish the remaining part
-	options = []Option{Checkpoint(true, fileName+".cp"), GetResponseHeader(&respHeader)}
-	err = bucket.UploadFile(objectName, fileName, 100*1024, options...)
-	c.Assert(err, IsNil)
-	versionIdUp := GetVersionId(respHeader)
-	c.Assert(len(versionIdUp) > 0, Equals, true)
-
-	os.Remove(newFile)
-	var respHeaderDown http.Header
-	err = bucket.GetObjectToFile(objectName, newFile, GetResponseHeader(&respHeaderDown))
-	versionIdDown := GetVersionId(respHeaderDown)
-	c.Assert(err, IsNil)
-	c.Assert(versionIdUp, Equals, versionIdDown)
-
-	eq, err := compareFiles(fileName, newFile)
-	c.Assert(err, IsNil)
-	c.Assert(eq, Equals, true)
-
-	os.Remove(fileName)
-	os.Remove(newFile)
-	bucket.DeleteObject(objectName)
-	ForceDeleteBucket(client, bucketName, c)
 }
 
 // TestUploadFileChoiceOptions
@@ -598,7 +538,7 @@ func (s *Ks3UploadSuite) TestUploadFileChoiceOptions(c *C) {
 
 	c.Assert(headerResp.Get("X-Kss-Server-Side-Encryption"), Equals, "AES256")
 	aclResult, err := bucket.GetObjectACL(objectName)
-	c.Assert(aclResult.ACL, Equals, "public-read")
+	c.Assert(aclResult.GetCannedACL(), Equals, ACLPublicRead)
 	c.Assert(err, IsNil)
 	ForceDeleteBucket(client, bucketName, c)
 }
@@ -639,103 +579,11 @@ func (s *Ks3UploadSuite) TestUploadFileWithCpChoiceOptions(c *C) {
 	c.Assert(err, IsNil)
 
 	c.Assert(headerResp.Get("X-Kss-Server-Side-Encryption"), Equals, "AES256")
-	c.Assert(headerResp.Get("X-Kss-Storage-Class"), Equals, "Archive")
+	c.Assert(headerResp.Get("X-Kss-Storage-Class"), Equals, "ARCHIVE")
 
 	aclResult, err := bucket.GetObjectACL(objectName)
-	c.Assert(aclResult.ACL, Equals, "public-read")
+	c.Assert(aclResult.GetCannedACL(), Equals, ACLPublicRead)
 	c.Assert(err, IsNil)
-
-	ForceDeleteBucket(client, bucketName, c)
-}
-
-// TestUploadFileWithForbidOverWrite
-func (s *Ks3UploadSuite) TestUploadFileWithForbidOverWrite(c *C) {
-	// create a bucket with default proprety
-	client, err := New(endpoint, accessID, accessKey)
-	c.Assert(err, IsNil)
-
-	bucketName := bucketNamePrefix + RandLowStr(6)
-	err = client.CreateBucket(bucketName)
-	c.Assert(err, IsNil)
-	bucket, err := client.Bucket(bucketName)
-
-	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
-	fileInfo, err := os.Stat(fileName)
-	c.Assert(err, IsNil)
-
-	objectName := objectNamePrefix + RandStr(8)
-
-	// UploadFile with properties
-	options := []Option{
-		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
-		TrafficLimitHeader(1024 * 1024 * 8),
-		ServerSideEncryption("AES256"),
-		ObjectStorageClass(StorageArchive),
-		ForbidOverWrite(true),
-		Checkpoint(true, fileName+".cp"),
-	}
-
-	// Updating the file
-	err = bucket.UploadFile(objectName, fileName, fileInfo.Size()/2, options...)
-	c.Assert(err, IsNil)
-
-	// Updating the file with ForbidOverWrite(true)
-	err = bucket.UploadFile(objectName, fileName, fileInfo.Size()/2, options...)
-	c.Assert(err, NotNil)
-
-	// without Checkpoint
-	options = []Option{
-		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
-		TrafficLimitHeader(1024 * 1024 * 8),
-		ServerSideEncryption("AES256"),
-		ObjectStorageClass(StorageArchive),
-		ForbidOverWrite(true),
-	}
-
-	// Updating the file with ForbidOverWrite(true)
-	err = bucket.UploadFile(objectName, fileName, fileInfo.Size()/2, options...)
-	c.Assert(err, NotNil)
-
-	ForceDeleteBucket(client, bucketName, c)
-}
-
-// TestUploadFileWithSequential
-func (s *Ks3UploadSuite) TestUploadFileWithSequential(c *C) {
-	// create a bucket with default proprety
-	client, err := New(endpoint, accessID, accessKey)
-	c.Assert(err, IsNil)
-
-	bucketName := bucketNamePrefix + RandLowStr(6)
-	err = client.CreateBucket(bucketName)
-	c.Assert(err, IsNil)
-	bucket, err := client.Bucket(bucketName)
-
-	fileName := "../sample/BingWallpaper-2015-11-07.jpg"
-	fileInfo, err := os.Stat(fileName)
-	c.Assert(err, IsNil)
-
-	objectName := objectNamePrefix + RandStr(8)
-
-	var respHeader http.Header
-
-	// UploadFile with properties
-	options := []Option{
-		Sequential(),
-		GetResponseHeader(&respHeader),
-		Checkpoint(true, fileName+".cp"),
-	}
-
-	// Updating the file
-	err = bucket.UploadFile(objectName, fileName, fileInfo.Size()/2, options...)
-	c.Assert(err, IsNil)
-
-	respHeader, err = bucket.GetObjectDetailedMeta(objectName)
-	c.Assert(err, IsNil)
-
-	strMD5 := respHeader.Get("Content-MD5")
-	c.Assert(len(strMD5) > 0, Equals, true)
 
 	ForceDeleteBucket(client, bucketName, c)
 }

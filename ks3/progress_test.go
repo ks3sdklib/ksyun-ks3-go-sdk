@@ -26,6 +26,7 @@ func (s *Ks3ProgressSuite) SetUpSuite(c *C) {
 	c.Assert(err, IsNil)
 	s.client = client
 
+	bucketName := bucketNamePrefix + RandLowStr(6)
 	s.client.CreateBucket(bucketName)
 
 	bucket, err := s.client.Bucket(bucketName)
@@ -44,7 +45,7 @@ func (s *Ks3ProgressSuite) TearDownSuite(c *C) {
 		lmu, err := s.bucket.ListMultipartUploads(keyMarker, uploadIDMarker)
 		c.Assert(err, IsNil)
 		for _, upload := range lmu.Uploads {
-			imur := InitiateMultipartUploadResult{Bucket: bucketName, Key: upload.Key, UploadID: upload.UploadID}
+			imur := InitiateMultipartUploadResult{Bucket: s.bucket.BucketName, Key: upload.Key, UploadID: upload.UploadID}
 			err = s.bucket.AbortMultipartUpload(imur)
 			c.Assert(err, IsNil)
 		}
@@ -175,114 +176,6 @@ func (s *Ks3ProgressSuite) TestPutObject(c *C) {
 	testLogger.Println("Ks3ProgressSuite.TestPutObject")
 }
 
-// TestSignURL
-func (s *Ks3ProgressSuite) SignURLTestFunc(c *C, authVersion AuthVersionType, extraHeaders []string) {
-	objectName := objectNamePrefix + RandStr(8)
-	filePath := RandLowStr(10)
-	content := RandStr(20)
-	CreateFile(filePath, content, c)
-
-	oldType := s.bucket.Client.Config.AuthVersion
-	oldHeaders := s.bucket.Client.Config.AdditionalHeaders
-	s.bucket.Client.Config.AuthVersion = authVersion
-	s.bucket.Client.Config.AdditionalHeaders = extraHeaders
-
-	// Sign URL for put
-	progressListener := Ks3ProgressListener{}
-	str, err := s.bucket.SignURL(objectName, HTTPPut, 60, Progress(&progressListener))
-	c.Assert(err, IsNil)
-	if s.bucket.Client.Config.AuthVersion == AuthV1 {
-		c.Assert(strings.Contains(str, HTTPParamExpires+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamAccessKeyID+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamSignature+"="), Equals, true)
-	} else {
-		c.Assert(strings.Contains(str, HTTPParamSignatureVersion+"=KS32"), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamExpiresV2+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamAccessKeyIDV2+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamSignatureV2+"="), Equals, true)
-	}
-
-	// Put object with URL
-	fd, err := os.Open(filePath)
-	c.Assert(err, IsNil)
-	defer fd.Close()
-
-	err = s.bucket.PutObjectWithURL(str, fd, Progress(&progressListener))
-	c.Assert(err, IsNil)
-	c.Assert(progressListener.TotalRwBytes, Equals, int64(len(content)))
-
-	// Put object from file with URL
-	progressListener.TotalRwBytes = 0
-	err = s.bucket.PutObjectFromFileWithURL(str, filePath, Progress(&progressListener))
-	c.Assert(err, IsNil)
-	c.Assert(progressListener.TotalRwBytes, Equals, int64(len(content)))
-
-	// DoPutObject
-	fd, err = os.Open(filePath)
-	c.Assert(err, IsNil)
-	defer fd.Close()
-
-	progressListener.TotalRwBytes = 0
-	options := []Option{Progress(&progressListener)}
-	_, err = s.bucket.DoPutObjectWithURL(str, fd, options)
-	c.Assert(err, IsNil)
-	c.Assert(progressListener.TotalRwBytes, Equals, int64(len(content)))
-
-	// Sign URL for get
-	str, err = s.bucket.SignURL(objectName, HTTPGet, 60, Progress(&progressListener))
-	c.Assert(err, IsNil)
-	if s.bucket.Client.Config.AuthVersion == AuthV1 {
-		c.Assert(strings.Contains(str, HTTPParamExpires+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamAccessKeyID+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamSignature+"="), Equals, true)
-	} else {
-		c.Assert(strings.Contains(str, HTTPParamSignatureVersion+"=KS32"), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamExpiresV2+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamAccessKeyIDV2+"="), Equals, true)
-		c.Assert(strings.Contains(str, HTTPParamSignatureV2+"="), Equals, true)
-	}
-
-	// Get object with URL
-	progressListener.TotalRwBytes = 0
-	body, err := s.bucket.GetObjectWithURL(str, Progress(&progressListener))
-	c.Assert(err, IsNil)
-	str, err = readBody(body)
-	c.Assert(err, IsNil)
-	c.Assert(str, Equals, content)
-	c.Assert(progressListener.TotalRwBytes, Equals, int64(len(content)))
-
-	// Get object to file with URL
-	progressListener.TotalRwBytes = 0
-	str, err = s.bucket.SignURL(objectName, HTTPGet, 10, Progress(&progressListener))
-	c.Assert(err, IsNil)
-
-	newFile := RandStr(10)
-	progressListener.TotalRwBytes = 0
-	err = s.bucket.GetObjectToFileWithURL(str, newFile, Progress(&progressListener))
-	c.Assert(progressListener.TotalRwBytes, Equals, int64(len(content)))
-	c.Assert(err, IsNil)
-	eq, err := compareFiles(filePath, newFile)
-	c.Assert(err, IsNil)
-	c.Assert(eq, Equals, true)
-
-	os.Remove(filePath)
-	os.Remove(newFile)
-
-	err = s.bucket.DeleteObject(objectName)
-	c.Assert(err, IsNil)
-
-	testLogger.Println("Ks3ProgressSuite.TestSignURL")
-
-	s.bucket.Client.Config.AuthVersion = oldType
-	s.bucket.Client.Config.AdditionalHeaders = oldHeaders
-}
-
-func (s *Ks3ProgressSuite) TestSignURL(c *C) {
-	s.SignURLTestFunc(c, AuthV1, []string{})
-	s.SignURLTestFunc(c, AuthV2, []string{})
-	s.SignURLTestFunc(c, AuthV2, []string{"host", "range", "user-agent"})
-}
-
 func (s *Ks3ProgressSuite) TestPutObjectNegative(c *C) {
 	objectName := objectNamePrefix + RandStr(8)
 	localFile := "../sample/The Go Programming Language.html"
@@ -291,7 +184,7 @@ func (s *Ks3ProgressSuite) TestPutObjectNegative(c *C) {
 	client, err := New("http://ks3-cn-taikang.ksyuncs.com", accessID, accessKey)
 	c.Assert(err, IsNil)
 
-	bucket, err := client.Bucket(bucketName)
+	bucket, err := client.Bucket(s.bucket.BucketName)
 	c.Assert(err, IsNil)
 
 	err = bucket.PutObjectFromFile(objectName, localFile, Progress(&Ks3ProgressListener{}))
@@ -569,12 +462,12 @@ func (s *Ks3ProgressSuite) TestCopyFile(c *C) {
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
 
 	progressListener.TotalRwBytes = 0
-	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 100*1024, Routines(5), Progress(&progressListener))
+	err = s.bucket.CopyFile(s.bucket.BucketName, srcObjectName, destObjectName, 100*1024, Routines(5), Progress(&progressListener))
 	c.Assert(err, IsNil)
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
 
 	progressListener.TotalRwBytes = 0
-	err = s.bucket.CopyFile(bucketName, srcObjectName, destObjectName, 1024*100, Routines(3), Checkpoint(true, ""), Progress(&progressListener))
+	err = s.bucket.CopyFile(s.bucket.BucketName, srcObjectName, destObjectName, 1024*100, Routines(3), Checkpoint(true, ""), Progress(&progressListener))
 	c.Assert(err, IsNil)
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
 

@@ -56,7 +56,7 @@ func (s *Ks3ErrorSuite) TestCheckCRCCNegative(c *C) {
 		"Expires":              {"-1"},
 		"Content-Length":       {"0"},
 		"Content-Encoding":     {"gzip"},
-		"X-Kss-Hash-Crc64ecma": {"0"},
+		"X-Kss-Checksum-Crc64ecma": {"0"},
 	}
 
 	resp := &Response{

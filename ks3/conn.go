@@ -30,6 +30,8 @@ type Conn struct {
 
 var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"logging", "website", "referer", "lifecycle",
+	"retention", "recycle", "recover", "clear",
+	"crr", "mirror", "inventory", "id",
 	"delete", "append", "tagging", "objectMeta",
 	"uploadId", "partNumber", "security-token",
 	"position", "img", "style", "styleName",
@@ -44,8 +46,7 @@ var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"udfId", "udfImageDesc", "udfApplication", "comp",
 	"udfApplicationLog", "restore", "callback", "callback-var", "qosInfo",
 	"policy", "stat", "encryption", "versions", "versioning", "versionId", "requestPayment",
-	"x-ks3-request-payer", "sequential",
-	"inventory", "inventoryId", "continuation-token", "asyncFetch",
+	"x-ks3-request-payer", "sequential", "asyncFetch",
 	"worm", "wormId", "wormExtend", "withHashContext",
 	"x-ks3-enable-md5", "x-ks3-enable-sha1", "x-ks3-enable-sha256",
 	"x-ks3-hash-ctx", "x-ks3-md5-ctx", "transferAcceleration",
@@ -147,11 +148,14 @@ func (conn Conn) DoURL(method HTTPMethod, signedURL string, headers map[string]s
 	event := newProgressEvent(TransferStartedEvent, 0, req.ContentLength, 0)
 	publishProgress(listener, event)
 
-	if conn.config.LogLevel >= Debug {
-		conn.LoggerHTTPReq(req)
-	}
+	// print out http req
+	conn.LoggerHTTPReq(req)
 
+	startT := time.Now()
 	resp, err := conn.client.Do(req)
+	cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
+	conn.config.WriteLog(Info, "[Resp:%p]send http request, cost:%d(ms)\n", req, cost)
+
 	if err != nil {
 		// Transfer failed
 		event = newProgressEvent(TransferFailedEvent, tracker.completedBytes, req.ContentLength, 0)
@@ -160,10 +164,8 @@ func (conn Conn) DoURL(method HTTPMethod, signedURL string, headers map[string]s
 		return nil, err
 	}
 
-	if conn.config.LogLevel >= Debug {
-		//print out http resp
-		conn.LoggerHTTPResp(req, resp)
-	}
+	// print out http resp
+	conn.LoggerHTTPResp(req, resp)
 
 	// Transfer completed
 	event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength, 0)
@@ -323,19 +325,21 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 	event := newProgressEvent(TransferStartedEvent, 0, req.ContentLength, 0)
 	publishProgress(listener, event)
 
-	if conn.config.LogLevel >= Debug {
-		conn.LoggerHTTPReq(req)
-	}
+	// print out http req
+	conn.LoggerHTTPReq(req)
 
+	startT := time.Now()
 	resp, err := conn.client.Do(req)
+	cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
+	conn.config.WriteLog(Info, "[Resp:%p]send http request, cost:%d(ms)\n", req, cost)
 
-	if conn.config.LogLevel >= Debug && resp != nil {
-		// print out http resp
-		conn.LoggerHTTPResp(req, resp)
-	}
+	// print out http resp
+	conn.LoggerHTTPResp(req, resp)
 
+	var ks3Resp *Response
 	if err == nil && resp != nil {
-		ks3Resp, e := conn.handleResponse(resp, crc)
+		var e error
+		ks3Resp, e = conn.handleResponse(resp, crc)
 		if e == nil {
 			// Transfer completed
 			event = newProgressEvent(TransferCompletedEvent, tracker.completedBytes, req.ContentLength, 0)
@@ -350,7 +354,7 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 	event = newProgressEvent(TransferFailedEvent, tracker.completedBytes, req.ContentLength, 0)
 	publishProgress(listener, event)
 	conn.config.WriteLog(Debug, "[Resp:%p]http error:%s\n", req, err.Error())
-	return nil, err
+	return ks3Resp, err
 }
 
 func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) string {
@@ -621,12 +625,12 @@ func (conn Conn) isDownloadLimitResponse(resp *http.Response) bool {
 
 // LoggerHTTPReq Print the header information of the http request
 func (conn Conn) LoggerHTTPReq(req *http.Request) {
-	conn.config.WriteLog(Debug, "[Req:%p]Method:%s", req, req.Method)
-	conn.config.WriteLog(Debug, "[Req:%p]Host:%s", req, req.URL.Host)
-	conn.config.WriteLog(Debug, "[Req:%p]Path:%s", req, req.URL.Path)
-	conn.config.WriteLog(Debug, "[Req:%p]Query:%s", req, req.URL.RawQuery)
+	if conn.config.LogLevel < Debug || req == nil {
+		return
+	}
+	conn.config.WriteLog(Debug, "[Req:%p]%s %s %s", req, req.Method, req.URL.String(), req.Proto)
 	var logBuffer bytes.Buffer
-	logBuffer.WriteString(fmt.Sprintf("Request Header info:\n"))
+	logBuffer.WriteString(fmt.Sprintf("Request Headers:\n"))
 	for k, v := range req.Header {
 		var valueBuffer bytes.Buffer
 		for j := 0; j < len(v); j++ {
@@ -642,11 +646,12 @@ func (conn Conn) LoggerHTTPReq(req *http.Request) {
 
 // LoggerHTTPResp Print Response to http request
 func (conn Conn) LoggerHTTPResp(req *http.Request, resp *http.Response) {
-	conn.config.WriteLog(Debug, "[Resp:%p]StatusCode:%d", req, resp.StatusCode)
-	conn.config.WriteLog(Debug, "[Resp:%p]Status:%s", req, resp.Status)
-	conn.config.WriteLog(Debug, "[Resp:%p]RequestId:%s", req, resp.Header.Get(HTTPHeaderKs3RequestID))
+	if conn.config.LogLevel < Debug || resp == nil {
+		return
+	}
+	conn.config.WriteLog(Debug, "[Resp:%p]%s %s", req, resp.Proto, resp.Status)
 	var logBuffer bytes.Buffer
-	logBuffer.WriteString(fmt.Sprintf("Response Header info:\n"))
+	logBuffer.WriteString(fmt.Sprintf("Response Headers:\n"))
 	for k, v := range resp.Header {
 		var valueBuffer bytes.Buffer
 		for j := 0; j < len(v); j++ {
