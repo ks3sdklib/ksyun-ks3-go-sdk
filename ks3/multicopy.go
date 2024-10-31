@@ -44,8 +44,7 @@ func (bucket Bucket) CopyFile(srcBucketName, srcObjectKey, destObjectKey string,
 		}
 	}
 
-	return bucket.copyFile(srcBucketName, srcObjectKey, destBucketName, destObjectKey,
-		partSize, options, routines)
+	return bucket.copyFile(srcBucketName, srcObjectKey, destBucketName, destObjectKey, partSize, options, routines)
 }
 
 func getCopyCpFilePath(cpConf *cpConfig, srcBucket, srcObject, destBucket, destObject, versionId string) string {
@@ -199,9 +198,9 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 		case part := <-results:
 			completed++
 			ups[part.PartNumber-1] = part
-			copyBytes := (parts[part.PartNumber-1].End - parts[part.PartNumber-1].Start + 1)
+			copyBytes := parts[part.PartNumber-1].End - parts[part.PartNumber-1].Start + 1
 			completedBytes += copyBytes
-			event = newProgressEvent(TransferDataEvent, completedBytes, totalBytes, copyBytes)
+			event = newProgressEvent(TransferPartEvent, completedBytes, totalBytes, copyBytes)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)
@@ -451,9 +450,9 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 			completed++
 			ccp.update(part)
 			ccp.dump(cpFilePath)
-			copyBytes := (parts[part.PartNumber-1].End - parts[part.PartNumber-1].Start + 1)
+			copyBytes := parts[part.PartNumber-1].End - parts[part.PartNumber-1].Start + 1
 			completedBytes += copyBytes
-			event = newProgressEvent(TransferDataEvent, completedBytes, ccp.ObjStat.Size, copyBytes)
+			event = newProgressEvent(TransferPartEvent, completedBytes, ccp.ObjStat.Size, copyBytes)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)

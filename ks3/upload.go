@@ -143,14 +143,14 @@ type defaultUploadProgressListener struct {
 func (listener *defaultUploadProgressListener) ProgressChanged(event *ProgressEvent) {
 }
 
-func worker(id int, arg workerArg, jobs <-chan FileChunk, results chan<- UploadPart, failed chan<- error, die <-chan bool) {
+func worker(id int, arg workerArg, jobs <-chan FileChunk, results chan<- UploadPart, failed chan<- error, die <-chan bool, listener ProgressListener) {
 	for chunk := range jobs {
 		if err := arg.hook(id, chunk); err != nil {
 			failed <- err
 			break
 		}
 		var respHeader http.Header
-		p := Progress(&defaultUploadProgressListener{})
+		p := Progress(listener)
 		opts := make([]Option, len(arg.options)+2)
 		opts = append(opts, arg.options...)
 
@@ -236,7 +236,7 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 	// Start the worker coroutine
 	arg := workerArg{&bucket, filePath, imur, partOptions, uploadPartHooker}
 	for w := 1; w <= routines; w++ {
-		go worker(w, arg, jobs, results, failed, die)
+		go worker(w, arg, jobs, results, failed, die, listener)
 	}
 
 	// Schedule the jobs
@@ -257,7 +257,7 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 
 			// why RwBytes in ProgressEvent is 0 ?
 			// because read or write event has been notified in teeReader.Read()
-			event = newProgressEvent(TransferDataEvent, completedBytes, totalBytes, chunks[part.PartNumber-1].Size)
+			event = newProgressEvent(TransferPartEvent, completedBytes, totalBytes, chunks[part.PartNumber-1].Size)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)
@@ -272,10 +272,10 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 		}
 	}
 
-	event = newProgressEvent(TransferStartedEvent, completedBytes, totalBytes, 0)
+	event = newProgressEvent(TransferCompletedEvent, completedBytes, totalBytes, 0)
 	publishProgress(listener, event)
 
-	ps := []UploadPart{}
+	var ps []UploadPart
 	for _, part := range parts {
 		ps = append(ps, part.Part)
 	}
@@ -581,7 +581,7 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 	// Start the workers
 	arg := workerArg{&bucket, filePath, imur, partOptions, uploadPartHooker}
 	for w := 1; w <= routines; w++ {
-		go worker(w, arg, jobs, results, failed, die)
+		go worker(w, arg, jobs, results, failed, die, listener)
 	}
 
 	// Schedule jobs
@@ -596,7 +596,7 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 			ucp.updatePart(part)
 			ucp.dump(cpFilePath)
 			completedBytes += ucp.Parts[part.PartNumber-1].Chunk.Size
-			event = newProgressEvent(TransferDataEvent, completedBytes, ucp.FileStat.Size, ucp.Parts[part.PartNumber-1].Chunk.Size)
+			event = newProgressEvent(TransferPartEvent, completedBytes, ucp.FileStat.Size, ucp.Parts[part.PartNumber-1].Chunk.Size)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)

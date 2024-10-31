@@ -91,7 +91,7 @@ func (listener *defaultDownloadProgressListener) ProgressChanged(event *Progress
 }
 
 // downloadWorker
-func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, results chan<- downloadPart, failed chan<- error, die <-chan bool) {
+func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, results chan<- downloadPart, failed chan<- error, die <-chan bool, listener ProgressListener) {
 	for part := range jobs {
 		if err := arg.hook(part); err != nil {
 			failed <- err
@@ -100,7 +100,7 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 
 		// Resolve options
 		r := Range(part.Start, part.End)
-		p := Progress(&defaultDownloadProgressListener{})
+		p := Progress(listener)
 
 		var respHeader http.Header
 		opts := make([]Option, len(arg.options)+3)
@@ -265,7 +265,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 	// Start the download workers
 	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC}
 	for w := 1; w <= routines; w++ {
-		go downloadWorker(w, arg, jobs, results, failed, die)
+		go downloadWorker(w, arg, jobs, results, failed, die, listener)
 	}
 
 	// Download parts concurrently
@@ -280,7 +280,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 			downBytes := part.End - part.Start + 1
 			completedBytes += downBytes
 			parts[part.Index].CRC64 = part.CRC64
-			event = newProgressEvent(TransferDataEvent, completedBytes, totalBytes, downBytes)
+			event = newProgressEvent(TransferPartEvent, completedBytes, totalBytes, downBytes)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)
@@ -532,7 +532,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 	// Start the download workers routine
 	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC}
 	for w := 1; w <= routines; w++ {
-		go downloadWorker(w, arg, jobs, results, failed, die)
+		go downloadWorker(w, arg, jobs, results, failed, die, listener)
 	}
 
 	// Concurrently downloads parts
@@ -549,7 +549,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 			dcp.dump(cpFilePath)
 			downBytes := part.End - part.Start + 1
 			completedBytes += downBytes
-			event = newProgressEvent(TransferDataEvent, completedBytes, dcp.ObjStat.Size, downBytes)
+			event = newProgressEvent(TransferPartEvent, completedBytes, dcp.ObjStat.Size, downBytes)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)
