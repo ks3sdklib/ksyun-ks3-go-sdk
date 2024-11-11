@@ -23,7 +23,7 @@ type Bucket struct {
 	BucketName string
 }
 
-// PutObject creates a new object and it will overwrite the original one if it exists already.
+// PutObject creates a new object, and it will overwrite the original one if it exists already.
 //
 // objectKey    the object key in UTF-8 encoding. The length must be between 1 and 1023, and cannot start with "/" or "\".
 // reader    io.Reader instance for reading the data for uploading
@@ -225,9 +225,9 @@ func (bucket Bucket) DoGetObject(request *GetObjectRequest, options []Option) (*
 //
 // srcObjectKey    the source object to copy.
 // destObjectKey    the target object to copy.
-// options    options for copying an object. You can specify the conditions of copy. The valid conditions are CopySourceIfMatch,
+// options    the options for copying an object. You can specify the conditions of copy. The valid conditions are CopySourceIfMatch,
 //            CopySourceIfNoneMatch, CopySourceIfModifiedSince, CopySourceIfUnmodifiedSince, MetadataDirective.
-//            Also you can specify the target object's attributes, such as CacheControl, ContentDisposition, ContentEncoding, Expires,
+//            Also, you can specify the target object's attributes, such as CacheControl, ContentDisposition, ContentEncoding, Expires,
 //            ServerSideEncryption, ObjectACL, Meta. Refer to the link below for more details :
 //            https://help.ksyun.com/document_detail/ks3/api-reference/object/CopyObject.html
 //
@@ -334,8 +334,8 @@ func (bucket Bucket) copy(srcObjectKey, destBucketName, destObjectKey string, op
 //
 // AppendObject the parameter appendPosition specifies which postion (in the target object) to append. For the first append (to a non-existing file),
 // the appendPosition should be 0. The appendPosition in the subsequent calls will be the current object length.
-// For example, the first appendObject's appendPosition is 0 and it uploaded 65536 bytes data, then the second call's position is 65536.
-// The response header x-ks3-next-append-position after each successful request also specifies the next call's append position (so the caller need not to maintain this information).
+// For example, the first appendObject's appendPosition is 0, and it uploaded 65536 bytes data, then the second call's position is 65536.
+// The response header x-ks3-next-append-position after each successful request also specifies the next call's append position (so the caller need not maintain this information).
 //
 // objectKey    the target object to append to.
 // reader    io.Reader. The read instance for reading the data to append.
@@ -472,7 +472,7 @@ func (bucket Bucket) DeleteObject(objectKey string, options ...Option) error {
 //
 // objectKeys    the object keys to delete.
 // options    the options for deleting objects.
-//            Supported option is DeleteObjectsQuiet which means it will not return error even deletion failed (not recommended). By default it's not used.
+//            Supported option is DeleteObjectsQuiet which means it will not return error even deletion failed (not recommended). By default, it's not used.
 //
 // DeleteObjectsResult    the result object.
 // error    it's nil if no error, otherwise it's an error object.
@@ -530,7 +530,7 @@ func (bucket Bucket) DeleteObjects(objectKeys []string, options ...Option) (Dele
 //
 // objectVersions    the object keys and versions to delete.
 // options    the options for deleting objects.
-//            Supported option is DeleteObjectsQuiet which means it will not return error even deletion failed (not recommended). By default it's not used.
+//            Supported option is DeleteObjectsQuiet which means it will not return error even deletion failed (not recommended). By default, it's not used.
 //
 // DeleteObjectVersionsResult    the result object.
 // error    it's nil if no error, otherwise it's an error object.
@@ -637,9 +637,9 @@ func (bucket Bucket) ListObjects(options ...Option) (ListObjectsResult, error) {
 	return out, err
 }
 
-// Recommend to use ListObjectsV2 to replace ListObjects
+// ListObjectsV2 Recommend to use ListObjectsV2 to replace ListObjects
 // ListOListObjectsV2bjects lists the objects under the current bucket.
-// ListObjectsResultV2    the return value after operation succeeds (only valid when error is nil).
+// ListObjectsResultV2 the return value after operation succeeds (only valid when error is nil).
 func (bucket Bucket) ListObjectsV2(options ...Option) (ListObjectsResultV2, error) {
 	var out ListObjectsResultV2
 
@@ -692,7 +692,7 @@ func (bucket Bucket) ListObjectVersions(options ...Option) (ListObjectVersionsRe
 // SetObjectMeta sets the metadata of the Object.
 //
 // objectKey    object
-// options    options for setting the metadata. The valid options are CacheControl, ContentDisposition, ContentEncoding, Expires,
+// options    the options for setting the metadata. The valid options are CacheControl, ContentDisposition, ContentEncoding, Expires,
 //            ServerSideEncryption, and custom metadata.
 //
 // error    it's nil if no error, otherwise it's an error object.
@@ -706,7 +706,7 @@ func (bucket Bucket) SetObjectMeta(objectKey string, options ...Option) error {
 // GetObjectDetailedMeta gets the object's detailed metadata
 //
 // objectKey    object key.
-// options    the constraints of the object. Only when the object meets the requirements this method will return the metadata. Otherwise returns error. Valid options are IfModifiedSince, IfUnmodifiedSince,
+// options    the constraints of the object. Only when the object meets the requirements this method will return the metadata. Otherwise, returns error. Valid options are IfModifiedSince, IfUnmodifiedSince,
 //            IfMatch, IfNoneMatch. For more details check out https://help.ksyun.com/document_detail/ks3/api-reference/object/HeadObject.html
 //
 // http.Header    object meta when error is nil.
@@ -748,7 +748,7 @@ func (bucket Bucket) GetObjectMeta(objectKey string, options ...Option) (http.He
 //
 // Only the bucket's owner could update object's ACL which priority is higher than bucket's ACL.
 // For example, if the bucket ACL is private and object's ACL is public-read-write.
-// Then object's ACL is used and it means all users could read or write that object.
+// Then object's ACL is used, and it means all users could read or write that object.
 // When the object's ACL is not set, then bucket's ACL is used as the object's ACL.
 //
 // Object read operations include GetObject, HeadObject, CopyObject and UploadPartCopy on the source object;
@@ -846,7 +846,7 @@ func (bucket Bucket) GetSymlink(objectKey string, options ...Option) (http.Heade
 
 // RestoreObject restores the object from the archive storage.
 //
-// An archive object is in cold status by default and it cannot be accessed.
+// An archive object is in cold status by default, and it cannot be accessed.
 // When restore is called on the cold object, it will become available for access after some time.
 // If multiple restores are called on the same file when the object is being restored, server side does nothing for additional calls but returns success.
 // By default, the restored object is available for access for one day. After that it will be unavailable again.
@@ -969,7 +969,7 @@ func (bucket Bucket) PutObjectWithURL(signedURL string, reader io.Reader, option
 //
 // signedURL    the signed URL.
 // filePath    local file path, such as dirfile.txt, for uploading.
-// options    options for uploading, same as the options in PutObject function.
+// options    the options for uploading, same as the options in PutObject function.
 //
 // error    it's nil if no error, otherwise it's an error object.
 //
@@ -993,7 +993,7 @@ func (bucket Bucket) PutObjectFromFileWithURL(signedURL, filePath string, option
 //
 // signedURL    the signed URL.
 // reader    io.Reader the read instance for getting the data to upload.
-// options    options for uploading.
+// options    the options for uploading.
 //
 // Response    the response object which contains the HTTP response.
 // error    it's nil if no error, otherwise it's an error object.
@@ -1023,7 +1023,7 @@ func (bucket Bucket) DoPutObjectWithURL(signedURL string, reader io.Reader, opti
 // GetObjectWithURL downloads the object and returns the reader instance,  with the signed URL.
 //
 // signedURL    the signed URL.
-// options    options for downloading the object. Valid options are IfModifiedSince, IfUnmodifiedSince, IfMatch,
+// options    the options for downloading the object. Valid options are IfModifiedSince, IfUnmodifiedSince, IfMatch,
 //            IfNoneMatch, AcceptEncoding. For more information, check out the following link:
 //            https://help.ksyun.com/document_detail/ks3/api-reference/object/GetObject.html
 //
@@ -1135,7 +1135,7 @@ func (bucket Bucket) DoGetObjectWithURL(signedURL string, options []Option) (*Ge
 //
 //
 // objectKey	object key to process.
-// process	process string, such as "image/resize,w_100|sys/saveas,o_dGVzdC5qcGc,b_dGVzdA"
+// options    the process string, such as "image/resize,w_100|sys/saveas,o_dGVzdC5qcGc,b_dGVzdA"
 //
 // error    it's nil if no error, otherwise it's an error object.
 //
@@ -1188,7 +1188,7 @@ func (bucket Bucket) PutObjectTagging(objectKey string, tagging Tagging, options
 //
 // objectKey  object key to get tagging
 //
-// Tagging
+// GetObjectTaggingResult the object tagging result when error is nil
 // error      nil if success, otherwise error
 
 func (bucket Bucket) GetObjectTagging(objectKey string, options ...Option) (GetObjectTaggingResult, error) {
@@ -1288,7 +1288,7 @@ func (bucket Bucket) ClearObject(objectKey string, retentionId string, options .
 	return CheckRespCode(resp.StatusCode, []int{http.StatusOK, http.StatusNoContent})
 }
 
-// public
+// Do Public
 func (bucket Bucket) Do(method, objectName string, params map[string]interface{}, options []Option,
 	data io.Reader, listener ProgressListener) (*Response, error) {
 	return bucket.do(method, objectName, params, options, data, listener)
