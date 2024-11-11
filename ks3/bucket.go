@@ -1285,7 +1285,7 @@ func (bucket Bucket) ClearObject(objectKey string, retentionId string, options .
 		return err
 	}
 	defer resp.Body.Close()
-	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
+	return CheckRespCode(resp.StatusCode, []int{http.StatusOK, http.StatusNoContent})
 }
 
 // public
