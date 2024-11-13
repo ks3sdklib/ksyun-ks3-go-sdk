@@ -690,7 +690,7 @@ func GetQosDelayTime(header http.Header) string {
 	return header.Get("x-kss-qos-delay-time")
 }
 
-// ForbidOverWrite  is an option to set X-Kss-Forbid-Overwrite
+// AllowSameActionOverLap is an option to set X-Kss-Forbid-Overwrite
 func AllowSameActionOverLap(enabled bool) Option {
 	if enabled {
 		return setHeader(HTTPHeaderAllowSameActionOverLap, "true")
@@ -705,6 +705,10 @@ func RetentionId(value string) Option {
 }
 
 // RetentionOverwrite is an option to set X-Kss-Retention-Overwrite header
-func RetentionOverwrite(value string) Option {
-	return setHeader(HTTPHeaderKs3RetentionOverwrite, value)
+func RetentionOverwrite(value bool) Option {
+	if value {
+		return setHeader(HTTPHeaderKs3RetentionOverwrite, "true")
+	} else {
+		return setHeader(HTTPHeaderKs3RetentionOverwrite, "false")
+	}
 }
