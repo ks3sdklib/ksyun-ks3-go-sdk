@@ -133,6 +133,7 @@ type workerArg struct {
 	imur     InitiateMultipartUploadResult
 	options  []Option
 	hook     uploadPartHook
+	listener ProgressListener
 }
 
 // worker is the worker coroutine function
@@ -143,18 +144,17 @@ type defaultUploadProgressListener struct {
 func (listener *defaultUploadProgressListener) ProgressChanged(event *ProgressEvent) {
 }
 
-func worker(id int, arg workerArg, jobs <-chan FileChunk, results chan<- UploadPart, failed chan<- error, die <-chan bool, listener ProgressListener) {
+func worker(id int, arg workerArg, jobs <-chan FileChunk, results chan<- UploadPart, failed chan<- error, die <-chan bool) {
 	for chunk := range jobs {
 		if err := arg.hook(id, chunk); err != nil {
 			failed <- err
 			break
 		}
 		var respHeader http.Header
-		p := Progress(listener)
+		p := Progress(arg.listener)
 		opts := make([]Option, len(arg.options)+2)
 		opts = append(opts, arg.options...)
 
-		// use defaultUploadProgressListener
 		opts = append(opts, p, GetResponseHeader(&respHeader))
 
 		startT := time.Now().UnixNano() / 1000 / 1000 / 1000
@@ -234,9 +234,9 @@ func (bucket Bucket) uploadFile(objectKey, filePath string, partSize int64, opti
 	publishProgress(listener, event)
 
 	// Start the worker coroutine
-	arg := workerArg{&bucket, filePath, imur, partOptions, uploadPartHooker}
+	arg := workerArg{&bucket, filePath, imur, partOptions, uploadPartHooker, listener}
 	for w := 1; w <= routines; w++ {
-		go worker(w, arg, jobs, results, failed, die, listener)
+		go worker(w, arg, jobs, results, failed, die)
 	}
 
 	// Schedule the jobs
@@ -579,9 +579,9 @@ func (bucket Bucket) uploadFileWithCp(objectKey, filePath string, partSize int64
 	publishProgress(listener, event)
 
 	// Start the workers
-	arg := workerArg{&bucket, filePath, imur, partOptions, uploadPartHooker}
+	arg := workerArg{&bucket, filePath, imur, partOptions, uploadPartHooker, listener}
 	for w := 1; w <= routines; w++ {
-		go worker(w, arg, jobs, results, failed, die, listener)
+		go worker(w, arg, jobs, results, failed, die)
 	}
 
 	// Schedule jobs

@@ -71,6 +71,7 @@ type downloadWorkerArg struct {
 	options   []Option
 	hook      downloadPartHook
 	enableCRC bool
+	listener  ProgressListener
 }
 
 // downloadPartHook is hook for test
@@ -91,7 +92,7 @@ func (listener *defaultDownloadProgressListener) ProgressChanged(event *Progress
 }
 
 // downloadWorker
-func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, results chan<- downloadPart, failed chan<- error, die <-chan bool, listener ProgressListener) {
+func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, results chan<- downloadPart, failed chan<- error, die <-chan bool) {
 	for part := range jobs {
 		if err := arg.hook(part); err != nil {
 			failed <- err
@@ -100,7 +101,7 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 
 		// Resolve options
 		r := Range(part.Start, part.End)
-		p := Progress(listener)
+		p := Progress(arg.listener)
 
 		var respHeader http.Header
 		opts := make([]Option, len(arg.options)+3)
@@ -263,9 +264,9 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 	publishProgress(listener, event)
 
 	// Start the download workers
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC}
+	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC, listener}
 	for w := 1; w <= routines; w++ {
-		go downloadWorker(w, arg, jobs, results, failed, die, listener)
+		go downloadWorker(w, arg, jobs, results, failed, die)
 	}
 
 	// Download parts concurrently
@@ -530,9 +531,9 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 	publishProgress(listener, event)
 
 	// Start the download workers routine
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC}
+	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC, listener}
 	for w := 1; w <= routines; w++ {
-		go downloadWorker(w, arg, jobs, results, failed, die, listener)
+		go downloadWorker(w, arg, jobs, results, failed, die)
 	}
 
 	// Concurrently downloads parts
