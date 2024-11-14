@@ -690,7 +690,7 @@ func GetQosDelayTime(header http.Header) string {
 	return header.Get("x-kss-qos-delay-time")
 }
 
-// AllowSameActionOverLap is an option to set X-Kss-Forbid-Overwrite
+// AllowSameActionOverLap is an option to set X-Kss-Allow-Same-Action-Overlap
 func AllowSameActionOverLap(enabled bool) Option {
 	if enabled {
 		return setHeader(HTTPHeaderAllowSameActionOverLap, "true")
