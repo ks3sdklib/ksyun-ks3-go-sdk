@@ -71,6 +71,7 @@ type downloadWorkerArg struct {
 	options   []Option
 	hook      downloadPartHook
 	enableCRC bool
+	listener  ProgressListener
 }
 
 // downloadPartHook is hook for test
@@ -100,7 +101,7 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 
 		// Resolve options
 		r := Range(part.Start, part.End)
-		p := Progress(&defaultDownloadProgressListener{})
+		p := Progress(arg.listener)
 
 		var respHeader http.Header
 		opts := make([]Option, len(arg.options)+3)
@@ -263,7 +264,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 	publishProgress(listener, event)
 
 	// Start the download workers
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC}
+	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC, listener}
 	for w := 1; w <= routines; w++ {
 		go downloadWorker(w, arg, jobs, results, failed, die)
 	}
@@ -280,7 +281,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 			downBytes := part.End - part.Start + 1
 			completedBytes += downBytes
 			parts[part.Index].CRC64 = part.CRC64
-			event = newProgressEvent(TransferDataEvent, completedBytes, totalBytes, downBytes)
+			event = newProgressEvent(TransferPartEvent, completedBytes, totalBytes, downBytes)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)
@@ -530,7 +531,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 	publishProgress(listener, event)
 
 	// Start the download workers routine
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC}
+	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC, listener}
 	for w := 1; w <= routines; w++ {
 		go downloadWorker(w, arg, jobs, results, failed, die)
 	}
@@ -549,7 +550,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 			dcp.dump(cpFilePath)
 			downBytes := part.End - part.Start + 1
 			completedBytes += downBytes
-			event = newProgressEvent(TransferDataEvent, completedBytes, dcp.ObjStat.Size, downBytes)
+			event = newProgressEvent(TransferPartEvent, completedBytes, dcp.ObjStat.Size, downBytes)
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)

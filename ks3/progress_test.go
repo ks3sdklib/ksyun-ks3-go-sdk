@@ -117,6 +117,35 @@ func (listener *Ks3ProgressListener) ProgressChanged(event *ProgressEvent) {
 		atomic.AddInt64(&listener.TotalRwBytes, event.RwBytes)
 		testLogger.Printf("Transfer Data, ConsumedBytes: %d, TotalBytes %d, %d%%.\n",
 			event.ConsumedBytes, event.TotalBytes, event.ConsumedBytes*100/event.TotalBytes)
+	case TransferPartEvent:
+		atomic.AddInt64(&listener.TotalRwBytes, event.RwBytes)
+		testLogger.Printf("Transfer Part, ConsumedBytes: %d, TotalBytes %d, %d%%.\n",
+			event.ConsumedBytes, event.TotalBytes, event.ConsumedBytes*100/event.TotalBytes)
+	case TransferCompletedEvent:
+		testLogger.Printf("Transfer Completed, ConsumedBytes: %d, TotalBytes %d.\n",
+			event.ConsumedBytes, event.TotalBytes)
+	case TransferFailedEvent:
+		testLogger.Printf("Transfer Failed, ConsumedBytes: %d, TotalBytes %d.\n",
+			event.ConsumedBytes, event.TotalBytes)
+	default:
+	}
+}
+
+// Ks3ProgressListener is the progress listener
+type Ks3PartProgressListener struct {
+	TotalRwBytes int64
+}
+
+// ProgressChanged handles progress event
+func (listener *Ks3PartProgressListener) ProgressChanged(event *ProgressEvent) {
+	switch event.EventType {
+	case TransferStartedEvent:
+		testLogger.Printf("Transfer Started, ConsumedBytes: %d, TotalBytes %d.\n",
+			event.ConsumedBytes, event.TotalBytes)
+	case TransferPartEvent:
+		atomic.AddInt64(&listener.TotalRwBytes, event.RwBytes)
+		testLogger.Printf("Transfer Part, ConsumedBytes: %d, TotalBytes %d, %d%%.\n",
+			event.ConsumedBytes, event.TotalBytes, event.ConsumedBytes*100/event.TotalBytes)
 	case TransferCompletedEvent:
 		testLogger.Printf("Transfer Completed, ConsumedBytes: %d, TotalBytes %d.\n",
 			event.ConsumedBytes, event.TotalBytes)
@@ -402,7 +431,7 @@ func (s *Ks3ProgressSuite) TestUploadFile(c *C) {
 	fileInfo, err := os.Stat(fileName)
 	c.Assert(err, IsNil)
 
-	progressListener := Ks3ProgressListener{}
+	progressListener := Ks3PartProgressListener{}
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(5), Progress(&progressListener))
 	c.Assert(err, IsNil)
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
@@ -428,7 +457,7 @@ func (s *Ks3ProgressSuite) TestDownloadFile(c *C) {
 	err = s.bucket.UploadFile(objectName, fileName, 100*1024, Routines(3))
 	c.Assert(err, IsNil)
 
-	progressListener := Ks3ProgressListener{}
+	progressListener := Ks3PartProgressListener{}
 	err = s.bucket.DownloadFile(objectName, newFile, 100*1024, Routines(5), Progress(&progressListener))
 	c.Assert(err, IsNil)
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
@@ -456,7 +485,7 @@ func (s *Ks3ProgressSuite) TestCopyFile(c *C) {
 	c.Assert(err, IsNil)
 
 	// Upload
-	progressListener := Ks3ProgressListener{}
+	progressListener := Ks3PartProgressListener{}
 	err = s.bucket.UploadFile(srcObjectName, fileName, 100*1024, Routines(3), Progress(&progressListener))
 	c.Assert(err, IsNil)
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())

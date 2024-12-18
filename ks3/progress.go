@@ -16,6 +16,8 @@ const (
 	TransferCompletedEvent
 	// TransferFailedEvent transfer encounters an error
 	TransferFailedEvent
+	// TransferPartEvent transfer upload part
+	TransferPartEvent
 )
 
 // ProgressEvent defines progress event
