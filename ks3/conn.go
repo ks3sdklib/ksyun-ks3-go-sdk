@@ -3,6 +3,7 @@ package ks3
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
@@ -61,18 +62,22 @@ func (conn *Conn) init(config *Config, urlMaker *UrlMaker, client *http.Client) 
 
 		// Proxy
 		if conn.config.IsUseProxy {
-			proxyURL, err := url.Parse(config.ProxyHost)
-			if err != nil {
-				return err
-			}
-			if config.IsAuthProxy {
-				if config.ProxyPassword != "" {
-					proxyURL.User = url.UserPassword(config.ProxyUser, config.ProxyPassword)
-				} else {
-					proxyURL.User = url.User(config.ProxyUser)
+			if config.ProxyFromEnvironment {
+				transport.Proxy = http.ProxyFromEnvironment
+			} else {
+				proxyURL, err := url.Parse(config.ProxyHost)
+				if err != nil {
+					return err
 				}
+				if config.IsAuthProxy {
+					if config.ProxyPassword != "" {
+						proxyURL.User = url.UserPassword(config.ProxyUser, config.ProxyPassword)
+					} else {
+						proxyURL.User = url.User(config.ProxyUser)
+					}
+				}
+				transport.Proxy = http.ProxyURL(proxyURL)
 			}
-			transport.Proxy = http.ProxyURL(proxyURL)
 		}
 		client = &http.Client{Transport: transport}
 		if !config.RedirectEnabled {
@@ -89,19 +94,31 @@ func (conn *Conn) init(config *Config, urlMaker *UrlMaker, client *http.Client) 
 	return nil
 }
 
-// Do sends request and returns the response
+// Do send request and returns the response
 func (conn Conn) Do(method, bucketName, objectName string, params map[string]interface{}, headers map[string]string,
+	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
+	return conn.DoWithContext(nil, method, bucketName, objectName, params, headers, data, initCRC, listener)
+}
+
+// DoWithContext sends request and returns the response
+func (conn Conn) DoWithContext(ctx context.Context, method, bucketName, objectName string, params map[string]interface{}, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
 	urlParams := conn.getURLParams(params)
 	subResource := conn.getSubResource(params)
 	urltmp := encodeKS3Str(objectName)
 	uri := conn.Url.getURL(bucketName, urltmp, urlParams)
 	resource := conn.getResource(bucketName, objectName, subResource)
-	return conn.doRequest(method, uri, resource, headers, data, initCRC, listener)
+	return conn.doRequest(ctx, method, uri, resource, headers, data, initCRC, listener)
 }
 
 // DoURL sends the request with signed URL and returns the response result.
 func (conn Conn) DoURL(method HTTPMethod, signedURL string, headers map[string]string,
+	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
+	return conn.DoURLWithContext(nil, method, signedURL, headers, data, initCRC, listener)
+}
+
+// DoURLWithContext sends the request with signed URL and returns the response result.
+func (conn Conn) DoURLWithContext(ctx context.Context, method HTTPMethod, signedURL string, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
 	// Get URI from signedURL
 	uri, err := url.ParseRequestURI(signedURL)
@@ -118,6 +135,10 @@ func (conn Conn) DoURL(method HTTPMethod, signedURL string, headers map[string]s
 		ProtoMinor: 1,
 		Header:     make(http.Header),
 		Host:       uri.Host,
+	}
+
+	if ctx != nil {
+		req = req.WithContext(ctx)
 	}
 
 	tracker := &readerTracker{completedBytes: 0}
@@ -275,7 +296,7 @@ func (conn Conn) getResource(bucketName, objectName, subResource string) string 
 	return tmp
 }
 
-func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource string, headers map[string]string,
+func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, canonicalizedResource string, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
 	method = strings.ToUpper(method)
 	req := &http.Request{
@@ -286,6 +307,10 @@ func (conn Conn) doRequest(method string, uri *url.URL, canonicalizedResource st
 		ProtoMinor: 1,
 		Header:     make(http.Header),
 		Host:       uri.Host,
+	}
+
+	if ctx != nil {
+		req = req.WithContext(ctx)
 	}
 
 	tracker := &readerTracker{completedBytes: 0}
@@ -452,9 +477,6 @@ func (conn Conn) handleBody(req *http.Request, body io.Reader, initCRC uint64,
 	readerLen, err := GetReaderLen(reader)
 	if err == nil {
 		req.ContentLength = readerLen
-	}
-	if readerLen == 0 {
-		reader = nil
 	}
 	req.Header.Set(HTTPHeaderContentLength, strconv.FormatInt(req.ContentLength, 10))
 	if reader != nil {

@@ -2,6 +2,7 @@ package ks3
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/xml"
@@ -310,7 +311,11 @@ func (bucket Bucket) copy(srcObjectKey, destBucketName, destObjectKey string, op
 		return out, err
 	}
 	params := map[string]interface{}{}
-	resp, err := bucket.Client.Conn.Do("PUT", destBucketName, destObjectKey, params, headers, nil, 0, nil)
+
+	ctxArg, _ := FindOption(options, contextArg, nil)
+	ctx, _ := ctxArg.(context.Context)
+
+	resp, err := bucket.Client.Conn.DoWithContext(ctx, "PUT", destBucketName, destObjectKey, params, headers, nil, 0, nil)
 
 	// get response header
 	respHeader, _ := FindOption(options, responseHeader, nil)
@@ -418,7 +423,11 @@ func (bucket Bucket) DoAppendObject(request *AppendObjectRequest, options []Opti
 	listener := GetProgressListener(options)
 
 	handleOptions(headers, opts)
-	resp, err := bucket.Client.Conn.Do("POST", bucket.BucketName, request.ObjectKey, params, headers,
+
+	ctxArg, _ := FindOption(options, contextArg, nil)
+	ctx, _ := ctxArg.(context.Context)
+
+	resp, err := bucket.Client.Conn.DoWithContext(ctx, "POST", bucket.BucketName, request.ObjectKey, params, headers,
 		request.Reader, initCRC, listener)
 
 	// get response header
@@ -1308,7 +1317,10 @@ func (bucket Bucket) do(method, objectName string, params map[string]interface{}
 		return nil, err
 	}
 
-	resp, err := bucket.Client.Conn.Do(method, bucket.BucketName, objectName,
+	ctxArg, _ := FindOption(options, contextArg, nil)
+	ctx, _ := ctxArg.(context.Context)
+
+	resp, err := bucket.Client.Conn.DoWithContext(ctx, method, bucket.BucketName, objectName,
 		params, headers, data, 0, listener)
 
 	// get response header
@@ -1331,7 +1343,10 @@ func (bucket Bucket) doURL(method HTTPMethod, signedURL string, params map[strin
 		return nil, err
 	}
 
-	resp, err := bucket.Client.Conn.DoURL(method, signedURL, headers, data, 0, listener)
+	ctxArg, _ := FindOption(options, contextArg, nil)
+	ctx, _ := ctxArg.(context.Context)
+
+	resp, err := bucket.Client.Conn.DoURLWithContext(ctx, method, signedURL, headers, data, 0, listener)
 
 	// get response header
 	respHeader, _ := FindOption(options, responseHeader, nil)
