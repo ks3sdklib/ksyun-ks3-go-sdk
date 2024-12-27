@@ -65,12 +65,13 @@ func getDownloadCpFilePath(cpConf *cpConfig, srcBucket, srcObject, versionId, de
 
 // downloadWorkerArg is download worker's parameters
 type downloadWorkerArg struct {
-	bucket    *Bucket
-	key       string
-	filePath  string
-	options   []Option
-	hook      downloadPartHook
-	enableCRC bool
+	bucket              *Bucket
+	key                 string
+	filePath            string
+	options             []Option
+	hook                downloadPartHook
+	enableCRC           bool
+	discardDownloadData bool
 }
 
 // downloadPartHook is hook for test
@@ -129,25 +130,30 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 		default:
 		}
 
-		fd, err := os.OpenFile(arg.filePath, os.O_WRONLY, FilePermMode)
-		if err != nil {
-			failed <- err
-			break
-		}
-
-		_, err = fd.Seek(part.Start-part.Offset, os.SEEK_SET)
-		if err != nil {
-			fd.Close()
-			failed <- err
-			break
-		}
-
 		startT := time.Now().UnixNano() / 1000 / 1000 / 1000
-		_, err = io.Copy(fd, rd)
+		if !arg.discardDownloadData {
+			var fd *os.File
+			fd, err = os.OpenFile(arg.filePath, os.O_WRONLY, FilePermMode)
+			if err != nil {
+				failed <- err
+				break
+			}
+
+			_, err = fd.Seek(part.Start-part.Offset, os.SEEK_SET)
+			if err != nil {
+				fd.Close()
+				failed <- err
+				break
+			}
+			_, err = io.Copy(fd, rd)
+			fd.Close()
+		} else {
+			_, err = io.Copy(io.Discard, rd)
+		}
 		endT := time.Now().UnixNano() / 1000 / 1000 / 1000
+
 		if err != nil {
 			arg.bucket.Client.Config.WriteLog(Debug, "download part error,cost:%d second,part number:%d,request id:%s,error:%s.\n", endT-startT, part.Index, GetRequestId(respHeader), err.Error())
-			fd.Close()
 			failed <- err
 			break
 		}
@@ -156,7 +162,6 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 			part.CRC64 = crcCalc.Sum64()
 		}
 
-		fd.Close()
 		results <- part
 	}
 }
@@ -218,17 +223,31 @@ func combineCRCInDownloadParts(parts []downloadPart) uint64 {
 	return crc
 }
 
+func rename(tempFilePath string, filePath string, disableTempFile bool) error {
+	if disableTempFile {
+		return nil
+	}
+	return os.Rename(tempFilePath, filePath)
+}
+
 // downloadFile downloads file concurrently without checkpoint.
 func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, options []Option, routines int, uRange *UnpackedRange) error {
+	discardDownloadData := getDiscardDownloadData(options)
+	disableTempFile := getDisableTempFile(options)
 	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
 	listener := GetProgressListener(options)
 
-	// If the file does not exist, create one. If exists, the download will overwrite it.
-	fd, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE, FilePermMode)
-	if err != nil {
-		return err
+	if !discardDownloadData {
+		// If the file does not exist, create one. If exists, the download will overwrite it.
+		fd, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE, FilePermMode)
+		if err != nil {
+			return err
+		}
+		fd.Close()
 	}
-	fd.Close()
 
 	// Get the object detailed meta for object whole size
 	// must delete header:range to get whole object size
@@ -263,7 +282,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 	publishProgress(listener, event)
 
 	// Start the download workers
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC}
+	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC, discardDownloadData}
 	for w := 1; w <= routines; w++ {
 		go downloadWorker(w, arg, jobs, results, failed, die)
 	}
@@ -307,7 +326,11 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 		}
 	}
 
-	return os.Rename(tempFilePath, filePath)
+	if discardDownloadData {
+		return nil
+	}
+
+	return rename(tempFilePath, filePath, disableTempFile)
 }
 
 // ----- Concurrent download with checkpoint  -----
@@ -460,17 +483,25 @@ func (cp *downloadCheckpoint) prepare(meta http.Header, bucket *Bucket, objectKe
 	return nil
 }
 
-func (cp *downloadCheckpoint) complete(cpFilePath, downFilepath string) error {
-	err := os.Rename(downFilepath, cp.FilePath)
-	if err != nil {
-		return err
+func (cp *downloadCheckpoint) complete(cpFilePath, downFilepath string, disableTempFile, discardDownloadData bool) error {
+	if !discardDownloadData {
+		err := rename(downFilepath, cp.FilePath, disableTempFile)
+		if err != nil {
+			return err
+		}
 	}
+
 	return os.Remove(cpFilePath)
 }
 
 // downloadFileWithCp downloads files with checkpoint.
 func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int64, options []Option, cpFilePath string, routines int, uRange *UnpackedRange) error {
+	discardDownloadData := getDiscardDownloadData(options)
+	disableTempFile := getDisableTempFile(options)
 	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
 	listener := GetProgressListener(options)
 
 	// Load checkpoint data.
@@ -511,12 +542,14 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		os.Remove(cpFilePath)
 	}
 
-	// Create the file if not exists, otherwise the parts download will overwrite it.
-	fd, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE, FilePermMode)
-	if err != nil {
-		return err
+	if !discardDownloadData {
+		// Create the file if not exists, otherwise the parts download will overwrite it.
+		fd, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE, FilePermMode)
+		if err != nil {
+			return err
+		}
+		fd.Close()
 	}
-	fd.Close()
 
 	// Unfinished parts
 	parts := dcp.todoParts()
@@ -530,7 +563,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 	publishProgress(listener, event)
 
 	// Start the download workers routine
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC}
+	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC, discardDownloadData}
 	for w := 1; w <= routines; w++ {
 		go downloadWorker(w, arg, jobs, results, failed, die)
 	}
@@ -576,5 +609,5 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		}
 	}
 
-	return dcp.complete(cpFilePath, tempFilePath)
+	return dcp.complete(cpFilePath, tempFilePath, disableTempFile, discardDownloadData)
 }

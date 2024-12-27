@@ -18,16 +18,18 @@ const (
 )
 
 const (
-	deleteObjectsQuiet = "delete-objects-quiet"
-	routineNum         = "x-routine-num"
-	checkpointConfig   = "x-cp-config"
-	initCRC64          = "init-crc64"
-	progressListener   = "x-progress-listener"
-	storageClass       = "storage-class"
-	bucketType         = "bucket-type"
-	responseHeader     = "x-response-header"
-	redundancyType     = "redundancy-type"
-	objectHashFunc     = "object-hash-func"
+	deleteObjectsQuiet      = "delete-objects-quiet"
+	routineNum              = "x-routine-num"
+	checkpointConfig        = "x-cp-config"
+	initCRC64               = "init-crc64"
+	progressListener        = "x-progress-listener"
+	storageClass            = "storage-class"
+	bucketType              = "bucket-type"
+	responseHeader          = "x-response-header"
+	redundancyType          = "redundancy-type"
+	objectHashFunc          = "object-hash-func"
+	disableTempFileFlag     = "disable-temp-file"
+	discardDownloadDataFlag = "discard-download-data"
 )
 
 type (
@@ -496,6 +498,22 @@ func GetResponseHeader(respHeader *http.Header) Option {
 	return addArg(responseHeader, respHeader)
 }
 
+// DisableTempFile is an option to disable temp file
+func DisableTempFile(value bool) Option {
+	if value {
+		return addArg(disableTempFileFlag, "true")
+	}
+	return addArg(disableTempFileFlag, "false")
+}
+
+// DiscardDownloadData is an option to discard download data
+func DiscardDownloadData(value bool) Option {
+	if value {
+		return addArg(discardDownloadDataFlag, "true")
+	}
+	return addArg(discardDownloadDataFlag, "false")
+}
+
 // ResponseContentType is an option to set response-content-type param
 func ResponseContentType(value string) Option {
 	return addParam("response-content-type", value)
@@ -707,4 +725,28 @@ func RetentionId(value string) Option {
 // RetentionOverwrite is an option to set X-Kss-Retention-Overwrite header
 func RetentionOverwrite(value string) Option {
 	return setHeader(HTTPHeaderKs3RetentionOverwrite, value)
+}
+
+// getDisableTempFile get disable temp file value
+func getDisableTempFile(options []Option) bool {
+	val, err := FindOption(options, disableTempFileFlag, "false")
+	if err != nil || val == nil {
+		return false
+	}
+
+	res, _ := strconv.ParseBool(val.(string))
+
+	return res
+}
+
+// getDiscardDownloadData get discard download data value
+func getDiscardDownloadData(options []Option) bool {
+	val, err := FindOption(options, discardDownloadDataFlag, "false")
+	if err != nil || val == nil {
+		return false
+	}
+
+	res, _ := strconv.ParseBool(val.(string))
+
+	return res
 }

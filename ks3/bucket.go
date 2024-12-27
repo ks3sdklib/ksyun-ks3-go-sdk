@@ -142,7 +142,12 @@ func (bucket Bucket) GetObject(objectKey string, options ...Option) (io.ReadClos
 // error    it's nil if no error, otherwise it's an error object.
 //
 func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Option) error {
+	discardDownloadData := getDiscardDownloadData(options)
+	disableTempFile := getDisableTempFile(options)
 	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
 
 	// Calls the API to actually download the object. Returns the result instance.
 	result, err := bucket.DoGetObject(&GetObjectRequest{objectKey}, options)
@@ -151,19 +156,24 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 	}
 	defer result.Response.Close()
 
-	// If the local file does not exist, create a new one. If it exists, overwrite it.
-	fd, err := os.OpenFile(tempFilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, FilePermMode)
+	if !discardDownloadData {
+		var fd *os.File
+		// If the local file does not exist, create a new one. If it exists, overwrite it.
+		fd, err = os.OpenFile(tempFilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, FilePermMode)
+		if err != nil {
+			return err
+		}
+
+		// Copy the data to the local file path.
+		_, err = io.Copy(fd, result.Response.Body)
+		fd.Close()
+	} else {
+		_, err = io.Copy(io.Discard, result.Response.Body)
+	}
 	if err != nil {
 		return err
 	}
-
-	// Copy the data to the local file path.
-	_, err = io.Copy(fd, result.Response.Body)
-	fd.Close()
-	if err != nil {
-		return err
-	}
-
+	
 	// Compares the CRC value
 	hasRange, _, _ := IsOptionSet(options, HTTPHeaderRange)
 	encodeOpt, _ := FindOption(options, HTTPHeaderAcceptEncoding, nil)
@@ -181,7 +191,11 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 		}
 	}
 
-	return os.Rename(tempFilePath, filePath)
+	if discardDownloadData {
+		return nil
+	}
+
+	return rename(tempFilePath, filePath, disableTempFile)
 }
 
 // DoGetObject is the actual API that gets the object. It's the internal function called by other public APIs.
