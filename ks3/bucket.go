@@ -156,6 +156,7 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 	}
 	defer result.Response.Close()
 
+	startT := time.Now()
 	if !discardDownloadData {
 		var fd *os.File
 		// If the local file does not exist, create a new one. If it exists, overwrite it.
@@ -170,6 +171,8 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 	} else {
 		_, err = io.Copy(io.Discard, result.Response.Body)
 	}
+	cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
+	bucket.Client.Config.WriteLog(Debug, "get object to file, cost:%d(ms)", cost)
 	if err != nil {
 		return err
 	}
