@@ -143,7 +143,11 @@ func (bucket Bucket) GetObject(objectKey string, options ...Option) (io.ReadClos
 // error    it's nil if no error, otherwise it's an error object.
 //
 func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Option) error {
+	disableTempFile := getDisableTempFile(options)
 	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
 
 	// Calls the API to actually download the object. Returns the result instance.
 	result, err := bucket.DoGetObject(&GetObjectRequest{objectKey}, options)
@@ -152,6 +156,7 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 	}
 	defer result.Response.Close()
 
+	startT := time.Now()
 	// If the local file does not exist, create a new one. If it exists, overwrite it.
 	fd, err := os.OpenFile(tempFilePath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, FilePermMode)
 	if err != nil {
@@ -161,6 +166,8 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 	// Copy the data to the local file path.
 	_, err = io.Copy(fd, result.Response.Body)
 	fd.Close()
+	cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
+	bucket.Client.Config.WriteLog(Debug, "get object to file, cost:%d(ms)", cost)
 	if err != nil {
 		return err
 	}
@@ -182,7 +189,7 @@ func (bucket Bucket) GetObjectToFile(objectKey, filePath string, options ...Opti
 		}
 	}
 
-	return os.Rename(tempFilePath, filePath)
+	return rename(tempFilePath, filePath, disableTempFile)
 }
 
 // DoGetObject is the actual API that gets the object. It's the internal function called by other public APIs.

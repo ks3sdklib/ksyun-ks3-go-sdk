@@ -219,9 +219,21 @@ func combineCRCInDownloadParts(parts []downloadPart) uint64 {
 	return crc
 }
 
+func rename(tempFilePath string, filePath string, disableTempFile bool) error {
+	if disableTempFile {
+		return nil
+	}
+	
+	return os.Rename(tempFilePath, filePath)
+}
+
 // downloadFile downloads file concurrently without checkpoint.
 func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, options []Option, routines int, uRange *UnpackedRange) error {
+	disableTempFile := getDisableTempFile(options)
 	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
 	listener := GetProgressListener(options)
 
 	// If the file does not exist, create one. If exists, the download will overwrite it.
@@ -308,7 +320,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 		}
 	}
 
-	return os.Rename(tempFilePath, filePath)
+	return rename(tempFilePath, filePath, disableTempFile)
 }
 
 // ----- Concurrent download with checkpoint  -----
@@ -461,17 +473,22 @@ func (cp *downloadCheckpoint) prepare(meta http.Header, bucket *Bucket, objectKe
 	return nil
 }
 
-func (cp *downloadCheckpoint) complete(cpFilePath, downFilepath string) error {
-	err := os.Rename(downFilepath, cp.FilePath)
+func (cp *downloadCheckpoint) complete(cpFilePath, downFilepath string, disableTempFile bool) error {
+	err := rename(downFilepath, cp.FilePath, disableTempFile)
 	if err != nil {
 		return err
 	}
+
 	return os.Remove(cpFilePath)
 }
 
 // downloadFileWithCp downloads files with checkpoint.
 func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int64, options []Option, cpFilePath string, routines int, uRange *UnpackedRange) error {
+	disableTempFile := getDisableTempFile(options)
 	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
 	listener := GetProgressListener(options)
 
 	// Load checkpoint data.
@@ -577,5 +594,5 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		}
 	}
 
-	return dcp.complete(cpFilePath, tempFilePath)
+	return dcp.complete(cpFilePath, tempFilePath, disableTempFile)
 }

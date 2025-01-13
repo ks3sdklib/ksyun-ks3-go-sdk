@@ -31,6 +31,7 @@ const (
 	redundancyType     = "redundancy-type"
 	objectHashFunc     = "object-hash-func"
 	contextArg         = "x-context-arg"
+	disableTempFileFlag = "disable-temp-file"
 )
 
 type (
@@ -504,6 +505,14 @@ func GetResponseHeader(respHeader *http.Header) Option {
 	return addArg(responseHeader, respHeader)
 }
 
+// DisableTempFile is an option to disable temp file
+func DisableTempFile(value bool) Option {
+	if value {
+		return addArg(disableTempFileFlag, "true")
+	}
+	return addArg(disableTempFileFlag, "false")
+}
+
 // ResponseContentType is an option to set response-content-type param
 func ResponseContentType(value string) Option {
 	return addParam("response-content-type", value)
@@ -719,4 +728,16 @@ func RetentionOverwrite(value bool) Option {
 	} else {
 		return setHeader(HTTPHeaderKs3RetentionOverwrite, "false")
 	}
+}
+
+// getDisableTempFile get disable temp file value
+func getDisableTempFile(options []Option) bool {
+	val, err := FindOption(options, disableTempFileFlag, "false")
+	if err != nil || val == nil {
+		return false
+	}
+
+	res, _ := strconv.ParseBool(val.(string))
+
+	return res
 }
