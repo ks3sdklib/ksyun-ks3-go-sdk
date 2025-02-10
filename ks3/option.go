@@ -1,6 +1,7 @@
 package ks3
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,9 +13,10 @@ import (
 type optionType string
 
 const (
-	optionParam optionType = "HTTPParameter" // URL parameter
-	optionHTTP  optionType = "HTTPHeader"    // HTTP header
-	optionArg   optionType = "FuncArgument"  // Function argument
+	optionParam   optionType = "HTTPParameter" // URL parameter
+	optionHTTP    optionType = "HTTPHeader"    // HTTP header
+	optionContext optionType = "HTTPContext"   // context
+	optionArg     optionType = "FuncArgument"  // Function argument
 )
 
 const (
@@ -28,6 +30,8 @@ const (
 	responseHeader     = "x-response-header"
 	redundancyType     = "redundancy-type"
 	objectHashFunc     = "object-hash-func"
+	contextArg         = "x-context-arg"
+	disableTempFileFlag = "disable-temp-file"
 )
 
 type (
@@ -459,6 +463,11 @@ func ObjectHashFunc(value ObjecthashFuncType) Option {
 	return addArg(objectHashFunc, value)
 }
 
+// WithContext returns an option that sets the context for requests.
+func WithContext(ctx context.Context) Option {
+	return addArg(contextArg, ctx)
+}
+
 // Checkpoint configuration
 type cpConfig struct {
 	IsEnable bool
@@ -494,6 +503,14 @@ func Progress(listener ProgressListener) Option {
 // GetResponseHeader for get response http header
 func GetResponseHeader(respHeader *http.Header) Option {
 	return addArg(responseHeader, respHeader)
+}
+
+// DisableTempFile is an option to disable temp file
+func DisableTempFile(value bool) Option {
+	if value {
+		return addArg(disableTempFileFlag, "true")
+	}
+	return addArg(disableTempFileFlag, "false")
 }
 
 // ResponseContentType is an option to set response-content-type param
@@ -711,4 +728,16 @@ func RetentionOverwrite(value bool) Option {
 	} else {
 		return setHeader(HTTPHeaderKs3RetentionOverwrite, "false")
 	}
+}
+
+// getDisableTempFile get disable temp file value
+func getDisableTempFile(options []Option) bool {
+	val, err := FindOption(options, disableTempFileFlag, "false")
+	if err != nil || val == nil {
+		return false
+	}
+
+	res, _ := strconv.ParseBool(val.(string))
+
+	return res
 }

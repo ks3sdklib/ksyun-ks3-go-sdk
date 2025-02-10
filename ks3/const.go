@@ -90,13 +90,13 @@ const (
 type BucketType string
 
 const (
-	TypeExtremePL3  BucketType = "EXTREME_PL3"
-	TypeExtremePL2  BucketType = "EXTREME_PL2"
-	TypeExtremePL1  BucketType = "EXTREME_PL1"
-	TypeNormal  BucketType = "NORMAL"
-	TypeIA      BucketType = "IA"
-	TypeArchive BucketType = "ARCHIVE"
-	TypeDeepIA  BucketType = "DEEP_IA"
+	TypeExtremePL3 BucketType = "EXTREME_PL3"
+	TypeExtremePL2 BucketType = "EXTREME_PL2"
+	TypeExtremePL1 BucketType = "EXTREME_PL1"
+	TypeNormal     BucketType = "NORMAL"
+	TypeIA         BucketType = "IA"
+	TypeArchive    BucketType = "ARCHIVE"
+	TypeDeepIA     BucketType = "DEEP_IA"
 )
 
 var BucketTypeList = []BucketType{
@@ -124,7 +124,7 @@ type DataRedundancyType string
 
 //RedundancyType bucket data Redundancy type
 
-//ObjecthashFuncType
+// ObjecthashFuncType
 type ObjecthashFuncType string
 
 const (
@@ -143,7 +143,7 @@ const (
 	BucketOwner PayerType = "BucketOwner"
 )
 
-//RestoreMode the restore mode for coldArchive object
+// RestoreMode the restore mode for coldArchive object
 type RestoreMode string
 
 const (
@@ -244,6 +244,7 @@ const (
 	HTTPHeaderAllowSameActionOverLap         = "X-Kss-Allow-Same-Action-Overlap"
 	HTTPHeaderKs3RetentionId                 = "X-Kss-Retention-Id"
 	HTTPHeaderKs3RetentionOverwrite          = "X-Kss-Retention-Overwrite"
+	HTTPHeaderKs3Shadowcopy                  = "X-Kss-Shadowcopy"
 )
 
 // HTTP Param
@@ -265,7 +266,7 @@ const (
 const (
 	MaxPartSize    = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
 	MinPartSize    = 100 * 1024             // Min part size, 100KB
-	MinPartSize5MB = 5*1024*1024      // part size, 5MB
+	MinPartSize5MB = 5 * 1024 * 1024        // part size, 5MB
 	FilePermMode   = os.FileMode(0664)      // Default file permission
 
 	TempFilePrefix = "ks3-go-temp-" // Temp file prefix
@@ -275,7 +276,7 @@ const (
 
 	NullVersion = "null"
 
-	Version = "v1.2.1" // Go SDK version
+	Version = "v1.2.2" // Go SDK version
 )
 
 // FrameType

@@ -2148,6 +2148,15 @@ func UserAgent(userAgent string) ClientOption {
 	}
 }
 
+// ProxyFromEnvironment sets the proxy from the environment.
+func ProxyFromEnvironment() ClientOption {
+	return func(client *Client) {
+		client.Config.IsUseProxy = true
+		client.Config.ProxyFromEnvironment = true
+		client.Conn.Url.Init(client.Config.Endpoint, client.Config.IsCname, client.Config.IsUseProxy, client.Config.PathStyleAccess)
+	}
+}
+
 // Proxy sets the proxy (optional). The default is not using proxy.
 //
 // proxyHost    the proxy host in the format "host:port". For example, proxy.com:80 .
