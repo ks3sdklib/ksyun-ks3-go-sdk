@@ -128,7 +128,7 @@ func (bucket Bucket) DoUploadPart(request *UploadPartRequest, options []Option) 
 
 	if bucket.GetConfig().IsEnableCRC {
 		err = CheckCRC(resp, "DoUploadPart")
-		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", resp.ClientCRC, resp.ServerCRC)
+		bucket.Client.Config.WriteLog(Debug, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, request.InitResult.Key, resp.ClientCRC, resp.ServerCRC)
 		if err != nil {
 			return &UploadPartResult{part}, err
 		}
