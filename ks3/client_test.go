@@ -2639,3 +2639,50 @@ func (s *Ks3ClientSuite) TestPutBucketReplicationXml(c *C) {
 	err = s.client.DeleteBucketReplication(bucketName)
 	c.Assert(err, IsNil)
 }
+
+func (s *Ks3ClientSuite) TestBucketEncryption(c *C) {
+	bucketName := bucketNamePrefix + RandLowStr(6)
+	PutBucket(s.client, bucketName, c)
+
+	_, err := s.client.GetBucketEncryption(bucketName)
+	c.Assert(err, NotNil)
+
+	encryptionRule := ServerSideEncryptionRule{
+		ApplyServerSideEncryptionByDefault: ApplyServerSideEncryptionByDefault{
+			SSEAlgorithm: "AES256",
+		},
+	}
+
+	err = s.client.PutBucketEncryption(bucketName, encryptionRule)
+	c.Assert(err, IsNil)
+
+	encryptionResult, err := s.client.GetBucketEncryption(bucketName)
+	c.Assert(err, IsNil)
+	c.Assert(encryptionResult.ServerSideEncryptionRule.ApplyServerSideEncryptionByDefault.SSEAlgorithm, Equals, "AES256")
+
+	err = s.client.DeleteBucketEncryption(bucketName)
+	c.Assert(err, IsNil)
+
+	encryptionRuleXml := `
+    <ServerSideEncryptionConfiguration>
+        <Rule>
+            <ApplyServerSideEncryptionByDefault>
+                <SSEAlgorithm>AES256</SSEAlgorithm>
+            </ApplyServerSideEncryptionByDefault>
+        </Rule>
+    </ServerSideEncryptionConfiguration>`
+
+	err = s.client.PutBucketEncryptionXml(bucketName, encryptionRuleXml)
+	c.Assert(err, IsNil)
+
+	encryptionResultXml, err := s.client.GetBucketEncryptionXml(bucketName)
+	c.Assert(err, IsNil)
+
+	var encryptionCfg ServerSideEncryptionConfiguration
+	err = xml.Unmarshal([]byte(encryptionResultXml), &encryptionCfg)
+	c.Assert(err, IsNil)
+	c.Assert(encryptionCfg.ServerSideEncryptionRule.ApplyServerSideEncryptionByDefault.SSEAlgorithm, Equals, "AES256")
+
+	err = s.client.DeleteBucketEncryption(bucketName)
+	c.Assert(err, IsNil)
+}

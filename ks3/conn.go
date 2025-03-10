@@ -32,7 +32,7 @@ type Conn struct {
 var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"logging", "website", "referer", "lifecycle",
 	"retention", "recycle", "recover", "clear",
-	"crr", "mirror", "inventory", "id",
+	"crr", "mirror", "inventory", "id", "encryption",
 	"delete", "append", "tagging", "objectMeta",
 	"uploadId", "partNumber", "security-token",
 	"position", "img", "style", "styleName",
