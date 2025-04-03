@@ -54,6 +54,8 @@ var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"regionList",
 }
 
+var policySignKeyList = []string{"X-Kss-Policy", "security-token"}
+
 // init initializes Conn
 func (conn *Conn) init(config *Config, urlMaker *UrlMaker, client *http.Client) error {
 	if client == nil {
@@ -175,7 +177,7 @@ func (conn Conn) DoURLWithContext(ctx context.Context, method HTTPMethod, signed
 	startT := time.Now()
 	resp, err := conn.client.Do(req)
 	cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
-	conn.config.WriteLog(Info, "[Resp:%p]send http request, cost:%d(ms)\n", req, cost)
+	conn.config.WriteLog(Debug, "[Resp:%p]send http request, cost:%d(ms)\n", req, cost)
 
 	if err != nil {
 		// Transfer failed
@@ -256,6 +258,51 @@ func (conn Conn) getSubResource(params map[string]interface{}) string {
 
 func (conn Conn) isParamSign(paramKey string) bool {
 	for _, k := range signKeyList {
+		if paramKey == k {
+			return true
+		}
+	}
+	return false
+}
+
+func (conn Conn) getPolicySubResource(params map[string]interface{}) string {
+	// Sort
+	keys := make([]string, 0, len(params))
+	signParams := make(map[string]string)
+	for k := range params {
+		if conn.config.AuthVersion == AuthV2 {
+			encodedKey := url.QueryEscape(k)
+			keys = append(keys, encodedKey)
+			if params[k] != nil && params[k] != "" {
+				signParams[encodedKey] = strings.Replace(url.QueryEscape(params[k].(string)), "+", "%20", -1)
+			}
+		} else if conn.isPolicyParamSign(k) {
+			keys = append(keys, k)
+			if params[k] != nil {
+				signParams[k] = params[k].(string)
+			}
+		}
+	}
+	sort.Strings(keys)
+
+	// Serialize
+	var buf bytes.Buffer
+	for _, k := range keys {
+		if buf.Len() > 0 {
+			buf.WriteByte('&')
+		}
+		buf.WriteString(k)
+		if _, ok := signParams[k]; ok {
+			if signParams[k] != "" {
+				buf.WriteString("=" + signParams[k])
+			}
+		}
+	}
+	return buf.String()
+}
+
+func (conn Conn) isPolicyParamSign(paramKey string) bool {
+	for _, k := range policySignKeyList {
 		if paramKey == k {
 			return true
 		}
@@ -433,6 +480,25 @@ func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expir
 	str := encodeKS3Str(objectName)
 	urlParams := conn.getURLParams(params)
 	return conn.Url.getSignURL(bucketName, str, urlParams)
+}
+
+func (conn Conn) signPolicyURL(bucketName string, expiration int64, params map[string]interface{}) string {
+	akIf := conn.config.GetCredentials()
+	if akIf.GetSecurityToken() != "" {
+		params[HTTPParamSecurityToken] = akIf.GetSecurityToken()
+	}
+
+	date := strconv.FormatInt(expiration, 10)
+	subResource := conn.getPolicySubResource(params)
+	canonicalResource := conn.getResource(bucketName, "", subResource)
+	signedStr := conn.getPolicySignedStr(canonicalResource, date, akIf.GetAccessKeySecret())
+
+	params[HTTPParamExpires] = strconv.FormatInt(expiration, 10)
+	params[HTTPParamAccessKeyID] = akIf.GetAccessKeyID()
+	params[HTTPParamSignature] = signedStr
+
+	urlParams := conn.getURLParams(params)
+	return conn.Url.getSignURL(bucketName, "", urlParams)
 }
 
 func (conn Conn) signRtmpURL(bucketName, channelName, playlistName string, expiration int64) string {

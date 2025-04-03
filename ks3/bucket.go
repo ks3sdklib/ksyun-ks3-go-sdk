@@ -653,6 +653,27 @@ func (bucket Bucket) ListObjects(options ...Option) (ListObjectsResult, error) {
 	return out, err
 }
 
+func (bucket Bucket) ListObjectsWithURL(signedURL string, options ...Option) (ListObjectsResult, error) {
+	var out ListObjectsResult
+	params, err := GetRawParams(options)
+	if err != nil {
+		return out, err
+	}
+
+	resp, err := bucket.doURL("GET", signedURL, params, options, nil, nil)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	err = xmlUnmarshal(resp.Body, &out)
+	if err != nil {
+		return out, err
+	}
+
+	return out, err
+}
+
 // ListObjectsV2 Recommend to use ListObjectsV2 to replace ListObjects
 // ListOListObjectsV2bjects lists the objects under the current bucket.
 // ListObjectsResultV2 the return value after operation succeeds (only valid when error is nil).
@@ -752,6 +773,17 @@ func (bucket Bucket) GetObjectDetailedMeta(objectKey string, options ...Option) 
 func (bucket Bucket) GetObjectMeta(objectKey string, options ...Option) (http.Header, error) {
 	params, _ := GetRawParams(options)
 	resp, err := bucket.do("HEAD", objectKey, params, options, nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return resp.Headers, nil
+}
+
+func (bucket Bucket) GetObjectMetaWithURL(signedURL string, options ...Option) (http.Header, error) {
+	params, _ := GetRawParams(options)
+	resp, err := bucket.doURL("HEAD", signedURL, params, options, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -959,6 +991,16 @@ func (bucket Bucket) SignURL(objectKey string, method HTTPMethod, expiredInSec i
 	return bucket.Client.Conn.signURL(method, bucket.BucketName, objectKey, expiration, params, headers), nil
 }
 
+func (bucket Bucket) SignPolicyURL(policy string, expiration int64, options ...Option) (string, error) {
+	params, err := GetRawParams(options)
+	if err != nil {
+		return "", err
+	}
+	params["X-Kss-Policy"] = base64.StdEncoding.EncodeToString([]byte(policy))
+
+	return bucket.Client.Conn.signPolicyURL(bucket.BucketName, expiration, params), nil
+}
+
 // PutObjectWithURL uploads an object with the URL. If the object exists, it will be overwritten.
 // PutObjectWithURL It will not generate minetype according to the key name.
 //
@@ -1063,7 +1105,11 @@ func (bucket Bucket) GetObjectWithURL(signedURL string, options ...Option) (io.R
 // error    it's nil if no error, otherwise it's an error object.
 //
 func (bucket Bucket) GetObjectToFileWithURL(signedURL, filePath string, options ...Option) error {
+	disableTempFile := getDisableTempFile(options)
 	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
 
 	// Get the object's content
 	result, err := bucket.DoGetObjectWithURL(signedURL, options)
@@ -1103,7 +1149,7 @@ func (bucket Bucket) GetObjectToFileWithURL(signedURL, filePath string, options 
 		}
 	}
 
-	return os.Rename(tempFilePath, filePath)
+	return rename(tempFilePath, filePath, disableTempFile)
 }
 
 // DoGetObjectWithURL is the actual API that downloads the file with the signed URL.
