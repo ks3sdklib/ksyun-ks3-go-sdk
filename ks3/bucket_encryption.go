@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type ServerSideEncryptionConfiguration struct {
@@ -31,20 +32,7 @@ func (client Client) PutBucketEncryption(bucketName string, encryptionRule Serve
 	buffer := new(bytes.Buffer)
 	buffer.Write(bs)
 
-	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
-	contentType := http.DetectContentType(buffer.Bytes())
-	headers := map[string]string{}
-	headers[HTTPHeaderContentType] = contentType
-	headers[HTTPHeaderContentMD5] = md5
-
-	params := map[string]interface{}{}
-	params["encryption"] = nil
-	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
+	return client.PutBucketEncryptionXml(bucketName, buffer.String(), options...)
 }
 
 func (client Client) PutBucketEncryptionXml(bucketName string, xmlBody string, options ...Option) error {
@@ -68,17 +56,14 @@ func (client Client) PutBucketEncryptionXml(bucketName string, xmlBody string, o
 }
 
 func (client Client) GetBucketEncryption(bucketName string, options ...Option) (ServerSideEncryptionConfiguration, error) {
-	var out ServerSideEncryptionConfiguration
-	params := map[string]interface{}{}
-	params["encryption"] = nil
-	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
+	var cfg ServerSideEncryptionConfiguration
+	out, err := client.GetBucketEncryptionXml(bucketName, options...)
 	if err != nil {
-		return out, err
+		return cfg, err
 	}
-	defer resp.Body.Close()
-
-	err = xmlUnmarshal(resp.Body, &out)
-	return out, err
+	
+	err = xmlUnmarshal(strings.NewReader(out), &cfg)
+	return cfg, err
 }
 
 func (client Client) GetBucketEncryptionXml(bucketName string, options ...Option) (string, error) {
