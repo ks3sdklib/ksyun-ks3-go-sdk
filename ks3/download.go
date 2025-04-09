@@ -314,7 +314,7 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 		clientCRC := combineCRCInDownloadParts(parts)
 		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
 		err = CheckDownloadCRC(clientCRC, serverCRC)
-		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Debug, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, objectKey, clientCRC, serverCRC)
 		if err != nil {
 			return err
 		}
@@ -588,7 +588,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		clientCRC := combineCRCInDownloadParts(dcp.Parts)
 		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
 		err = CheckDownloadCRC(clientCRC, serverCRC)
-		bucket.Client.Config.WriteLog(Info, "check file crc64, client crc:%d, server crc:%d", clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Debug, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, objectKey, clientCRC, serverCRC)
 		if err != nil {
 			return err
 		}

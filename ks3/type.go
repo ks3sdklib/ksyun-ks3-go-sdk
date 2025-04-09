@@ -92,10 +92,12 @@ type LifecycleExpiration struct {
 
 // LifecycleTransition defines the rule's transition propery
 type LifecycleTransition struct {
-	XMLName      xml.Name         `xml:"Transition"`
-	Days         int              `xml:"Days,omitempty"`         // Relative transition time: The transition time in days after the last modified time
-	Date         string           `xml:"Date,omitempty"`         // objects created before the date will be expired
-	StorageClass StorageClassType `xml:"StorageClass,omitempty"` // Specifies the target storage type
+	XMLName              xml.Name         `xml:"Transition"`
+	Days                 int              `xml:"Days,omitempty"`                 // Relative transition time: The transition time in days after the last modified time
+	Date                 string           `xml:"Date,omitempty"`                 // objects created before the date will be expired
+	StorageClass         StorageClassType `xml:"StorageClass,omitempty"`         // Specifies the target storage type
+	IsAccessTime         *bool            `xml:"IsAccessTime,omitempty"`         // Specifies whether the transition is based on the last access time
+	ReturnToStdWhenVisit *bool            `xml:"ReturnToStdWhenVisit,omitempty"` // Specifies whether the object is returned to the standard storage class when it is accessed
 }
 
 // LifecycleAbortIncompleteMultipartUpload defines the rule's abort multipart upload propery
@@ -907,21 +909,6 @@ type VersioningConfig struct {
 
 type GetBucketVersioningResult VersioningConfig
 
-// Server Encryption rule for the bucket
-type ServerEncryptionRule struct {
-	XMLName    xml.Name       `xml:"ServerSideEncryptionRule"`
-	SSEDefault SSEDefaultRule `xml:"ApplyServerSideEncryptionByDefault"`
-}
-
-// Server Encryption deafult rule for the bucket
-type SSEDefaultRule struct {
-	XMLName           xml.Name `xml:"ApplyServerSideEncryptionByDefault"`
-	SSEAlgorithm      string   `xml:"SSEAlgorithm,omitempty"`
-	KMSMasterKeyID    string   `xml:"KMSMasterKeyID,omitempty"`
-	KMSDataEncryption string   `xml:"KMSDataEncryption,,omitempty"`
-}
-
-type GetBucketEncryptionResult ServerEncryptionRule
 type GetBucketTaggingResult Tagging
 
 type BucketStat struct {

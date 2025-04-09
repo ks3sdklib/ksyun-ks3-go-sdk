@@ -32,7 +32,7 @@ type Conn struct {
 var signKeyList = []string{"acl", "uploads", "location", "cors",
 	"logging", "website", "referer", "lifecycle",
 	"retention", "recycle", "recover", "clear",
-	"crr", "mirror", "inventory", "id",
+	"crr", "mirror", "inventory", "id", "encryption",
 	"delete", "append", "tagging", "objectMeta",
 	"uploadId", "partNumber", "security-token",
 	"position", "img", "style", "styleName",
@@ -356,7 +356,7 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	startT := time.Now()
 	resp, err := conn.client.Do(req)
 	cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
-	conn.config.WriteLog(Info, "[Resp:%p]send http request, cost:%d(ms)\n", req, cost)
+	conn.config.WriteLog(Debug, "[Resp:%p]send http request, cost:%d(ms)\n", req, cost)
 
 	// print out http resp
 	conn.LoggerHTTPResp(req, resp)

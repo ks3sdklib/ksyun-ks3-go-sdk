@@ -935,69 +935,6 @@ func (client Client) GetBucketVersioning(bucketName string, options ...Option) (
 	return out, err
 }
 
-// SetBucketEncryption set bucket encryption config
-// bucketName    the bucket name.
-// error    it's nil if no error, otherwise it's an error object.
-func (client Client) SetBucketEncryption(bucketName string, encryptionRule ServerEncryptionRule, options ...Option) error {
-	var err error
-	var bs []byte
-	bs, err = xml.Marshal(encryptionRule)
-
-	if err != nil {
-		return err
-	}
-
-	buffer := new(bytes.Buffer)
-	buffer.Write(bs)
-
-	contentType := http.DetectContentType(buffer.Bytes())
-	headers := map[string]string{}
-	headers[HTTPHeaderContentType] = contentType
-
-	params := map[string]interface{}{}
-	params["encryption"] = nil
-	resp, err := client.do("PUT", bucketName, params, headers, buffer, options...)
-
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
-}
-
-// GetBucketEncryption get bucket encryption
-// bucketName    the bucket name.
-// error    it's nil if no error, otherwise it's an error object.
-func (client Client) GetBucketEncryption(bucketName string, options ...Option) (GetBucketEncryptionResult, error) {
-	var out GetBucketEncryptionResult
-	params := map[string]interface{}{}
-	params["encryption"] = nil
-	resp, err := client.do("GET", bucketName, params, nil, nil, options...)
-
-	if err != nil {
-		return out, err
-	}
-	defer resp.Body.Close()
-
-	err = xmlUnmarshal(resp.Body, &out)
-	return out, err
-}
-
-// DeleteBucketEncryption delete bucket encryption config
-// bucketName    the bucket name.
-// error    it's nil if no error, otherwise it's an error bucket
-func (client Client) DeleteBucketEncryption(bucketName string, options ...Option) error {
-	params := map[string]interface{}{}
-	params["encryption"] = nil
-	resp, err := client.do("DELETE", bucketName, params, nil, nil, options...)
-
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
-}
-
 //
 // SetBucketTagging add tagging to bucket
 // bucketName  name of bucket
