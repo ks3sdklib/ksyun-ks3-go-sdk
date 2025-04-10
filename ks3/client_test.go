@@ -2686,3 +2686,35 @@ func (s *Ks3ClientSuite) TestBucketEncryption(c *C) {
 	err = s.client.DeleteBucketEncryption(bucketName)
 	c.Assert(err, IsNil)
 }
+
+func (s *Ks3ClientSuite) TestBucketTagging(c *C) {
+	bucketName := bucketNamePrefix + RandLowStr(6)
+	PutBucket(s.client, bucketName, c)
+
+	res, err := s.client.GetBucketTagging(bucketName)
+	c.Assert(err, IsNil)
+	c.Assert(len(res.Tags), Equals, 0)
+
+	tagging := Tagging{
+		Tags: []Tag{
+			{
+				Key:   "key1",
+				Value: "value1",
+			},
+			{
+				Key:   "key2",
+				Value: "value2",
+			},
+		},
+	}
+
+	err = s.client.SetBucketTagging(bucketName, tagging)
+	c.Assert(err, IsNil)
+
+	res, err = s.client.GetBucketTagging(bucketName)
+	c.Assert(err, IsNil)
+	c.Assert(len(res.Tags), Equals, 2)
+
+	err = s.client.DeleteBucketTagging(bucketName)
+	c.Assert(err, IsNil)
+}

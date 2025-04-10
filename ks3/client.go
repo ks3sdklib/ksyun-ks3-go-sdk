@@ -941,20 +941,18 @@ func (client Client) GetBucketVersioning(bucketName string, options ...Option) (
 // tagging    tagging to be added
 // error        nil if success, otherwise error
 func (client Client) SetBucketTagging(bucketName string, tagging Tagging, options ...Option) error {
-	var err error
-	var bs []byte
-	bs, err = xml.Marshal(tagging)
-
+	bs, err := xml.Marshal(tagging)
 	if err != nil {
 		return err
 	}
-
 	buffer := new(bytes.Buffer)
 	buffer.Write(bs)
 
+	md5 := encodeAsString(computeMD5Hash(buffer.Bytes()))
 	contentType := http.DetectContentType(buffer.Bytes())
 	headers := map[string]string{}
 	headers[HTTPHeaderContentType] = contentType
+	headers[HTTPHeaderContentMD5] = md5
 
 	params := map[string]interface{}{}
 	params["tagging"] = nil
