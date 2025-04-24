@@ -701,6 +701,27 @@ func (bucket Bucket) ListObjectsV2(options ...Option) (ListObjectsResultV2, erro
 	return out, err
 }
 
+func (bucket Bucket) ListObjectsV2WithURL(signedURL string, options ...Option) (ListObjectsResultV2, error) {
+	var out ListObjectsResultV2
+	params, err := GetRawParams(options)
+	if err != nil {
+		return out, err
+	}
+
+	resp, err := bucket.doURL("GET", signedURL, params, options, nil, nil)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	err = xmlUnmarshal(resp.Body, &out)
+	if err != nil {
+		return out, err
+	}
+
+	return out, err
+}
+
 // ListObjectVersions lists objects of all versions under the current bucket.
 func (bucket Bucket) ListObjectVersions(options ...Option) (ListObjectVersionsResult, error) {
 	var out ListObjectVersionsResult

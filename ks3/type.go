@@ -384,6 +384,7 @@ type ObjectProperties struct {
 // ListObjectsResultV2 defines the result from ListObjectsV2 request
 type ListObjectsResultV2 struct {
 	XMLName               xml.Name           `xml:"ListBucketResult"`
+	Name                  string             `xml:"Name"`                  // The Bucket Name
 	Prefix                string             `xml:"Prefix"`                // The object prefix
 	StartAfter            string             `xml:"StartAfter"`            // the input StartAfter
 	ContinuationToken     string             `xml:"ContinuationToken"`     // the input ContinuationToken
@@ -391,6 +392,8 @@ type ListObjectsResultV2 struct {
 	Delimiter             string             `xml:"Delimiter"`             // The delimiter for grouping objects' name
 	IsTruncated           bool               `xml:"IsTruncated"`           // Flag indicates if all results are returned (when it's false)
 	NextContinuationToken string             `xml:"NextContinuationToken"` // The start point of the next NextContinuationToken
+	KeyCount              int                `xml:"KeyCount"`              // The number of objects returned
+	EncodingType          string             `xml:"EncodingType"`          // The encoding type
 	Objects               []ObjectProperties `xml:"Contents"`              // Object list
 	CommonPrefixes        []string           `xml:"CommonPrefixes>Prefix"` // You can think of commonprefixes as "folders" whose names end with the delimiter
 }
