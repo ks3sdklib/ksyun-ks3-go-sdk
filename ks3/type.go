@@ -359,6 +359,7 @@ type SSERule struct {
 // ListObjectsResult defines the result from ListObjects request
 type ListObjectsResult struct {
 	XMLName        xml.Name           `xml:"ListBucketResult"`
+	Name           string             `xml:"Name"`                  // The bucket name
 	Prefix         string             `xml:"Prefix"`                // The object prefix
 	Marker         string             `xml:"Marker"`                // The marker filter.
 	MaxKeys        int                `xml:"MaxKeys"`               // Max keys to return
@@ -384,7 +385,7 @@ type ObjectProperties struct {
 // ListObjectsResultV2 defines the result from ListObjectsV2 request
 type ListObjectsResultV2 struct {
 	XMLName               xml.Name           `xml:"ListBucketResult"`
-	Name                  string             `xml:"Name"`                  // The Bucket Name
+	Name                  string             `xml:"Name"`                  // The bucket name
 	Prefix                string             `xml:"Prefix"`                // The object prefix
 	StartAfter            string             `xml:"StartAfter"`            // the input StartAfter
 	ContinuationToken     string             `xml:"ContinuationToken"`     // the input ContinuationToken
