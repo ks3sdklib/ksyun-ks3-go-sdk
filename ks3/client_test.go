@@ -2571,19 +2571,18 @@ func (s *Ks3ClientSuite) TestDeleteBucketInventory(c *C) {
 	c.Assert(err, NotNil)
 }
 
-func (s *Ks3ClientSuite) TestPutBucketReplication(c *C) {
+func (s *Ks3ClientSuite) TestBucketReplication(c *C) {
 	bucketName := bucketNamePrefix + RandLowStr(6)
 	PutBucket(s.client, bucketName, c)
+
+	targetBucket := bucketNamePrefix + RandLowStr(6)
+	PutBucket(s.client, targetBucket, c)
 
 	replicationResult, err := s.client.GetBucketReplication(bucketName)
 	c.Assert(err, NotNil)
 
-	PutObject(s.client, bucketName, "abc/123.txt", "test content", c)
-	targetBucket := bucketNamePrefix + RandLowStr(6)
-	PutBucket(s.client, targetBucket, c)
-
 	replication := Replication{
-		Prefix:                      []string{"abc"},
+		Prefix: []string{"abc/"},
 		DeleteMarkerStatus:          "Enabled",
 		TargetBucket:                targetBucket,
 		HistoricalObjectReplication: "Enabled",
@@ -2594,6 +2593,8 @@ func (s *Ks3ClientSuite) TestPutBucketReplication(c *C) {
 
 	replicationResult, err = s.client.GetBucketReplication(bucketName)
 	c.Assert(err, IsNil)
+	c.Assert(len(replicationResult.Prefix), Equals, 1)
+	c.Assert(replicationResult.Prefix[0], Equals, "abc/")
 	c.Assert(replicationResult.DeleteMarkerStatus, Equals, "Enabled")
 	c.Assert(replicationResult.TargetBucket, Equals, targetBucket)
 	c.Assert(replicationResult.Region, Equals, "BEIJING")
@@ -2601,21 +2602,9 @@ func (s *Ks3ClientSuite) TestPutBucketReplication(c *C) {
 
 	err = s.client.DeleteBucketReplication(bucketName)
 	c.Assert(err, IsNil)
-}
-
-func (s *Ks3ClientSuite) TestPutBucketReplicationXml(c *C) {
-	bucketName := bucketNamePrefix + RandLowStr(6)
-	PutBucket(s.client, bucketName, c)
-
-	_, err := s.client.GetBucketReplicationXml(bucketName)
-	c.Assert(err, NotNil)
-
-	PutObject(s.client, bucketName, "abc/123.txt", "test content", c)
-	targetBucket := bucketNamePrefix + RandLowStr(6)
-	PutBucket(s.client, targetBucket, c)
 
 	replicationXml := fmt.Sprintf(`<Replication xmlns="http://s3.amazonaws.com/doc/2006-03-01/">
-		<prefix>abc</prefix>
+		<prefix>abc2/</prefix>
 		<DeleteMarkerStatus>Enabled</DeleteMarkerStatus>
 		<targetBucket>%s</targetBucket>
 		<HistoricalObjectReplication>Enabled</HistoricalObjectReplication>
@@ -2627,14 +2616,15 @@ func (s *Ks3ClientSuite) TestPutBucketReplicationXml(c *C) {
 	replicationResultXml, err := s.client.GetBucketReplicationXml(bucketName)
 	c.Assert(err, IsNil)
 
-	var replicationResult Replication
-	err = xml.Unmarshal([]byte(replicationResultXml), &replicationResult)
+	var replicationXmlResult Replication
+	err = xml.Unmarshal([]byte(replicationResultXml), &replicationXmlResult)
 	c.Assert(err, IsNil)
-
-	c.Assert(err, IsNil)
-	c.Assert(replicationResult.DeleteMarkerStatus, Equals, "Enabled")
-	c.Assert(replicationResult.TargetBucket, Equals, targetBucket)
-	c.Assert(replicationResult.HistoricalObjectReplication, Equals, "Enabled")
+	c.Assert(len(replicationXmlResult.Prefix), Equals, 1)
+	c.Assert(replicationXmlResult.Prefix[0], Equals, "abc2/")
+	c.Assert(replicationXmlResult.DeleteMarkerStatus, Equals, "Enabled")
+	c.Assert(replicationXmlResult.TargetBucket, Equals, targetBucket)
+	c.Assert(replicationXmlResult.Region, Equals, "BEIJING")
+	c.Assert(replicationXmlResult.HistoricalObjectReplication, Equals, "Enabled")
 
 	err = s.client.DeleteBucketReplication(bucketName)
 	c.Assert(err, IsNil)

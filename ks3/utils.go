@@ -425,8 +425,8 @@ func CheckBucketName(bucketName string) error {
 	}
 
 	for _, v := range bucketName {
-		if !(('a' <= v && v <= 'z') || ('0' <= v && v <= '9') || v == '-') {
-			return fmt.Errorf("bucket name %s can only include lowercase letters, numbers, and -", bucketName)
+		if !(('a' <= v && v <= 'z') || ('0' <= v && v <= '9') || v == '-' || v == '_') {
+			return fmt.Errorf("bucket name %s can only include lowercase letters, numbers, -, and _", bucketName)
 		}
 	}
 	if bucketName[0] == '-' || bucketName[nameLen-1] == '-' {

@@ -129,6 +129,18 @@ func (conn Conn) getSignedStr(req *http.Request, canonicalizedResource string, k
 	return signedStr
 }
 
+func (conn Conn) getPolicySignedStr(canonicalizedResource string, date string, keySecret string) string {
+	signStr := date + "\n" + canonicalizedResource
+	h := hmac.New(func() hash.Hash { return sha1.New() }, []byte(keySecret))
+
+	conn.config.WriteLog(Debug, "policy signStr:%s\n", signStr)
+
+	io.WriteString(h, signStr)
+	signedStr := base64.StdEncoding.EncodeToString(h.Sum(nil))
+
+	return signedStr
+}
+
 func (conn Conn) getRtmpSignedStr(bucketName, channelName, playlistName string, expiration int64, keySecret string, params map[string]interface{}) string {
 	if params[HTTPParamAccessKeyID] == nil {
 		return ""

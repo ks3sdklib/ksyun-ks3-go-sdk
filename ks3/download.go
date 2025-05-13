@@ -53,6 +53,36 @@ func (bucket Bucket) DownloadFile(objectKey, filePath string, partSize int64, op
 	return bucket.downloadFile(objectKey, filePath, partSize, options, routines, uRange)
 }
 
+// DownloadFileWithURL 根据预签名URL下载文件
+func (bucket Bucket) DownloadFileWithURL(objectKey, filePath string, partSize int64, options ...Option) error {
+	if partSize < 1 {
+		return errors.New("ks3: part size smaller than 1")
+	}
+
+	uRange, err := GetRangeConfig(options)
+	if err != nil {
+		return err
+	}
+
+	cpConf := getCpConfig(options)
+	routines := getRoutines(options)
+
+	var strVersionId string
+	versionId, _ := FindOption(options, "versionId", nil)
+	if versionId != nil {
+		strVersionId = versionId.(string)
+	}
+
+	if cpConf != nil && cpConf.IsEnable {
+		cpFilePath := getDownloadCpFilePath(cpConf, bucket.BucketName, objectKey, strVersionId, filePath)
+		if cpFilePath != "" {
+			return bucket.downloadFileWithURL(objectKey, filePath, partSize, options, cpFilePath, routines, uRange)
+		}
+	}
+
+	return bucket.downloadFileWithURL(objectKey, filePath, partSize, options, "", routines, uRange)
+}
+
 func getDownloadCpFilePath(cpConf *cpConfig, srcBucket, srcObject, versionId, destFile string) string {
 	if cpConf.FilePath == "" && cpConf.DirPath != "" {
 		src := fmt.Sprintf("ks3://%v/%v", srcBucket, srcObject)
@@ -67,6 +97,7 @@ func getDownloadCpFilePath(cpConf *cpConfig, srcBucket, srcObject, versionId, de
 type downloadWorkerArg struct {
 	bucket    *Bucket
 	key       string
+	signedURL string
 	filePath  string
 	options   []Option
 	hook      downloadPartHook
@@ -83,38 +114,30 @@ func defaultDownloadPartHook(part downloadPart) error {
 	return nil
 }
 
-// defaultDownloadProgressListener defines default ProgressListener, shields the ProgressListener in options of GetObject.
-type defaultDownloadProgressListener struct {
-}
-
-// ProgressChanged no-ops
-func (listener *defaultDownloadProgressListener) ProgressChanged(event *ProgressEvent) {
-}
-
 // downloadWorker
-func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, results chan<- downloadPart, failed chan<- error, die <-chan bool) {
+func downloadWorker(arg downloadWorkerArg, jobs <-chan downloadPart, results chan<- downloadPart, failed chan<- error, die <-chan bool) {
 	for part := range jobs {
 		if err := arg.hook(part); err != nil {
 			failed <- err
 			break
 		}
 
-		// Resolve options
-		r := Range(part.Start, part.End)
-		p := Progress(arg.listener)
-
 		var respHeader http.Header
 		opts := make([]Option, len(arg.options)+3)
-		// Append orderly, can not be reversed!
 		opts = append(opts, arg.options...)
-		opts = append(opts, r, p, GetResponseHeader(&respHeader))
+		opts = append(opts, Range(part.Start, part.End), Progress(arg.listener), GetResponseHeader(&respHeader))
 
-		rd, err := arg.bucket.GetObject(arg.key, opts...)
+		var rd io.ReadCloser
+		var err error
+		if arg.signedURL != "" {
+			rd, err = arg.bucket.GetObjectWithURL(arg.signedURL, opts...)
+		} else {
+			rd, err = arg.bucket.GetObject(arg.key, opts...)
+		}
 		if err != nil {
 			failed <- err
 			break
 		}
-		defer rd.Close()
 
 		var crcCalc hash.Hash64
 		if arg.enableCRC {
@@ -122,7 +145,6 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 			contentLen := part.End - part.Start + 1
 			rd = io.NopCloser(TeeReader(rd, crcCalc, contentLen, nil, nil))
 		}
-		defer rd.Close()
 
 		select {
 		case <-die:
@@ -132,32 +154,38 @@ func downloadWorker(id int, arg downloadWorkerArg, jobs <-chan downloadPart, res
 
 		fd, err := os.OpenFile(arg.filePath, os.O_WRONLY, FilePermMode)
 		if err != nil {
+			rd.Close()
 			failed <- err
 			break
 		}
 
-		_, err = fd.Seek(part.Start-part.Offset, os.SEEK_SET)
+		_, err = fd.Seek(part.Start-part.Offset, io.SeekStart)
 		if err != nil {
 			fd.Close()
+			rd.Close()
 			failed <- err
 			break
 		}
 
-		startT := time.Now().UnixNano() / 1000 / 1000 / 1000
+		startT := time.Now()
 		_, err = io.Copy(fd, rd)
-		endT := time.Now().UnixNano() / 1000 / 1000 / 1000
+		cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
 		if err != nil {
-			arg.bucket.Client.Config.WriteLog(Debug, "download part error,cost:%d second,part number:%d,request id:%s,error:%s.\n", endT-startT, part.Index, GetRequestId(respHeader), err.Error())
+			arg.bucket.Client.Config.WriteLog(Debug, "download part error, cost:%d(ms), partNumber:%d, requestId:%s, error:%s\n", cost, part.Index, GetRequestId(respHeader), err.Error())
 			fd.Close()
+			rd.Close()
 			failed <- err
 			break
 		}
+		arg.bucket.Client.Config.WriteLog(Debug, "download part success, cost:%d(ms), partNumber:%d, requestId:%s\n", cost, part.Index, GetRequestId(respHeader))
 
 		if arg.enableCRC {
 			part.CRC64 = crcCalc.Sum64()
 		}
 
 		fd.Close()
+		rd.Close()
+
 		results <- part
 	}
 }
@@ -181,7 +209,7 @@ type downloadPart struct {
 
 // getDownloadParts gets download parts
 func getDownloadParts(objectSize, partSize int64, uRange *UnpackedRange) []downloadPart {
-	parts := []downloadPart{}
+	var parts []downloadPart
 	part := downloadPart{}
 	i := 0
 	start, end := AdjustRange(uRange, objectSize)
@@ -276,9 +304,9 @@ func (bucket Bucket) downloadFile(objectKey, filePath string, partSize int64, op
 	publishProgress(listener, event)
 
 	// Start the download workers
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, enableCRC, listener}
+	arg := downloadWorkerArg{&bucket, objectKey, "", tempFilePath, options, downloadPartHooker, enableCRC, listener}
 	for w := 1; w <= routines; w++ {
-		go downloadWorker(w, arg, jobs, results, failed, die)
+		go downloadWorker(arg, jobs, results, failed, die)
 	}
 
 	// Download parts concurrently
@@ -348,15 +376,10 @@ type objectStat struct {
 }
 
 // isValid flags of checkpoint data is valid. It returns true when the data is valid and the checkpoint is valid and the object is not updated.
-func (cp downloadCheckpoint) isValid(meta http.Header, uRange *UnpackedRange) (bool, error) {
-	// Compare the CP Magic and the MD5
-	cpb := cp
-	cpb.MD5 = ""
-	js, _ := json.Marshal(cpb)
-	sum := md5.Sum(js)
-	b64 := base64.StdEncoding.EncodeToString(sum[:])
+func (cp *downloadCheckpoint) isValid(meta http.Header, uRange *UnpackedRange) (bool, error) {
+	newMd5, _ := cp.checksum()
 
-	if cp.Magic != downloadCpMagic || b64 != cp.MD5 {
+	if cp.Magic != downloadCpMagic || newMd5 != cp.MD5 {
 		return false, nil
 	}
 
@@ -396,20 +419,18 @@ func (cp *downloadCheckpoint) load(filePath string) error {
 
 // dump function dumps to file
 func (cp *downloadCheckpoint) dump(filePath string) error {
-	bcp := *cp
+	if filePath == "" {
+		return nil
+	}
 
-	// Calculate MD5
-	bcp.MD5 = ""
-	js, err := json.Marshal(bcp)
+	newMd5, err := cp.checksum()
 	if err != nil {
 		return err
 	}
-	sum := md5.Sum(js)
-	b64 := base64.StdEncoding.EncodeToString(sum[:])
-	bcp.MD5 = b64
+	cp.MD5 = newMd5
 
 	// Serialize
-	js, err = json.Marshal(bcp)
+	js, err := json.Marshal(cp)
 	if err != nil {
 		return err
 	}
@@ -418,9 +439,22 @@ func (cp *downloadCheckpoint) dump(filePath string) error {
 	return os.WriteFile(filePath, js, FilePermMode)
 }
 
+func (cp *downloadCheckpoint) checksum() (string, error) {
+	str := cp.MD5
+	cp.MD5 = ""
+	js, err := json.Marshal(cp)
+	if err != nil {
+		return "", err
+	}
+	sum := md5.Sum(js)
+	newMd5 := base64.StdEncoding.EncodeToString(sum[:])
+	cp.MD5 = str
+	return newMd5, nil
+}
+
 // todoParts gets unfinished parts
-func (cp downloadCheckpoint) todoParts() []downloadPart {
-	dps := []downloadPart{}
+func (cp *downloadCheckpoint) todoParts() []downloadPart {
+	var dps []downloadPart
 	for i, ps := range cp.PartStat {
 		if !ps {
 			dps = append(dps, cp.Parts[i])
@@ -430,7 +464,7 @@ func (cp downloadCheckpoint) todoParts() []downloadPart {
 }
 
 // getCompletedBytes gets completed size
-func (cp downloadCheckpoint) getCompletedBytes() int64 {
+func (cp *downloadCheckpoint) getCompletedBytes() int64 {
 	var completedBytes int64
 	for i, part := range cp.Parts {
 		if cp.PartStat[i] {
@@ -442,7 +476,6 @@ func (cp downloadCheckpoint) getCompletedBytes() int64 {
 
 // prepare initiates download tasks
 func (cp *downloadCheckpoint) prepare(meta http.Header, bucket *Bucket, objectKey, filePath string, partSize int64, uRange *UnpackedRange) error {
-	// CP
 	cp.Magic = downloadCpMagic
 	cp.FilePath = filePath
 	cp.Object = objectKey
@@ -463,7 +496,6 @@ func (cp *downloadCheckpoint) prepare(meta http.Header, bucket *Bucket, objectKe
 		}
 	}
 
-	// Parts
 	cp.Parts = getDownloadParts(objectSize, partSize, uRange)
 	cp.PartStat = make([]bool, len(cp.Parts))
 	for i := range cp.PartStat {
@@ -548,9 +580,9 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 	publishProgress(listener, event)
 
 	// Start the download workers routine
-	arg := downloadWorkerArg{&bucket, objectKey, tempFilePath, options, downloadPartHooker, dcp.EnableCRC, listener}
+	arg := downloadWorkerArg{&bucket, objectKey, "", tempFilePath, options, downloadPartHooker, dcp.EnableCRC, listener}
 	for w := 1; w <= routines; w++ {
-		go downloadWorker(w, arg, jobs, results, failed, die)
+		go downloadWorker(arg, jobs, results, failed, die)
 	}
 
 	// Concurrently downloads parts
@@ -589,6 +621,123 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
 		err = CheckDownloadCRC(clientCRC, serverCRC)
 		bucket.Client.Config.WriteLog(Debug, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, objectKey, clientCRC, serverCRC)
+		if err != nil {
+			return err
+		}
+	}
+
+	return dcp.complete(cpFilePath, tempFilePath, disableTempFile)
+}
+
+// downloadFileWithURL 根据预签名URL下载文件
+func (bucket Bucket) downloadFileWithURL(signedURL, filePath string, partSize int64, options []Option, cpFilePath string, routines int, uRange *UnpackedRange) error {
+	disableTempFile := getDisableTempFile(options)
+	tempFilePath := filePath + TempFileSuffix
+	if disableTempFile {
+		tempFilePath = filePath
+	}
+	listener := GetProgressListener(options)
+
+	// Load checkpoint data.
+	dcp := downloadCheckpoint{}
+
+	if cpFilePath != "" {
+		// 判断checkpoint文件是否存在
+		fileExist, _ := IsFileExist(cpFilePath)
+		if fileExist {
+			// Load CP data
+			err := dcp.load(cpFilePath)
+			if err == nil {
+				// 判断.temp是否存在，若不存在，则删除checkpoint文件，重新下载
+				tempFileExist, _ := IsFileExist(tempFilePath)
+				if !tempFileExist {
+					bucket.Client.Config.WriteLog(Info, ".temp is not exist, delete checkpoint file")
+					os.Remove(cpFilePath)
+					dcp = downloadCheckpoint{}
+				}
+			} else {
+				os.Remove(cpFilePath)
+			}
+		}
+	}
+
+	// Get the object detailed meta for object whole size
+	// must delete header:range to get whole object size
+	skipOptions := DeleteOption(options, HTTPHeaderRange)
+	meta, err := bucket.GetObjectMetaWithURL(signedURL, skipOptions...)
+	if err != nil {
+		return err
+	}
+
+	// Load error or data invalid. Re-initialize the download.
+	valid, err := dcp.isValid(meta, uRange)
+	if err != nil || !valid {
+		if err = dcp.prepare(meta, &bucket, signedURL, filePath, partSize, uRange); err != nil {
+			return err
+		}
+		os.Remove(cpFilePath)
+	}
+
+	// Create the file if not exists, otherwise the parts download will overwrite it.
+	fd, err := os.OpenFile(tempFilePath, os.O_WRONLY|os.O_CREATE, FilePermMode)
+	if err != nil {
+		return err
+	}
+	fd.Close()
+
+	// Unfinished parts
+	parts := dcp.todoParts()
+	jobs := make(chan downloadPart, len(parts))
+	results := make(chan downloadPart, len(parts))
+	failed := make(chan error)
+	die := make(chan bool)
+
+	completedBytes := dcp.getCompletedBytes()
+	event := newProgressEvent(TransferStartedEvent, completedBytes, dcp.ObjStat.Size, 0)
+	publishProgress(listener, event)
+
+	// Start the download workers routine
+	arg := downloadWorkerArg{&bucket, "", signedURL, tempFilePath, options, downloadPartHooker, dcp.EnableCRC, listener}
+	for w := 1; w <= routines; w++ {
+		go downloadWorker(arg, jobs, results, failed, die)
+	}
+
+	// Concurrently downloads parts
+	go downloadScheduler(jobs, parts)
+
+	// Wait for the parts download finished
+	completed := 0
+	for completed < len(parts) {
+		select {
+		case part := <-results:
+			completed++
+			dcp.PartStat[part.Index] = true
+			dcp.Parts[part.Index].CRC64 = part.CRC64
+			dcp.dump(cpFilePath)
+			downBytes := part.End - part.Start + 1
+			completedBytes += downBytes
+			event = newProgressEvent(TransferPartEvent, completedBytes, dcp.ObjStat.Size, downBytes)
+			publishProgress(listener, event)
+		case err := <-failed:
+			close(die)
+			event = newProgressEvent(TransferFailedEvent, completedBytes, dcp.ObjStat.Size, 0)
+			publishProgress(listener, event)
+			return err
+		}
+
+		if completed >= len(parts) {
+			break
+		}
+	}
+
+	event = newProgressEvent(TransferCompletedEvent, completedBytes, dcp.ObjStat.Size, 0)
+	publishProgress(listener, event)
+
+	if dcp.EnableCRC {
+		clientCRC := combineCRCInDownloadParts(dcp.Parts)
+		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
+		err = CheckDownloadCRC(clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Debug, "check file crc64, bucketName:%s, signedURL:%s, client crc:%d, server crc:%d", bucket.BucketName, signedURL, clientCRC, serverCRC)
 		if err != nil {
 			return err
 		}
