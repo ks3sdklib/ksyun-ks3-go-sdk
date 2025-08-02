@@ -1,0 +1,7 @@
+# Mac OS
+.DS_Store
+
+# IDEA
+.idea/
+
+.github/workflows/greetings.yaml
