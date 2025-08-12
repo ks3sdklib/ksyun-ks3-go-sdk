@@ -170,18 +170,29 @@ func downloadWorker(arg downloadWorkerArg, jobs <-chan downloadPart, results cha
 		startT := time.Now()
 		_, err = io.Copy(fd, rd)
 		cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
+		if err == nil && arg.enableCRC {
+			part.CRC64 = crcCalc.Sum64()
+			serverPartCrc := respHeader.Get(HTTPHeaderKs3CRC64)
+			if serverPartCrc != "" {
+				serverPartCrcVal, pErr := strconv.ParseUint(serverPartCrc, 10, 64)
+				if pErr == nil {
+					if part.CRC64 != serverPartCrcVal {
+						err = fmt.Errorf("check part crc64 error, client crc:%d, server crc:%d", part.CRC64, serverPartCrcVal)
+					} else {
+						arg.bucket.Client.Config.WriteLog(Info, "check part crc64 success, partNumber:%d, client crc:%d, server crc:%d", part.Index+1, part.CRC64, serverPartCrcVal)
+					}
+				}
+			}
+		}
+
 		if err != nil {
-			arg.bucket.Client.Config.WriteLog(Debug, "download part error, cost:%d(ms), partNumber:%d, requestId:%s, error:%s\n", cost, part.Index, GetRequestId(respHeader), err.Error())
+			arg.bucket.Client.Config.WriteLog(Error, "download part error, cost:%d(ms), partNumber:%d, requestId:%s, error:%s\n", cost, part.Index+1, GetRequestId(respHeader), err.Error())
 			fd.Close()
 			rd.Close()
 			failed <- err
 			break
 		}
-		arg.bucket.Client.Config.WriteLog(Debug, "download part success, cost:%d(ms), partNumber:%d, requestId:%s\n", cost, part.Index, GetRequestId(respHeader))
-
-		if arg.enableCRC {
-			part.CRC64 = crcCalc.Sum64()
-		}
+		arg.bucket.Client.Config.WriteLog(Info, "download part success, cost:%d(ms), partNumber:%d, requestId:%s\n", cost, part.Index+1, GetRequestId(respHeader))
 
 		fd.Close()
 		rd.Close()
@@ -620,7 +631,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		clientCRC := combineCRCInDownloadParts(dcp.Parts)
 		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
 		err = CheckDownloadCRC(clientCRC, serverCRC)
-		bucket.Client.Config.WriteLog(Debug, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, objectKey, clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Info, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, objectKey, clientCRC, serverCRC)
 		if err != nil {
 			return err
 		}
