@@ -741,3 +741,14 @@ func getDisableTempFile(options []Option) bool {
 
 	return res
 }
+
+// getMarker get marker value
+func getMarker(options []Option) string {
+	val, err := FindOption(options, "marker", "")
+	if err != nil || val == nil {
+		return ""
+	}
+
+	res, _ := val.(string)
+	return res
+}
