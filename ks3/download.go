@@ -174,25 +174,23 @@ func downloadWorker(arg downloadWorkerArg, jobs <-chan downloadPart, results cha
 			part.CRC64 = crcCalc.Sum64()
 			serverPartCrc := respHeader.Get(HTTPHeaderKs3CRC64)
 			if serverPartCrc != "" {
-				serverPartCrcVal, pErr := strconv.ParseUint(serverPartCrc, 10, 64)
-				if pErr == nil {
-					if part.CRC64 != serverPartCrcVal {
-						err = fmt.Errorf("check part crc64 error, client crc:%d, server crc:%d", part.CRC64, serverPartCrcVal)
-					} else {
-						arg.bucket.Client.Config.WriteLog(Info, "check part crc64 success, partNumber:%d, client crc:%d, server crc:%d", part.Index+1, part.CRC64, serverPartCrcVal)
-					}
+				clientPartCrc := strconv.FormatUint(part.CRC64, 10)
+				if clientPartCrc != serverPartCrc {
+					err = fmt.Errorf("check part crc64 error, client crc:%s, server crc:%s", clientPartCrc, serverPartCrc)
+				} else {
+					arg.bucket.Client.Config.WriteLog(Debug, "check part crc64 success, bucketName:%s, objectKey:%s, partNumber:%d, client crc:%s, server crc:%s", arg.bucket.BucketName, arg.key, part.Index+1, clientPartCrc, serverPartCrc)
 				}
 			}
 		}
 
 		if err != nil {
-			arg.bucket.Client.Config.WriteLog(Error, "download part error, cost:%d(ms), partNumber:%d, requestId:%s, error:%s\n", cost, part.Index+1, GetRequestId(respHeader), err.Error())
+			arg.bucket.Client.Config.WriteLog(Error, "download part error, bucketName:%s, objectKey:%s, partNumber:%d, requestId:%s, cost:%d(ms), error:%s\n", arg.bucket.BucketName, arg.key, part.Index+1, GetRequestId(respHeader), cost, err.Error())
 			fd.Close()
 			rd.Close()
 			failed <- err
 			break
 		}
-		arg.bucket.Client.Config.WriteLog(Info, "download part success, cost:%d(ms), partNumber:%d, requestId:%s\n", cost, part.Index+1, GetRequestId(respHeader))
+		arg.bucket.Client.Config.WriteLog(Info, "download part success, bucketName:%s, objectKey:%s, partNumber:%d, requestId:%s, cost:%d(ms)\n", arg.bucket.BucketName, arg.key, part.Index+1, GetRequestId(respHeader), cost)
 
 		fd.Close()
 		rd.Close()
@@ -262,7 +260,7 @@ func rename(tempFilePath string, filePath string, disableTempFile bool) error {
 	if disableTempFile {
 		return nil
 	}
-	
+
 	return os.Rename(tempFilePath, filePath)
 }
 
@@ -631,7 +629,7 @@ func (bucket Bucket) downloadFileWithCp(objectKey, filePath string, partSize int
 		clientCRC := combineCRCInDownloadParts(dcp.Parts)
 		serverCRC, _ := strconv.ParseUint(meta.Get(HTTPHeaderKs3CRC64), 10, 64)
 		err = CheckDownloadCRC(clientCRC, serverCRC)
-		bucket.Client.Config.WriteLog(Info, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, objectKey, clientCRC, serverCRC)
+		bucket.Client.Config.WriteLog(Debug, "check file crc64, bucketName:%s, objectKey:%s, client crc:%d, server crc:%d", bucket.BucketName, objectKey, clientCRC, serverCRC)
 		if err != nil {
 			return err
 		}
