@@ -72,6 +72,10 @@ func (defBuild *defaultCredentialsProvider) GetCredentials() Credentials {
 	return &defaultCredentials{config: defBuild.config}
 }
 
+type LogPrinter interface {
+	Print(...interface{})
+}
+
 // Config defines ks3 configuration
 type Config struct {
 	Endpoint             string              // KS3 endpoint
@@ -95,7 +99,7 @@ type Config struct {
 	MD5Threshold         int64               // Memory footprint threshold for each MD5 computation (16MB is the default), in byte. When the data is more than that, temp file is used.
 	IsEnableCRC          bool                // Flag of enabling CRC for upload.
 	LogLevel             int                 // Log level
-	Logger               *log.Logger         // For write log
+	Logger LogPrinter                        // For write log
 	UploadLimitSpeed     int                 // Upload limit speed:KB/s, 0 is unlimited
 	UploadLimiter        *Ks3Limiter         // Bandwidth limit reader for upload
 	DownloadLimitSpeed   int                 // Download limit speed:KB/s, 0 is unlimited
@@ -156,7 +160,7 @@ func (config *Config) WriteLog(LogLevel int, format string, a ...interface{}) {
 	logBuffer.WriteString(LogTag[LogLevel-1])
 	logBuffer.WriteString(" ")
 	logBuffer.WriteString(fmt.Sprintf(format, a...))
-	config.Logger.Printf("%s", logBuffer.String())
+	config.Logger.Print(LogLevel, logBuffer.String())
 }
 
 // for get Credentials

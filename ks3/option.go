@@ -32,6 +32,7 @@ const (
 	objectHashFunc     = "object-hash-func"
 	contextArg         = "x-context-arg"
 	disableTempFileFlag = "disable-temp-file"
+	acrossRegion        = "across-region"
 )
 
 type (
@@ -513,6 +514,15 @@ func DisableTempFile(value bool) Option {
 	return addArg(disableTempFileFlag, "false")
 }
 
+// AcrossRegion is an option to set copy across region
+func AcrossRegion(value bool) Option {
+	if value {
+		return addArg(acrossRegion, "true")
+	}
+	return addArg(acrossRegion, "false")
+}
+
+
 // ResponseContentType is an option to set response-content-type param
 func ResponseContentType(value string) Option {
 	return addParam("response-content-type", value)
@@ -750,5 +760,16 @@ func getMarker(options []Option) string {
 	}
 
 	res, _ := val.(string)
+	return res
+}
+
+func getAcrossRegion(options []Option) bool {
+	val, err := FindOption(options, acrossRegion, "false")
+	if err != nil || val == nil {
+		return false
+	}
+
+	res, _ := strconv.ParseBool(val.(string))
+
 	return res
 }

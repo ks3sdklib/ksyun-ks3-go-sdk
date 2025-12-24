@@ -342,6 +342,21 @@ func (bucket Bucket) copy(srcObjectKey, destBucketName, destObjectKey string, op
 	return out, err
 }
 
+func (bucket Bucket) SingleCopyObject(srcBucket *Bucket, srcObjectKey, destObjectKey string, options ...Option) (CopyObjectResult, error) {
+	var out CopyObjectResult
+	isAcrossRegion := getAcrossRegion(options)
+	if isAcrossRegion {
+		var respHeader http.Header
+		reader, err := srcBucket.GetObject(srcObjectKey, GetResponseHeader(&respHeader))
+		if err == nil {
+			contentLen, _ := strconv.ParseInt(respHeader.Get(HTTPHeaderContentLength), 10, 64)
+			err = bucket.PutObject(destObjectKey, &io.LimitedReader{R: reader, N: contentLen}, options...)
+		}
+		return out, err
+	}
+	return bucket.CopyObjectFrom(srcBucket.BucketName, srcObjectKey, destObjectKey, options...)
+}
+
 // AppendObject uploads the data in the way of appending an existing or new object.
 //
 // AppendObject the parameter appendPosition specifies which postion (in the target object) to append. For the first append (to a non-existing file),
