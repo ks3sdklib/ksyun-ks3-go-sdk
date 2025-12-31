@@ -170,18 +170,27 @@ func downloadWorker(arg downloadWorkerArg, jobs <-chan downloadPart, results cha
 		startT := time.Now()
 		_, err = io.Copy(fd, rd)
 		cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
+		if err == nil && arg.enableCRC {
+			part.CRC64 = crcCalc.Sum64()
+			serverPartCrc := respHeader.Get(HTTPHeaderKs3CRC64)
+			if serverPartCrc != "" {
+				clientPartCrc := strconv.FormatUint(part.CRC64, 10)
+				if clientPartCrc != serverPartCrc {
+					err = fmt.Errorf("check part crc64 error, client crc:%s, server crc:%s", clientPartCrc, serverPartCrc)
+				} else {
+					arg.bucket.Client.Config.WriteLog(Debug, "check part crc64 success, bucketName:%s, objectKey:%s, partNumber:%d, client crc:%s, server crc:%s", arg.bucket.BucketName, arg.key, part.Index+1, clientPartCrc, serverPartCrc)
+				}
+			}
+		}
+
 		if err != nil {
-			arg.bucket.Client.Config.WriteLog(Debug, "download part error, cost:%d(ms), partNumber:%d, requestId:%s, error:%s\n", cost, part.Index, GetRequestId(respHeader), err.Error())
+			arg.bucket.Client.Config.WriteLog(Error, "download part error, bucketName:%s, objectKey:%s, partNumber:%d, requestId:%s, cost:%d(ms), error:%s\n", arg.bucket.BucketName, arg.key, part.Index+1, GetRequestId(respHeader), cost, err.Error())
 			fd.Close()
 			rd.Close()
 			failed <- err
 			break
 		}
-		arg.bucket.Client.Config.WriteLog(Debug, "download part success, cost:%d(ms), partNumber:%d, requestId:%s\n", cost, part.Index, GetRequestId(respHeader))
-
-		if arg.enableCRC {
-			part.CRC64 = crcCalc.Sum64()
-		}
+		arg.bucket.Client.Config.WriteLog(Info, "download part success, bucketName:%s, objectKey:%s, partNumber:%d, requestId:%s, cost:%d(ms)\n", arg.bucket.BucketName, arg.key, part.Index+1, GetRequestId(respHeader), cost)
 
 		fd.Close()
 		rd.Close()
@@ -251,7 +260,7 @@ func rename(tempFilePath string, filePath string, disableTempFile bool) error {
 	if disableTempFile {
 		return nil
 	}
-	
+
 	return os.Rename(tempFilePath, filePath)
 }
 
