@@ -271,7 +271,7 @@ func (cp copyCheckpoint) isValid(meta http.Header) (bool, error) {
 	sum := md5.Sum(js)
 	b64 := base64.StdEncoding.EncodeToString(sum[:])
 
-	if cp.Magic != downloadCpMagic || b64 != cp.MD5 {
+	if cp.Magic != copyCpMagic || b64 != cp.MD5 {
 		return false, nil
 	}
 
