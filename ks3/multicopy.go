@@ -465,7 +465,7 @@ func (bucket Bucket) copyFileWithCp(srcBucket *Bucket, srcObjectKey, destObjectK
 			completed++
 			ccp.update(part)
 			ccp.dump(cpFilePath)
-			copyBytes := parts[part.PartNumber-1].End - parts[part.PartNumber-1].Start + 1
+			copyBytes := ccp.Parts[part.PartNumber-1].End - ccp.Parts[part.PartNumber-1].Start + 1
 			completedBytes += copyBytes
 			event = newProgressEvent(TransferPartEvent, completedBytes, ccp.ObjStat.Size, copyBytes)
 			publishProgress(listener, event)
