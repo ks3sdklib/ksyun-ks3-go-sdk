@@ -65,49 +65,16 @@ const (
 type StorageClassType string
 
 const (
-	StorageExtremePL3 StorageClassType = "EXTREME_PL3"
-
-	StorageExtremePL2 StorageClassType = "EXTREME_PL2"
-
-	StorageExtremePL1 StorageClassType = "EXTREME_PL1"
-
-	// StorageStandard STANDARD
-	StorageStandard StorageClassType = "STANDARD"
-
-	// StorageIA STANDARD_IA
-	StorageIA StorageClassType = "STANDARD_IA"
-
-	// StorageDeepIA DEEP_IA
-	StorageDeepIA StorageClassType = "DEEP_IA"
-
-	// StorageArchive ARCHIVE
-	StorageArchive StorageClassType = "ARCHIVE"
-
-	// StorageDeepColdArchive DEEP_COLD_ARCHIVE
+	StorageExtremePL3  StorageClassType = "EXTREME_PL3"
+	StorageExtremePL2  StorageClassType = "EXTREME_PL2"
+	StorageExtremePL1  StorageClassType = "EXTREME_PL1"
+	StorageStandard    StorageClassType = "STANDARD"
+	StorageIA          StorageClassType = "STANDARD_IA"
+	StorageDeepIA      StorageClassType = "DEEP_IA"
+	StorageArchive     StorageClassType = "ARCHIVE"
+	StorageColdArchive StorageClassType = "COLD_ARCHIVE"
 	StorageDeepColdArchive StorageClassType = "DEEP_COLD_ARCHIVE"
 )
-
-type BucketType string
-
-const (
-	TypeExtremePL3 BucketType = "EXTREME_PL3"
-	TypeExtremePL2 BucketType = "EXTREME_PL2"
-	TypeExtremePL1 BucketType = "EXTREME_PL1"
-	TypeNormal     BucketType = "NORMAL"
-	TypeIA         BucketType = "IA"
-	TypeArchive    BucketType = "ARCHIVE"
-	TypeDeepIA     BucketType = "DEEP_IA"
-)
-
-var BucketTypeList = []BucketType{
-	TypeExtremePL3,
-	TypeExtremePL2,
-	TypeExtremePL1,
-	TypeNormal,
-	TypeIA,
-	TypeArchive,
-	TypeDeepIA,
-}
 
 var ObjectStorageClassList = []StorageClassType{
 	StorageExtremePL3,
@@ -117,7 +84,34 @@ var ObjectStorageClassList = []StorageClassType{
 	StorageIA,
 	StorageDeepIA,
 	StorageArchive,
+	StorageColdArchive,
 	StorageDeepColdArchive,
+}
+
+type BucketType string
+
+const (
+	TypeExtremePL3      BucketType = "EXTREME_PL3"
+	TypeExtremePL2      BucketType = "EXTREME_PL2"
+	TypeExtremePL1      BucketType = "EXTREME_PL1"
+	TypeNormal          BucketType = "NORMAL"
+	TypeIA              BucketType = "IA"
+	TypeDeepIA          BucketType = "DEEP_IA"
+	TypeArchive         BucketType = "ARCHIVE"
+	TypeColdArchive     BucketType = "COLD_ARCHIVE"
+	TypeDeepColdArchive BucketType = "DEEP_COLD_ARCHIVE"
+)
+
+var BucketTypeList = []BucketType{
+	TypeExtremePL3,
+	TypeExtremePL2,
+	TypeExtremePL1,
+	TypeNormal,
+	TypeIA,
+	TypeDeepIA,
+	TypeArchive,
+	TypeColdArchive,
+	TypeDeepColdArchive,
 }
 
 type DataRedundancyType string
