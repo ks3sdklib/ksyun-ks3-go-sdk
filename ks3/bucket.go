@@ -357,8 +357,6 @@ func (bucket Bucket) CopyObjectAcrossRegion(srcBucket *Bucket, srcObjectKey, des
 	if err != nil {
 		return out, err
 	}
-	out.ETag = meta.Get(HTTPHeaderEtag)
-	out.LastModified, _ = time.Parse(http.TimeFormat, meta.Get(HTTPHeaderLastModified))
 
 	contentLength, err := strconv.ParseInt(meta.Get(HTTPHeaderContentLength), 10, 64)
 	if err != nil {
@@ -371,7 +369,21 @@ func (bucket Bucket) CopyObjectAcrossRegion(srcBucket *Bucket, srcObjectKey, des
 	}
 	defer reader.Close()
 
-	err = bucket.PutObject(destObjectKey, &io.LimitedReader{R: reader, N: contentLength}, options...)
+	opts := AddContentType(options, destObjectKey)
+	request := &PutObjectRequest{
+		ObjectKey: destObjectKey,
+		Reader:    &io.LimitedReader{R: reader, N: contentLength},
+	}
+	resp, err := bucket.DoPutObject(request, opts)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	// PUT Object请求不返回LastModified，因此只设置ETag和Crc64
+	out.ETag = resp.Headers.Get(HTTPHeaderEtag)
+	out.Crc64 = resp.Headers.Get(HTTPHeaderKs3CRC64)
+
 	return out, err
 }
 

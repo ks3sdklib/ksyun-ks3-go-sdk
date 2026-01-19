@@ -449,8 +449,9 @@ type Owner struct {
 // CopyObjectResult defines result object of CopyObject
 type CopyObjectResult struct {
 	XMLName      xml.Name  `xml:"CopyObjectResult"`
-	LastModified time.Time `xml:"LastModified"` // New object's last modified time.
-	ETag         string    `xml:"ETag"`         // New object's ETag
+	LastModified time.Time `xml:"LastModified"`      // New object's last modified time.
+	ETag         string    `xml:"ETag"`              // New object's ETag
+	Crc64        string    `xml:"ChecksumCRC64ECMA"` // New object's ETag checksum crc64 ecma
 }
 
 type deleteXML struct {
