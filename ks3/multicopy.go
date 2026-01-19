@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -92,7 +91,6 @@ func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- 
 		var part UploadPart
 		var err error
 		var respHeader http.Header
-		var reader io.ReadCloser
 		startT := time.Now()
 		if !arg.isAcrossRegion {
 			// 同区域复制，使用UploadPartCopy
@@ -100,22 +98,20 @@ func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- 
 			part, err = arg.destbucket.UploadPartCopy(arg.imur, arg.srcBucket.BucketName, arg.srcObjectKey, chunk.Start, chunkSize, chunk.Number, options...)
 		} else {
 			// 跨区域复制，先GetObject再UploadPart
-			reader, err = arg.srcBucket.GetObject(arg.srcObjectKey, Range(chunk.Start, chunk.End))
+			reader, err := arg.srcBucket.GetObject(arg.srcObjectKey, Range(chunk.Start, chunk.End))
 			if err == nil {
 				options := append(arg.options, GetResponseHeader(&respHeader))
 				part, err = arg.destbucket.UploadPart(arg.imur, reader, chunkSize, chunk.Number, options...)
+				reader.Close()
 			}
 		}
 		cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
 		if err != nil {
 			arg.destbucket.Client.Config.WriteLog(Error, "copy part error, bucketName:%s, objectKey:%s, partNumber:%d, cost:%d(ms), error:%s\n", arg.imur.Bucket, arg.imur.Key, chunk.Number, cost, err.Error())
-			reader.Close()
 			failed <- err
 			break
 		}
 		arg.destbucket.Client.Config.WriteLog(Info, "copy part success, bucketName:%s, objectKey:%s, partNumber:%d, cost:%d(ms), requestId:%s\n", arg.imur.Bucket, arg.imur.Key, chunk.Number, cost, GetRequestId(respHeader))
-		reader.Close()
-
 		select {
 		case <-die:
 			return
