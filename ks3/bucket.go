@@ -343,30 +343,36 @@ func (bucket Bucket) copy(srcObjectKey, destBucketName, destObjectKey string, op
 }
 
 func (bucket Bucket) SingleCopyObject(srcBucket *Bucket, srcObjectKey, destObjectKey string, options ...Option) (CopyObjectResult, error) {
-	var out CopyObjectResult
 	isAcrossRegion := getAcrossRegion(options)
 	if isAcrossRegion {
-		var respHeader http.Header
-		meta, err := srcBucket.GetObjectMeta(srcObjectKey, GetResponseHeader(&respHeader))
-		if err != nil {
-			return out, err
-		}
-
-		contentLength, err := strconv.ParseInt(meta.Get(HTTPHeaderContentLength), 10, 64)
-		if err != nil {
-			return out, err
-		}
-
-		reader, err := srcBucket.GetObject(srcObjectKey)
-		if err != nil {
-			return out, err
-		}
-		defer reader.Close()
-
-		err = bucket.PutObject(destObjectKey, &io.LimitedReader{R: reader, N: contentLength}, options...)
-		return out, err
+		return bucket.CopyObjectAcrossRegion(srcBucket, srcObjectKey, destObjectKey, options...)
 	}
 	return bucket.CopyObjectFrom(srcBucket.BucketName, srcObjectKey, destObjectKey, options...)
+}
+
+func (bucket Bucket) CopyObjectAcrossRegion(srcBucket *Bucket, srcObjectKey, destObjectKey string, options ...Option) (CopyObjectResult, error) {
+	var out CopyObjectResult
+	var respHeader http.Header
+	meta, err := srcBucket.GetObjectMeta(srcObjectKey, GetResponseHeader(&respHeader))
+	if err != nil {
+		return out, err
+	}
+	out.ETag = meta.Get(HTTPHeaderEtag)
+	out.LastModified, _ = time.Parse(http.TimeFormat, meta.Get(HTTPHeaderLastModified))
+
+	contentLength, err := strconv.ParseInt(meta.Get(HTTPHeaderContentLength), 10, 64)
+	if err != nil {
+		return out, err
+	}
+
+	reader, err := srcBucket.GetObject(srcObjectKey)
+	if err != nil {
+		return out, err
+	}
+	defer reader.Close()
+
+	err = bucket.PutObject(destObjectKey, &io.LimitedReader{R: reader, N: contentLength}, options...)
+	return out, err
 }
 
 // AppendObject uploads the data in the way of appending an existing or new object.
