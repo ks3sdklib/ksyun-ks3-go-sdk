@@ -347,11 +347,23 @@ func (bucket Bucket) SingleCopyObject(srcBucket *Bucket, srcObjectKey, destObjec
 	isAcrossRegion := getAcrossRegion(options)
 	if isAcrossRegion {
 		var respHeader http.Header
-		reader, err := srcBucket.GetObject(srcObjectKey, GetResponseHeader(&respHeader))
-		if err == nil {
-			contentLen, _ := strconv.ParseInt(respHeader.Get(HTTPHeaderContentLength), 10, 64)
-			err = bucket.PutObject(destObjectKey, &io.LimitedReader{R: reader, N: contentLen}, options...)
+		meta, err := srcBucket.GetObjectMeta(srcObjectKey, GetResponseHeader(&respHeader))
+		if err != nil {
+			return out, err
 		}
+
+		contentLength, err := strconv.ParseInt(meta.Get(HTTPHeaderContentLength), 10, 64)
+		if err != nil {
+			return out, err
+		}
+
+		reader, err := srcBucket.GetObject(srcObjectKey)
+		if err != nil {
+			return out, err
+		}
+		defer reader.Close()
+
+		err = bucket.PutObject(destObjectKey, &io.LimitedReader{R: reader, N: contentLength}, options...)
 		return out, err
 	}
 	return bucket.CopyObjectFrom(srcBucket.BucketName, srcObjectKey, destObjectKey, options...)
