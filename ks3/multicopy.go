@@ -98,12 +98,7 @@ func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- 
 			part, err = arg.destbucket.UploadPartCopy(arg.imur, arg.srcBucket.BucketName, arg.srcObjectKey, chunk.Start, chunkSize, chunk.Number, options...)
 		} else {
 			// 跨区域复制，先GetObject再UploadPart
-			reader, err := arg.srcBucket.GetObject(arg.srcObjectKey, Range(chunk.Start, chunk.End))
-			if err == nil {
-				options := append(arg.options, GetResponseHeader(&respHeader))
-				part, err = arg.destbucket.UploadPart(arg.imur, reader, chunkSize, chunk.Number, options...)
-				reader.Close()
-			}
+			part, err = UploadPartCopyAcrossRegion(arg, chunk, chunkSize, &respHeader)
 		}
 		cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
 		if err != nil {
@@ -119,6 +114,25 @@ func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- 
 		}
 		results <- part
 	}
+}
+
+func UploadPartCopyAcrossRegion(arg copyWorkerArg, chunk copyPart, chunkSize int64, respHeader *http.Header) (UploadPart, error) {
+	reader, err := arg.srcBucket.GetObject(arg.srcObjectKey, Range(chunk.Start, chunk.End), GetResponseHeader(respHeader))
+	if err != nil {
+		return UploadPart{}, err
+	}
+	defer reader.Close()
+	// 尝试获取源块的crc64值，只有当上传的块与下载的块range一致时，才能获取到
+	srcPartCrc64 := respHeader.Get(HTTPHeaderKs3CRC64)
+
+	options := arg.options
+	options = append(options, GetResponseHeader(respHeader))
+	// 如果开启了crc校验且获取到了源块的crc64值，则设置上传块的crc64值
+	if arg.destbucket.GetConfig().IsEnableCRC && srcPartCrc64 != "" {
+		options = append(options, ChecksumCrc64ecma(srcPartCrc64))
+	}
+
+	return arg.destbucket.UploadPart(arg.imur, reader, chunkSize, chunk.Number, options...)
 }
 
 // copyScheduler

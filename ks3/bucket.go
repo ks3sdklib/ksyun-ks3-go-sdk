@@ -363,18 +363,26 @@ func (bucket Bucket) CopyObjectAcrossRegion(srcBucket *Bucket, srcObjectKey, des
 		return out, err
 	}
 
+	// 获取源对象的crc64值
+	srcObjectCrc64 := meta.Get(HTTPHeaderKs3CRC64)
+
 	reader, err := srcBucket.GetObject(srcObjectKey)
 	if err != nil {
 		return out, err
 	}
 	defer reader.Close()
 
-	opts := AddContentType(options, destObjectKey)
+	// 如果开启了crc校验且获取到了源对象的crc64值，则设置上传对象的crc64值
+	if bucket.GetConfig().IsEnableCRC && srcObjectCrc64 != "" {
+		options = append(options, ChecksumCrc64ecma(srcObjectCrc64))
+	}
+	options = AddContentType(options, destObjectKey)
 	request := &PutObjectRequest{
 		ObjectKey: destObjectKey,
 		Reader:    &io.LimitedReader{R: reader, N: contentLength},
 	}
-	resp, err := bucket.DoPutObject(request, opts)
+
+	resp, err := bucket.DoPutObject(request, options)
 	if err != nil {
 		return out, err
 	}

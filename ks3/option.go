@@ -302,6 +302,11 @@ func ForbidOverWrite(forbidWrite bool) Option {
 	}
 }
 
+// ChecksumCrc64ecma is an option to set X-Kss-Checksum-Crc64ecma header
+func ChecksumCrc64ecma(value string) Option {
+	return setHeader(HTTPHeaderKs3CRC64, value)
+}
+
 // RangeBehavior  is an option to set Range value, such as "standard"
 func RangeBehavior(value string) Option {
 	return setHeader(HTTPHeaderKs3RangeBehavior, value)
