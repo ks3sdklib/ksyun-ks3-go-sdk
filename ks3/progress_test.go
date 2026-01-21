@@ -491,12 +491,12 @@ func (s *Ks3ProgressSuite) TestCopyFile(c *C) {
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
 
 	progressListener.TotalRwBytes = 0
-	err = s.bucket.CopyFile(s.bucket.BucketName, srcObjectName, destObjectName, 100*1024, Routines(5), Progress(&progressListener))
+	err = s.bucket.CopyFile(s.bucket, srcObjectName, destObjectName, 100*1024, Routines(5), Progress(&progressListener))
 	c.Assert(err, IsNil)
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
 
 	progressListener.TotalRwBytes = 0
-	err = s.bucket.CopyFile(s.bucket.BucketName, srcObjectName, destObjectName, 1024*100, Routines(3), Checkpoint(true, ""), Progress(&progressListener))
+	err = s.bucket.CopyFile(s.bucket, srcObjectName, destObjectName, 1024*100, Routines(3), Checkpoint(true, ""), Progress(&progressListener))
 	c.Assert(err, IsNil)
 	c.Assert(progressListener.TotalRwBytes, Equals, fileInfo.Size())
 

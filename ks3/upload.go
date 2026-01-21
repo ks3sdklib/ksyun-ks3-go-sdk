@@ -157,14 +157,15 @@ func worker(id int, arg workerArg, jobs <-chan FileChunk, results chan<- UploadP
 
 		opts = append(opts, p, GetResponseHeader(&respHeader))
 
-		startT := time.Now().UnixNano() / 1000 / 1000 / 1000
+		startT := time.Now()
 		part, err := arg.bucket.UploadPartFromFile(arg.imur, arg.filePath, chunk.Offset, chunk.Size, chunk.Number, opts...)
-		endT := time.Now().UnixNano() / 1000 / 1000 / 1000
+		cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
 		if err != nil {
-			arg.bucket.Client.Config.WriteLog(Debug, "upload part error,cost:%d second,part number:%d,request id:%s,error:%s\n", endT-startT, chunk.Number, GetRequestId(respHeader), err.Error())
+			arg.bucket.Client.Config.WriteLog(Error, "upload part error, bucketName:%s, objectKey:%s, partNumber:%d, cost:%d(ms), error:%s\n", arg.imur.Bucket, arg.imur.Key, chunk.Number, cost, err.Error())
 			failed <- err
 			break
 		}
+		arg.bucket.Client.Config.WriteLog(Info, "upload part success, bucketName:%s, objectKey:%s, partNumber:%d, cost:%d(ms), requestId:%s\n", arg.imur.Bucket, arg.imur.Key, chunk.Number, cost, GetRequestId(respHeader))
 		select {
 		case <-die:
 			return

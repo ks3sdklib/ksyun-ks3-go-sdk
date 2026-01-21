@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -2142,7 +2141,7 @@ func SetLogLevel(LogLevel int) ClientOption {
 //
 // SetLogger sets the ks3 sdk logger
 //
-func SetLogger(Logger *log.Logger) ClientOption {
+func SetLogger(Logger LogPrinter) ClientOption {
 	return func(client *Client) {
 		client.Config.Logger = Logger
 	}

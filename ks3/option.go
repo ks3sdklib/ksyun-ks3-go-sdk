@@ -32,6 +32,7 @@ const (
 	objectHashFunc     = "object-hash-func"
 	contextArg         = "x-context-arg"
 	disableTempFileFlag = "disable-temp-file"
+	acrossRegion        = "across-region"
 )
 
 type (
@@ -301,6 +302,11 @@ func ForbidOverWrite(forbidWrite bool) Option {
 	}
 }
 
+// ChecksumCrc64ecma is an option to set X-Kss-Checksum-Crc64ecma header
+func ChecksumCrc64ecma(value string) Option {
+	return setHeader(HTTPHeaderKs3CRC64, value)
+}
+
 // RangeBehavior  is an option to set Range value, such as "standard"
 func RangeBehavior(value string) Option {
 	return setHeader(HTTPHeaderKs3RangeBehavior, value)
@@ -512,6 +518,15 @@ func DisableTempFile(value bool) Option {
 	}
 	return addArg(disableTempFileFlag, "false")
 }
+
+// AcrossRegion is an option to set copy across region
+func AcrossRegion(value bool) Option {
+	if value {
+		return addArg(acrossRegion, "true")
+	}
+	return addArg(acrossRegion, "false")
+}
+
 
 // ResponseContentType is an option to set response-content-type param
 func ResponseContentType(value string) Option {
@@ -750,5 +765,16 @@ func getMarker(options []Option) string {
 	}
 
 	res, _ := val.(string)
+	return res
+}
+
+func getAcrossRegion(options []Option) bool {
+	val, err := FindOption(options, acrossRegion, "false")
+	if err != nil || val == nil {
+		return false
+	}
+
+	res, _ := strconv.ParseBool(val.(string))
+
 	return res
 }

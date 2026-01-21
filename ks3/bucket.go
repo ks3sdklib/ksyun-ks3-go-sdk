@@ -342,6 +342,59 @@ func (bucket Bucket) copy(srcObjectKey, destBucketName, destObjectKey string, op
 	return out, err
 }
 
+func (bucket Bucket) SingleCopyObject(srcBucket *Bucket, srcObjectKey, destObjectKey string, options ...Option) (CopyObjectResult, error) {
+	isAcrossRegion := getAcrossRegion(options)
+	if isAcrossRegion {
+		return bucket.CopyObjectAcrossRegion(srcBucket, srcObjectKey, destObjectKey, options...)
+	}
+	return bucket.CopyObjectFrom(srcBucket.BucketName, srcObjectKey, destObjectKey, options...)
+}
+
+func (bucket Bucket) CopyObjectAcrossRegion(srcBucket *Bucket, srcObjectKey, destObjectKey string, options ...Option) (CopyObjectResult, error) {
+	var out CopyObjectResult
+	var respHeader http.Header
+	meta, err := srcBucket.GetObjectMeta(srcObjectKey, GetResponseHeader(&respHeader))
+	if err != nil {
+		return out, err
+	}
+
+	contentLength, err := strconv.ParseInt(meta.Get(HTTPHeaderContentLength), 10, 64)
+	if err != nil {
+		return out, err
+	}
+
+	// 获取源对象的crc64值
+	srcObjectCrc64 := meta.Get(HTTPHeaderKs3CRC64)
+
+	reader, err := srcBucket.GetObject(srcObjectKey)
+	if err != nil {
+		return out, err
+	}
+	defer reader.Close()
+
+	// 如果开启了crc校验且获取到了源对象的crc64值，则设置上传对象的crc64值
+	if bucket.GetConfig().IsEnableCRC && srcObjectCrc64 != "" {
+		options = append(options, ChecksumCrc64ecma(srcObjectCrc64))
+	}
+	options = AddContentType(options, destObjectKey)
+	request := &PutObjectRequest{
+		ObjectKey: destObjectKey,
+		Reader:    &io.LimitedReader{R: reader, N: contentLength},
+	}
+
+	resp, err := bucket.DoPutObject(request, options)
+	if err != nil {
+		return out, err
+	}
+	defer resp.Body.Close()
+
+	// PUT Object请求不返回LastModified，因此只设置ETag和Crc64
+	out.ETag = resp.Headers.Get(HTTPHeaderEtag)
+	out.Crc64 = resp.Headers.Get(HTTPHeaderKs3CRC64)
+
+	return out, err
+}
+
 // AppendObject uploads the data in the way of appending an existing or new object.
 //
 // AppendObject the parameter appendPosition specifies which postion (in the target object) to append. For the first append (to a non-existing file),

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 // CopyFile is multipart copy object
@@ -22,7 +23,7 @@ import (
 //
 // error    it's nil if the operation succeeds, otherwise it's an error object.
 //
-func (bucket Bucket) CopyFile(srcBucketName, srcObjectKey, destObjectKey string, partSize int64, options ...Option) error {
+func (bucket Bucket) CopyFile(srcBucket *Bucket, srcObjectKey, destObjectKey string, partSize int64, options ...Option) error {
 	destBucketName := bucket.BucketName
 	if partSize < MinPartSize || partSize > MaxPartSize {
 		return errors.New("ks3: part size invalid range (1024KB, 5GB]")
@@ -38,13 +39,13 @@ func (bucket Bucket) CopyFile(srcBucketName, srcObjectKey, destObjectKey string,
 	}
 
 	if cpConf != nil && cpConf.IsEnable {
-		cpFilePath := getCopyCpFilePath(cpConf, srcBucketName, srcObjectKey, destBucketName, destObjectKey, strVersionId)
+		cpFilePath := getCopyCpFilePath(cpConf, srcBucket.BucketName, srcObjectKey, destBucketName, destObjectKey, strVersionId)
 		if cpFilePath != "" {
-			return bucket.copyFileWithCp(srcBucketName, srcObjectKey, destBucketName, destObjectKey, partSize, options, cpFilePath, routines)
+			return bucket.copyFileWithCp(srcBucket, srcObjectKey, destObjectKey, partSize, options, cpFilePath, routines)
 		}
 	}
 
-	return bucket.copyFile(srcBucketName, srcObjectKey, destBucketName, destObjectKey, partSize, options, routines)
+	return bucket.copyFile(srcBucket, srcObjectKey, destObjectKey, partSize, options, routines)
 }
 
 func getCopyCpFilePath(cpConf *cpConfig, srcBucket, srcObject, destBucket, destObject, versionId string) string {
@@ -61,12 +62,13 @@ func getCopyCpFilePath(cpConf *cpConfig, srcBucket, srcObject, destBucket, destO
 
 // copyWorkerArg defines the copy worker arguments
 type copyWorkerArg struct {
-	bucket        *Bucket
+	destbucket     *Bucket
+	srcBucket      *Bucket
 	imur          InitiateMultipartUploadResult
-	srcBucketName string
 	srcObjectKey  string
 	options       []Option
 	hook          copyPartHook
+	isAcrossRegion bool
 }
 
 // copyPartHook is the hook for testing purpose
@@ -86,12 +88,25 @@ func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- 
 			break
 		}
 		chunkSize := chunk.End - chunk.Start + 1
-		part, err := arg.bucket.UploadPartCopy(arg.imur, arg.srcBucketName, arg.srcObjectKey,
-			chunk.Start, chunkSize, chunk.Number, arg.options...)
+		var part UploadPart
+		var err error
+		var respHeader http.Header
+		startT := time.Now()
+		if !arg.isAcrossRegion {
+			// 同区域复制，使用UploadPartCopy
+			options := append(arg.options, GetResponseHeader(&respHeader))
+			part, err = arg.destbucket.UploadPartCopy(arg.imur, arg.srcBucket.BucketName, arg.srcObjectKey, chunk.Start, chunkSize, chunk.Number, options...)
+		} else {
+			// 跨区域复制，先GetObject再UploadPart
+			part, err = UploadPartCopyAcrossRegion(arg, chunk, chunkSize, &respHeader)
+		}
+		cost := time.Now().UnixNano()/1000/1000 - startT.UnixNano()/1000/1000
 		if err != nil {
+			arg.destbucket.Client.Config.WriteLog(Error, "copy part error, bucketName:%s, objectKey:%s, partNumber:%d, cost:%d(ms), error:%s\n", arg.imur.Bucket, arg.imur.Key, chunk.Number, cost, err.Error())
 			failed <- err
 			break
 		}
+		arg.destbucket.Client.Config.WriteLog(Info, "copy part success, bucketName:%s, objectKey:%s, partNumber:%d, cost:%d(ms), requestId:%s\n", arg.imur.Bucket, arg.imur.Key, chunk.Number, cost, GetRequestId(respHeader))
 		select {
 		case <-die:
 			return
@@ -99,6 +114,25 @@ func copyWorker(id int, arg copyWorkerArg, jobs <-chan copyPart, results chan<- 
 		}
 		results <- part
 	}
+}
+
+func UploadPartCopyAcrossRegion(arg copyWorkerArg, chunk copyPart, chunkSize int64, respHeader *http.Header) (UploadPart, error) {
+	reader, err := arg.srcBucket.GetObject(arg.srcObjectKey, Range(chunk.Start, chunk.End), GetResponseHeader(respHeader))
+	if err != nil {
+		return UploadPart{}, err
+	}
+	defer reader.Close()
+	// 尝试获取源块的crc64值，只有当上传的块与下载的块range一致时，才能获取到
+	srcPartCrc64 := respHeader.Get(HTTPHeaderKs3CRC64)
+
+	options := arg.options
+	options = append(options, GetResponseHeader(respHeader))
+	// 如果开启了crc校验且获取到了源块的crc64值，则设置上传块的crc64值
+	if arg.destbucket.GetConfig().IsEnableCRC && srcPartCrc64 != "" {
+		options = append(options, ChecksumCrc64ecma(srcPartCrc64))
+	}
+
+	return arg.destbucket.UploadPart(arg.imur, reader, chunkSize, chunk.Number, options...)
 }
 
 // copyScheduler
@@ -141,10 +175,7 @@ func getSrcObjectBytes(parts []copyPart) int64 {
 }
 
 // copyFile is a concurrently copy without checkpoint
-func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destObjectKey string,
-	partSize int64, options []Option, routines int) error {
-	descBucket, err := bucket.Client.Bucket(destBucketName)
-	srcBucket, err := bucket.Client.Bucket(srcBucketName)
+func (bucket Bucket) copyFile(srcBucket *Bucket, srcObjectKey, destObjectKey string, partSize int64, options []Option, routines int) error {
 	listener := GetProgressListener(options)
 
 	// choice valid options
@@ -166,7 +197,7 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 	// Get copy parts
 	parts := getCopyParts(objectSize, partSize)
 	// Initialize the multipart upload
-	imur, err := descBucket.InitiateMultipartUpload(destObjectKey, options...)
+	imur, err := bucket.InitiateMultipartUpload(destObjectKey, options...)
 	if err != nil {
 		return err
 	}
@@ -180,9 +211,10 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 	totalBytes := getSrcObjectBytes(parts)
 	event := newProgressEvent(TransferStartedEvent, 0, totalBytes, 0)
 	publishProgress(listener, event)
+	isAcrossRegion := getAcrossRegion(options)
 
 	// Start to copy workers
-	arg := copyWorkerArg{descBucket, imur, srcBucketName, srcObjectKey, partOptions, copyPartHooker}
+	arg := copyWorkerArg{&bucket, srcBucket, imur, srcObjectKey, partOptions, copyPartHooker, isAcrossRegion}
 	for w := 1; w <= routines; w++ {
 		go copyWorker(w, arg, jobs, results, failed, die)
 	}
@@ -204,7 +236,7 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 			publishProgress(listener, event)
 		case err := <-failed:
 			close(die)
-			descBucket.AbortMultipartUpload(imur, abortOptions...)
+			bucket.AbortMultipartUpload(imur, abortOptions...)
 			event = newProgressEvent(TransferFailedEvent, completedBytes, totalBytes, 0)
 			publishProgress(listener, event)
 			return err
@@ -219,7 +251,7 @@ func (bucket Bucket) copyFile(srcBucketName, srcObjectKey, destBucketName, destO
 	publishProgress(listener, event)
 
 	// Complete the multipart upload
-	_, err = descBucket.CompleteMultipartUpload(imur, ups, completeOptions...)
+	_, err = bucket.CompleteMultipartUpload(imur, ups, completeOptions...)
 	if err != nil {
 		bucket.AbortMultipartUpload(imur, abortOptions...)
 		return err
@@ -254,7 +286,7 @@ func (cp copyCheckpoint) isValid(meta http.Header) (bool, error) {
 	sum := md5.Sum(js)
 	b64 := base64.StdEncoding.EncodeToString(sum[:])
 
-	if cp.Magic != downloadCpMagic || b64 != cp.MD5 {
+	if cp.Magic != copyCpMagic || b64 != cp.MD5 {
 		return false, nil
 	}
 
@@ -385,15 +417,12 @@ func (cp *copyCheckpoint) complete(bucket *Bucket, parts []UploadPart, cpFilePat
 }
 
 // copyFileWithCp is concurrently copy with checkpoint
-func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName, destObjectKey string,
-	partSize int64, options []Option, cpFilePath string, routines int) error {
-	descBucket, err := bucket.Client.Bucket(destBucketName)
-	srcBucket, err := bucket.Client.Bucket(srcBucketName)
+func (bucket Bucket) copyFileWithCp(srcBucket *Bucket, srcObjectKey, destObjectKey string, partSize int64, options []Option, cpFilePath string, routines int) error {
 	listener := GetProgressListener(options)
 
 	// Load CP data
 	ccp := copyCheckpoint{}
-	err = ccp.load(cpFilePath)
+	err := ccp.load(cpFilePath)
 	if err != nil {
 		os.Remove(cpFilePath)
 	}
@@ -411,7 +440,7 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 	// Load error or the CP data is invalid---reinitialize
 	valid, err := ccp.isValid(meta)
 	if err != nil || !valid {
-		if err = ccp.prepare(meta, srcBucket, srcObjectKey, descBucket, destObjectKey, partSize, options); err != nil {
+		if err = ccp.prepare(meta, srcBucket, srcObjectKey, &bucket, destObjectKey, partSize, options); err != nil {
 			return err
 		}
 		os.Remove(cpFilePath)
@@ -420,7 +449,7 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 	// Unfinished parts
 	parts := ccp.todoParts()
 	imur := InitiateMultipartUploadResult{
-		Bucket:   destBucketName,
+		Bucket: bucket.BucketName,
 		Key:      destObjectKey,
 		UploadID: ccp.CopyID}
 
@@ -432,9 +461,10 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 	completedBytes := ccp.getCompletedBytes()
 	event := newProgressEvent(TransferStartedEvent, completedBytes, ccp.ObjStat.Size, 0)
 	publishProgress(listener, event)
+	isAcrossRegion := getAcrossRegion(options)
 
 	// Start the worker coroutines
-	arg := copyWorkerArg{descBucket, imur, srcBucketName, srcObjectKey, partOptions, copyPartHooker}
+	arg := copyWorkerArg{&bucket, srcBucket, imur, srcObjectKey, partOptions, copyPartHooker, isAcrossRegion}
 	for w := 1; w <= routines; w++ {
 		go copyWorker(w, arg, jobs, results, failed, die)
 	}
@@ -450,7 +480,7 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 			completed++
 			ccp.update(part)
 			ccp.dump(cpFilePath)
-			copyBytes := parts[part.PartNumber-1].End - parts[part.PartNumber-1].Start + 1
+			copyBytes := ccp.Parts[part.PartNumber-1].End - ccp.Parts[part.PartNumber-1].Start + 1
 			completedBytes += copyBytes
 			event = newProgressEvent(TransferPartEvent, completedBytes, ccp.ObjStat.Size, copyBytes)
 			publishProgress(listener, event)
@@ -469,5 +499,5 @@ func (bucket Bucket) copyFileWithCp(srcBucketName, srcObjectKey, destBucketName,
 	event = newProgressEvent(TransferCompletedEvent, completedBytes, ccp.ObjStat.Size, 0)
 	publishProgress(listener, event)
 
-	return ccp.complete(descBucket, ccp.CopyParts, cpFilePath, completeOptions)
+	return ccp.complete(&bucket, ccp.CopyParts, cpFilePath, completeOptions)
 }
