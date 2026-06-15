@@ -112,6 +112,7 @@ type Config struct {
 	RedirectEnabled      bool                //  only effective from go1.7 onward, enable http redirect or not
 	InsecureSkipVerify   bool                //  for https, Whether to skip verifying the server certificate file
 	ProxyFromEnvironment bool                //  Whether to use the system's proxy settings
+	EnableHTTP2          bool                //  If true, prefer HTTP/2 when server supports it (via ALPN), otherwise HTTP/1.1
 }
 
 // LimitUploadSpeed uploadSpeed:KB/s, 0 is unlimited,default is 0
@@ -209,6 +210,7 @@ func getDefaultKs3Config() *Config {
 	config.AuthVersion = AuthV1
 	config.RedirectEnabled = true
 	config.InsecureSkipVerify = false
+	config.EnableHTTP2 = false
 
 	return &config
 }

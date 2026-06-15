@@ -2189,6 +2189,13 @@ func InsecureSkipVerify(enabled bool) ClientOption {
 	}
 }
 
+// If enabled, prefer HTTP/2 when server supports it (via ALPN), otherwise HTTP/1.1
+func EnableHTTP2(enabled bool) ClientOption {
+	return func(client *Client) {
+		client.Config.EnableHTTP2 = enabled
+	}
+}
+
 // Private
 func (client Client) do(method, bucketName string, params map[string]interface{},
 	headers map[string]string, data io.Reader, options ...Option) (*Response, error) {
