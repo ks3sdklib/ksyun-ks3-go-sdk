@@ -2196,6 +2196,18 @@ func EnableHTTP2(enabled bool) ClientOption {
 	}
 }
 
+func UploadLimitSpeed(speedKB int) ClientOption {
+	return func(client *Client) {
+		client.Config.LimitUploadSpeed(speedKB)
+	}
+}
+
+func DownloadLimitSpeed(speedKB int) ClientOption {
+	return func(client *Client) {
+		client.Config.LimitDownloadSpeed(speedKB)
+	}
+}
+
 // Private
 func (client Client) do(method, bucketName string, params map[string]interface{},
 	headers map[string]string, data io.Reader, options ...Option) (*Response, error) {
