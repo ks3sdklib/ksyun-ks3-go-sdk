@@ -9,17 +9,14 @@ import (
 	"io"
 )
 
-const (
-	perTokenBandwidthSize int = 1024
-)
-
 type Ks3Limiter struct {
 }
 
 type LimitSpeedReader struct {
 	io.ReadCloser
-	reader     io.Reader
-	ks3Limiter *Ks3Limiter
+	reader        io.Reader
+	ks3Limiter    *Ks3Limiter
+	acquiredCount int
 }
 
 func GetKs3Limiter(uploadSpeed int) (ks3Limiter *Ks3Limiter, err error) {

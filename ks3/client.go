@@ -2208,6 +2208,12 @@ func DownloadLimitSpeed(speedKB int) ClientOption {
 	}
 }
 
+func LimitSpeed(speedKB int) ClientOption {
+	return func(client *Client) {
+		client.Config.LimitSpeed(speedKB)
+	}
+}
+
 // Private
 func (client Client) do(method, bucketName string, params map[string]interface{},
 	headers map[string]string, data io.Reader, options ...Option) (*Response, error) {

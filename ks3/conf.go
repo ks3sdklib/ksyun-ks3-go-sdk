@@ -104,6 +104,7 @@ type Config struct {
 	UploadLimiter        *Ks3Limiter         // Bandwidth limit reader for upload
 	DownloadLimitSpeed   int                 // Download limit speed:KB/s, 0 is unlimited
 	DownloadLimiter      *Ks3Limiter         // Bandwidth limit reader for download
+	SpeedLimit           int                 // Limit speed (both upload and download):KB/s, 0 is unlimited
 	CredentialsProvider  CredentialsProvider // User provides interface to get AccessKeyID, AccessKeySecret, SecurityToken
 	LocalAddr            net.Addr            // local client host info
 	UserSetUa            bool                // UserAgent is set by user or not
@@ -123,6 +124,8 @@ func (config *Config) LimitUploadSpeed(uploadSpeed int) error {
 		config.UploadLimitSpeed = 0
 		config.UploadLimiter = nil
 		return nil
+	} else if uploadSpeed < MinRateLimiterRate/perTokenBandwidthSize {
+		return fmt.Errorf("invalid argument, the value of uploadSpeed must be at least %d KB/s", MinRateLimiterRate/perTokenBandwidthSize)
 	}
 
 	var err error
@@ -141,6 +144,8 @@ func (config *Config) LimitDownloadSpeed(downloadSpeed int) error {
 		config.DownloadLimitSpeed = 0
 		config.DownloadLimiter = nil
 		return nil
+	} else if downloadSpeed < MinRateLimiterRate/perTokenBandwidthSize {
+		return fmt.Errorf("invalid argument, the value of downloadSpeed must be at least %d KB/s", MinRateLimiterRate/perTokenBandwidthSize)
 	}
 
 	var err error
@@ -149,6 +154,31 @@ func (config *Config) LimitDownloadSpeed(downloadSpeed int) error {
 		config.DownloadLimitSpeed = downloadSpeed
 	}
 	return err
+}
+
+// LimitSpeed limits both upload and download speed:KB/s, 0 is unlimited,default is 0
+func (config *Config) LimitSpeed(speed int) error {
+	if speed < 0 {
+		return fmt.Errorf("invalid argument, the value of speed is less than 0")
+	} else if speed == 0 {
+		config.SpeedLimit = 0
+		config.UploadLimitSpeed = 0
+		config.UploadLimiter = nil
+		config.DownloadLimitSpeed = 0
+		config.DownloadLimiter = nil
+		return nil
+	} else if speed < MinRateLimiterRate/perTokenBandwidthSize {
+		return fmt.Errorf("invalid argument, the value of speed must be at least %d KB/s", MinRateLimiterRate/perTokenBandwidthSize)
+	}
+
+	if err := config.LimitUploadSpeed(speed); err != nil {
+		return err
+	}
+	if err := config.LimitDownloadSpeed(speed); err != nil {
+		return err
+	}
+	config.SpeedLimit = speed
+	return nil
 }
 
 // WriteLog output log function

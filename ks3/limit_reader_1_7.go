@@ -3,81 +3,85 @@
 package ks3
 
 import (
-	"fmt"
 	"io"
-	"math"
 	"time"
 
 	"golang.org/x/time/rate"
 )
 
 const (
-	perTokenBandwidthSize int = 1024
+	perTokenBandwidthSize = 1024
 )
 
-// Ks3Limiter wrapper rate.Limiter
+// Ks3Limiter wraps rate.Limiter for bandwidth control
 type Ks3Limiter struct {
 	limiter *rate.Limiter
 }
 
-// GetKs3Limiter create Ks3Limiter
-// uploadSpeed KB/s
-func GetKs3Limiter(uploadSpeed int) (ks3Limiter *Ks3Limiter, err error) {
-	limiter := rate.NewLimiter(rate.Limit(uploadSpeed), uploadSpeed)
+// GetKs3Limiter creates Ks3Limiter, speedKB in KB/s
+func GetKs3Limiter(speedKB int) (ks3Limiter *Ks3Limiter, err error) {
+	capacity := speedKB * perTokenBandwidthSize
+	if capacity < MinRateLimiterCapacity {
+		capacity = MinRateLimiterCapacity
+	}
+	burst := capacity / perTokenBandwidthSize
+	if burst < 1 {
+		burst = 1
+	}
+	limiter := rate.NewLimiter(rate.Limit(speedKB), burst)
 
-	// first consume the initial full token,the limiter will behave more accurately
-	limiter.AllowN(time.Now(), uploadSpeed)
+	// drain initial burst so the limiter behaves accurately from the start
+	limiter.AllowN(time.Now(), burst)
 
-	return &Ks3Limiter{
-		limiter: limiter,
-	}, nil
+	return &Ks3Limiter{limiter: limiter}, nil
 }
 
-// LimitSpeedReader for limit bandwidth upload
+// LimitSpeedReader throttles read bandwidth
 type LimitSpeedReader struct {
 	io.ReadCloser
-	reader     io.Reader
-	ks3Limiter *Ks3Limiter
+	reader        io.Reader
+	ks3Limiter    *Ks3Limiter
+	acquiredCount int
 }
 
-// Read
+// Read acquires tokens first, then reads, tracking over-acquired bytes
 func (r *LimitSpeedReader) Read(p []byte) (n int, err error) {
-	n = 0
-	err = nil
-	start := 0
-	burst := r.ks3Limiter.limiter.Burst()
-	var end int
-	var tmpN int
-	var tc int
-	for start < len(p) {
-		if start+burst*perTokenBandwidthSize < len(p) {
-			end = start + burst*perTokenBandwidthSize
-		} else {
-			end = len(p)
-		}
-
-		tmpN, err = r.reader.Read(p[start:end])
-		if tmpN > 0 {
-			n += tmpN
-			start = n
-		}
-
-		if err != nil {
-			return
-		}
-
-		tc = int(math.Ceil(float64(tmpN) / float64(perTokenBandwidthSize)))
-		now := time.Now()
-		re := r.ks3Limiter.limiter.ReserveN(now, tc)
-		if !re.OK() {
-			err = fmt.Errorf("LimitSpeedReader.Read() failure,ReserveN error,start:%d,end:%d,burst:%d,perTokenBandwidthSize:%d",
-				start, end, burst, perTokenBandwidthSize)
-			return
-		}
-		timeDelay := re.Delay()
-		time.Sleep(timeDelay)
+	want := len(p)
+	if want > r.acquiredCount {
+		need := want - r.acquiredCount
+		r.acquire(need)
+		r.acquiredCount = 0
+	} else {
+		r.acquiredCount -= want
 	}
+
+	n, err = r.reader.Read(p)
+	r.acquiredCount += want - n
 	return
+}
+
+func (r *LimitSpeedReader) acquire(want int) {
+	if r.ks3Limiter == nil || want <= 0 {
+		return
+	}
+	tc := (want + perTokenBandwidthSize - 1) / perTokenBandwidthSize
+	burst := r.ks3Limiter.limiter.Burst()
+	if burst < 1 {
+		burst = 1
+	}
+	for tc > 0 {
+		batch := tc
+		if batch > burst {
+			batch = burst
+		}
+		rsv := r.ks3Limiter.limiter.ReserveN(time.Now(), batch)
+		if !rsv.OK() {
+			batch = 1
+			rsv = r.ks3Limiter.limiter.ReserveN(time.Now(), batch)
+		}
+		time.Sleep(rsv.Delay())
+		tc -= batch
+	}
 }
 
 // Close ...
