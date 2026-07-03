@@ -272,8 +272,8 @@ const (
 
 	Version = "v1.2.8" // Go SDK version
 
-	MinRateLimiterCapacity = 10 * 1024 // Min token bucket capacity, 10KB
-	MinRateLimiterRate     = 1024      // Min token refill rate, 1KB/s
+	MinRateLimiterCapacity = 10 * 1024 // Min token bucket capacity in bytes, 10KB
+	MinRateLimiterRate     = 1024      // Min rate limit in byte/s, 1KB/s
 )
 
 // FrameType

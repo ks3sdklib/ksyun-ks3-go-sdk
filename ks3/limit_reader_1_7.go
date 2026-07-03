@@ -9,26 +9,22 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const (
-	perTokenBandwidthSize = 1024
-)
-
 // Ks3Limiter wraps rate.Limiter for bandwidth control
 type Ks3Limiter struct {
 	limiter *rate.Limiter
 }
 
-// GetKs3Limiter creates Ks3Limiter, speedKB in KB/s
-func GetKs3Limiter(speedKB int) (ks3Limiter *Ks3Limiter, err error) {
-	capacity := speedKB * perTokenBandwidthSize
+// GetKs3Limiter creates Ks3Limiter, speed in byte/s
+func GetKs3Limiter(speed int) (ks3Limiter *Ks3Limiter, err error) {
+	capacity := speed
 	if capacity < MinRateLimiterCapacity {
 		capacity = MinRateLimiterCapacity
 	}
-	burst := capacity / perTokenBandwidthSize
+	burst := capacity
 	if burst < 1 {
 		burst = 1
 	}
-	limiter := rate.NewLimiter(rate.Limit(speedKB), burst)
+	limiter := rate.NewLimiter(rate.Limit(speed), burst)
 
 	// drain initial burst so the limiter behaves accurately from the start
 	limiter.AllowN(time.Now(), burst)
@@ -64,7 +60,7 @@ func (r *LimitSpeedReader) acquire(want int) {
 	if r.ks3Limiter == nil || want <= 0 {
 		return
 	}
-	tc := (want + perTokenBandwidthSize - 1) / perTokenBandwidthSize
+	tc := want
 	burst := r.ks3Limiter.limiter.Burst()
 	if burst < 1 {
 		burst = 1

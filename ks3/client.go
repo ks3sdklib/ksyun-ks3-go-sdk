@@ -1970,7 +1970,7 @@ func (client Client) DeleteBucketMirror(bucketName string, options ...Option) er
 }
 
 // LimitUploadSpeed set upload bandwidth limit speed,default is 0,unlimited
-// upSpeed KB/s, 0 is unlimited,default is 0
+// upSpeed in byte/s, 0 is unlimited,default is 0
 // error it's nil if success, otherwise failure
 func (client Client) LimitUploadSpeed(upSpeed int) error {
 	if client.Config == nil {
@@ -1980,7 +1980,7 @@ func (client Client) LimitUploadSpeed(upSpeed int) error {
 }
 
 // LimitDownloadSpeed set download bandwidth limit speed,default is 0,unlimited
-// downSpeed KB/s, 0 is unlimited,default is 0
+// downSpeed in byte/s, 0 is unlimited,default is 0
 // error it's nil if success, otherwise failure
 func (client Client) LimitDownloadSpeed(downSpeed int) error {
 	if client.Config == nil {
@@ -2196,21 +2196,21 @@ func EnableHTTP2(enabled bool) ClientOption {
 	}
 }
 
-func UploadLimitSpeed(speedKB int) ClientOption {
+func UploadLimitSpeed(speed int) ClientOption {
 	return func(client *Client) {
-		client.Config.LimitUploadSpeed(speedKB)
+		client.Config.LimitUploadSpeed(speed)
 	}
 }
 
-func DownloadLimitSpeed(speedKB int) ClientOption {
+func DownloadLimitSpeed(speed int) ClientOption {
 	return func(client *Client) {
-		client.Config.LimitDownloadSpeed(speedKB)
+		client.Config.LimitDownloadSpeed(speed)
 	}
 }
 
-func LimitSpeed(speedKB int) ClientOption {
+func LimitSpeed(speed int) ClientOption {
 	return func(client *Client) {
-		client.Config.LimitSpeed(speedKB)
+		client.Config.LimitSpeed(speed)
 	}
 }
 

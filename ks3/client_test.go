@@ -1502,7 +1502,7 @@ func (s *Ks3ClientSuite) TestSetLimitUploadSpeed(c *C) {
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
 
-	err = client.LimitUploadSpeed(100)
+	err = client.LimitUploadSpeed(100 * 1024)
 
 	goVersion := runtime.Version()
 	pSlice := strings.Split(strings.ToLower(goVersion), ".")

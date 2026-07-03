@@ -1742,7 +1742,7 @@ func (s *Ks3BucketSuite) TestPutSingleObjectLimitSpeed(c *C) {
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
 
-	err = client.LimitUploadSpeed(1)
+	err = client.LimitUploadSpeed(1024)
 	if err != nil {
 		// go version is less than go1.7,not support limit upload speed
 		// doesn't run this test
@@ -1762,15 +1762,15 @@ func (s *Ks3BucketSuite) TestPutSingleObjectLimitSpeed(c *C) {
 	detectSpeed := s.detectUploadSpeed(bucket, c)
 
 	var limitSpeed = 0
-	if detectSpeed <= perTokenBandwidthSize*2 {
-		limitSpeed = perTokenBandwidthSize
+	if detectSpeed <= MinRateLimiterRate*2 {
+		limitSpeed = MinRateLimiterRate
 	} else {
 		//this situation, the test works better
 		limitSpeed = detectSpeed / 2
 	}
 
-	// KB/s
-	err = client.LimitUploadSpeed(limitSpeed / perTokenBandwidthSize)
+	// byte/s
+	err = client.LimitUploadSpeed(limitSpeed)
 	c.Assert(err, IsNil)
 
 	objectName := objectNamePrefix + RandStr(8)
@@ -1789,8 +1789,8 @@ func (s *Ks3BucketSuite) TestPutSingleObjectLimitSpeed(c *C) {
 
 	c.Assert(float64(realSpeed) < float64(limitSpeed)*1.2, Equals, true)
 
-	if detectSpeed > perTokenBandwidthSize {
-		// the minimum uploas limit speed is perTokenBandwidthSize(1024 byte/s)
+	if detectSpeed > MinRateLimiterRate {
+		// the minimum upload limit speed is MinRateLimiterRate(1024 byte/s)
 		c.Assert(float64(realSpeed) > float64(limitSpeed)*0.8, Equals, true)
 	}
 
@@ -1843,14 +1843,14 @@ func (s *Ks3BucketSuite) TestPutManyObjectLimitSpeed(c *C) {
 	//detect speed:byte/s
 	detectSpeed := s.detectUploadSpeed(bucket, c)
 	var limitSpeed = 0
-	if detectSpeed <= perTokenBandwidthSize*2 {
-		limitSpeed = perTokenBandwidthSize
+	if detectSpeed <= MinRateLimiterRate*2 {
+		limitSpeed = MinRateLimiterRate
 	} else {
 		limitSpeed = detectSpeed / 2
 	}
 
-	// KB/s
-	err = client.LimitUploadSpeed(limitSpeed / perTokenBandwidthSize)
+	// byte/s
+	err = client.LimitUploadSpeed(limitSpeed)
 	c.Assert(err, IsNil)
 
 	// object1
@@ -1879,8 +1879,8 @@ func (s *Ks3BucketSuite) TestPutManyObjectLimitSpeed(c *C) {
 	realSpeed := len(textBuffer) * 2 * 1000 / int(endT.UnixNano()/1000/1000-startT.UnixNano()/1000/1000)
 	c.Assert(float64(realSpeed) < float64(limitSpeed)*1.2, Equals, true)
 
-	if detectSpeed > perTokenBandwidthSize {
-		// the minimum uploas limit speed is perTokenBandwidthSize(1024 byte/s)
+	if detectSpeed > MinRateLimiterRate {
+		// the minimum upload limit speed is MinRateLimiterRate(1024 byte/s)
 		c.Assert(float64(realSpeed) > float64(limitSpeed)*0.8, Equals, true)
 	}
 	c.Assert(sum, Equals, 2)
@@ -1934,15 +1934,15 @@ func (s *Ks3BucketSuite) TestPutMultipartObjectLimitSpeed(c *C) {
 	detectSpeed := s.detectUploadSpeed(bucket, c)
 
 	var limitSpeed = 0
-	if detectSpeed <= perTokenBandwidthSize*2 {
-		limitSpeed = perTokenBandwidthSize
+	if detectSpeed <= MinRateLimiterRate*2 {
+		limitSpeed = MinRateLimiterRate
 	} else {
 		//this situation, the test works better
 		limitSpeed = detectSpeed / 2
 	}
 
-	// KB/s
-	err = client.LimitUploadSpeed(limitSpeed / perTokenBandwidthSize)
+	// byte/s
+	err = client.LimitUploadSpeed(limitSpeed)
 	c.Assert(err, IsNil)
 
 	objectName := objectNamePrefix + RandStr(8)
@@ -1951,7 +1951,7 @@ func (s *Ks3BucketSuite) TestPutMultipartObjectLimitSpeed(c *C) {
 	// 1M byte
 	fileSize := 0
 	textBuffer := RandStr(1024 * 1024)
-	if detectSpeed < perTokenBandwidthSize {
+	if detectSpeed < MinRateLimiterRate {
 		ioutil.WriteFile(fileName, []byte(textBuffer), 0644)
 		f, err := os.Stat(fileName)
 		c.Assert(err, IsNil)
@@ -1986,8 +1986,8 @@ func (s *Ks3BucketSuite) TestPutMultipartObjectLimitSpeed(c *C) {
 	realSpeed := fileSize * 1000 / int(endT.UnixNano()/1000/1000-startT.UnixNano()/1000/1000)
 	c.Assert(float64(realSpeed) < float64(limitSpeed)*1.2, Equals, true)
 
-	if detectSpeed > perTokenBandwidthSize {
-		// the minimum uploas limit speed is perTokenBandwidthSize(1024 byte/s)
+	if detectSpeed > MinRateLimiterRate {
+		// the minimum upload limit speed is MinRateLimiterRate(1024 byte/s)
 		c.Assert(float64(realSpeed) > float64(limitSpeed)*0.8, Equals, true)
 	}
 
@@ -2037,15 +2037,15 @@ func (s *Ks3BucketSuite) TestPutObjectFromFileLimitSpeed(c *C) {
 	detectSpeed := s.detectUploadSpeed(bucket, c)
 
 	var limitSpeed = 0
-	if detectSpeed <= perTokenBandwidthSize*2 {
-		limitSpeed = perTokenBandwidthSize
+	if detectSpeed <= MinRateLimiterRate*2 {
+		limitSpeed = MinRateLimiterRate
 	} else {
 		//this situation, the test works better
 		limitSpeed = detectSpeed / 2
 	}
 
-	// KB/s
-	err = client.LimitUploadSpeed(limitSpeed / perTokenBandwidthSize)
+	// byte/s
+	err = client.LimitUploadSpeed(limitSpeed)
 	c.Assert(err, IsNil)
 
 	objectName := objectNamePrefix + RandStr(8)
@@ -2054,7 +2054,7 @@ func (s *Ks3BucketSuite) TestPutObjectFromFileLimitSpeed(c *C) {
 	// 1M byte
 	fileSize := 0
 	textBuffer := RandStr(1024 * 1024)
-	if detectSpeed < perTokenBandwidthSize {
+	if detectSpeed < MinRateLimiterRate {
 		ioutil.WriteFile(fileName, []byte(textBuffer), 0644)
 		f, err := os.Stat(fileName)
 		c.Assert(err, IsNil)
@@ -2089,8 +2089,8 @@ func (s *Ks3BucketSuite) TestPutObjectFromFileLimitSpeed(c *C) {
 	realSpeed := fileSize * 1000 / int(endT.UnixNano()/1000/1000-startT.UnixNano()/1000/1000)
 	c.Assert(float64(realSpeed) < float64(limitSpeed)*1.2, Equals, true)
 
-	if detectSpeed > perTokenBandwidthSize {
-		// the minimum uploas limit speed is perTokenBandwidthSize(1024 byte/s)
+	if detectSpeed > MinRateLimiterRate {
+		// the minimum upload limit speed is MinRateLimiterRate(1024 byte/s)
 		c.Assert(float64(realSpeed) > float64(limitSpeed)*0.8, Equals, true)
 	}
 
@@ -2121,8 +2121,8 @@ func (s *Ks3BucketSuite) TestUploadObjectLimitSpeed(c *C) {
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
 
-	tokenCount := 1
-	err = client.LimitUploadSpeed(tokenCount)
+	limitSpeed := 1024
+	err = client.LimitUploadSpeed(limitSpeed)
 	if err != nil {
 		// go version is less than go1.7,not support limit upload speed
 		// doesn't run this test
@@ -2145,7 +2145,7 @@ func (s *Ks3BucketSuite) TestUploadObjectLimitSpeed(c *C) {
 	c.Assert(err, IsNil)
 
 	// limit upload speed
-	err = client.LimitUploadSpeed(tokenCount)
+	err = client.LimitUploadSpeed(limitSpeed)
 	c.Assert(err, IsNil)
 
 	// then download the object
@@ -2163,7 +2163,7 @@ func (s *Ks3BucketSuite) TestUploadObjectLimitSpeed(c *C) {
 	downloadSpeed := len(textBuffer) * 1000 / int(endT.UnixNano()/1000/1000-startT.UnixNano()/1000/1000)
 
 	// upload speed limit parameters will not affect download speed
-	c.Assert(downloadSpeed > 2*tokenCount*perTokenBandwidthSize, Equals, true)
+	c.Assert(downloadSpeed > 2*limitSpeed, Equals, true)
 
 	bucket.DeleteObject(objectName)
 	client.DeleteBucket(bucketName)
@@ -2179,7 +2179,7 @@ func (s *Ks3BucketSuite) TestLimitUploadSpeedFail(c *C) {
 	c.Assert(err, NotNil)
 
 	client.Config = nil
-	err = client.LimitUploadSpeed(100)
+	err = client.LimitUploadSpeed(100 * 1024)
 	c.Assert(err, NotNil)
 }
 
@@ -2777,15 +2777,15 @@ func (s *Ks3BucketSuite) TestGetSingleObjectLimitSpeed(c *C) {
 	client, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
 
-	err = client.LimitDownloadSpeed(1)
+	err = client.LimitDownloadSpeed(1024)
 	if err != nil {
 		// go version is less than go1.7,not support limit download speed
 		// doesn't run this test
 		return
 	}
 
-	// set limit download speed as 100KB/s
-	limitSpeed := 100
+	// set limit download speed as 102400 byte/s (100KB/s)
+	limitSpeed := 100 * 1024
 	client.LimitDownloadSpeed(limitSpeed)
 
 	bucketName := bucketNamePrefix + RandLowStr(6)
@@ -2812,8 +2812,8 @@ func (s *Ks3BucketSuite) TestGetSingleObjectLimitSpeed(c *C) {
 	c.Assert(err, IsNil)
 
 	realSpeed := int64(len(textBuffer)) / (endT.UnixNano()/1000/1000/1000 - startT.UnixNano()/1000/1000/1000)
-	c.Assert(float64(realSpeed/1024) < float64(limitSpeed)*1.15, Equals, true)
-	c.Assert(float64(realSpeed/1024) > float64(limitSpeed)*0.85, Equals, true)
+	c.Assert(float64(realSpeed) < float64(limitSpeed)*1.15, Equals, true)
+	c.Assert(float64(realSpeed) > float64(limitSpeed)*0.85, Equals, true)
 
 	// Get object and compare content
 	fileBody, err := ioutil.ReadFile(tempFile)
