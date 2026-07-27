@@ -2515,9 +2515,8 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	options = append(options, acMethodOption)
 	options = append(options, acHeadersOption)
 	headers, err = bucket.OptionsMethod("123", options...)
-	c.Assert(err, IsNil)
-	c.Assert(headers.Get("Access-Control-Allow-Origin"), Equals, "http://www.ksyun.com")
-	c.Assert(strings.Contains(headers.Get("Access-Control-Allow-Methods"), "PUT"), Equals, true)
+	c.Assert(err, NotNil)
+	c.Assert(err.(ServiceError).StatusCode, Equals, http.StatusForbidden)
 
 	// put object
 	objectName := objectNamePrefix + RandStr(8)
@@ -2547,9 +2546,8 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	options = append(options, acMethodOption)
 	options = append(options, acHeadersOption)
 	headers, err = bucket.OptionsMethod(objectName, options...)
-	c.Assert(err, IsNil)
-	c.Assert(headers.Get("Access-Control-Allow-Origin"), Equals, "http://www.ksyun.com")
-	c.Assert(strings.Contains(headers.Get("Access-Control-Allow-Methods"), "PUT"), Equals, true)
+	c.Assert(err, NotNil)
+	c.Assert(err.(ServiceError).StatusCode, Equals, http.StatusForbidden)
 
 	bucket.DeleteObject(objectName)
 	ForceDeleteBucket(client, bucketName, c)
