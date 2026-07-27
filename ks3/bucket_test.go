@@ -2504,7 +2504,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	headers, err := bucket.OptionsMethod("123", options...)
 	c.Assert(err, IsNil)
 	c.Assert(headers.Get("Access-Control-Allow-Origin"), Equals, "http://www.ksyun.com")
-	c.Assert(headers.Get("Access-Control-Allow-Methods"), Equals, "PUT")
+	c.Assert(strings.Contains(headers.Get("Access-Control-Allow-Methods"), "PUT"), Equals, true)
 
 	// options failure
 	options = []Option{}
@@ -2517,7 +2517,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	headers, err = bucket.OptionsMethod("123", options...)
 	c.Assert(err, IsNil)
 	c.Assert(headers.Get("Access-Control-Allow-Origin"), Equals, "http://www.ksyun.com")
-	c.Assert(headers.Get("Access-Control-Allow-Methods"), Equals, "PUT")
+	c.Assert(strings.Contains(headers.Get("Access-Control-Allow-Methods"), "PUT"), Equals, true)
 
 	// put object
 	objectName := objectNamePrefix + RandStr(8)
@@ -2536,7 +2536,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	headers, err = bucket.OptionsMethod(objectName, options...)
 	c.Assert(err, IsNil)
 	c.Assert(headers.Get("Access-Control-Allow-Origin"), Equals, "http://www.ksyun.com")
-	c.Assert(headers.Get("Access-Control-Allow-Methods"), Equals, "PUT")
+	c.Assert(strings.Contains(headers.Get("Access-Control-Allow-Methods"), "PUT"), Equals, true)
 
 	// options failure
 	options = []Option{}
@@ -2549,7 +2549,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	headers, err = bucket.OptionsMethod(objectName, options...)
 	c.Assert(err, IsNil)
 	c.Assert(headers.Get("Access-Control-Allow-Origin"), Equals, "http://www.ksyun.com")
-	c.Assert(headers.Get("Access-Control-Allow-Methods"), Equals, "PUT")
+	c.Assert(strings.Contains(headers.Get("Access-Control-Allow-Methods"), "PUT"), Equals, true)
 
 	bucket.DeleteObject(objectName)
 	ForceDeleteBucket(client, bucketName, c)

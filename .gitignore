@@ -4,4 +4,7 @@
 # IDEA
 .idea/
 
+# test logs
+*.log
+
 .github/workflows/greetings.yaml
