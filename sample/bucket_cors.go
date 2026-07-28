@@ -32,7 +32,7 @@ func BucketCORSSample() {
 		AllowedOrigin: []string{"http://www.a.com", "http://www.b.com"},
 		AllowedMethod: []string{"GET"},
 		AllowedHeader: []string{"Authorization"},
-		ExposeHeader:  []string{"x-ks3-test", "x-ks3-test1"},
+		ExposeHeader:  []string{"x-kss-test", "x-kss-test1"},
 		MaxAgeSeconds: 100,
 	}
 

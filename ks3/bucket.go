@@ -400,7 +400,7 @@ func (bucket Bucket) CopyObjectAcrossRegion(srcBucket *Bucket, srcObjectKey, des
 // AppendObject the parameter appendPosition specifies which postion (in the target object) to append. For the first append (to a non-existing file),
 // the appendPosition should be 0. The appendPosition in the subsequent calls will be the current object length.
 // For example, the first appendObject's appendPosition is 0, and it uploaded 65536 bytes data, then the second call's position is 65536.
-// The response header x-ks3-next-append-position after each successful request also specifies the next call's append position (so the caller need not maintain this information).
+// The response header x-kss-next-append-position after each successful request also specifies the next call's append position (so the caller need not maintain this information).
 //
 // objectKey    the target object to append to.
 // reader    io.Reader. The read instance for reading the data to append.
@@ -921,7 +921,7 @@ func (bucket Bucket) GetObjectACL(objectKey string, options ...Option) (GetObjec
 // When creating a symlink, it does not check the existence of the target file, and does not check if the target file is symlink.
 // Neither it checks the caller's permission on the target file. All these checks are deferred to the actual GetObject call via this symlink.
 // If trying to add an existing file, as long as the caller has the write permission, the existing one will be overwritten.
-// If the x-ks3-meta- is specified, it will be added as the metadata of the symlink file.
+// If the x-kss-meta- is specified, it will be added as the metadata of the symlink file.
 //
 // symObjectKey    the symlink object's key.
 // targetObjectKey    the target object key to point to.
@@ -1278,8 +1278,8 @@ func (bucket Bucket) DoGetObjectWithURL(signedURL string, options []Option) (*Ge
 func (bucket Bucket) ProcessObject(objectKey string, process string, options ...Option) (ProcessObjectResult, error) {
 	var out ProcessObjectResult
 	params, _ := GetRawParams(options)
-	params["x-ks3-process"] = nil
-	processData := fmt.Sprintf("%v=%v", "x-ks3-process", process)
+	params["x-kss-process"] = nil
+	processData := fmt.Sprintf("%v=%v", "x-kss-process", process)
 	data := strings.NewReader(processData)
 	resp, err := bucket.do("POST", objectKey, params, nil, data, nil)
 	if err != nil {

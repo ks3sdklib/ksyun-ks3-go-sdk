@@ -71,7 +71,7 @@ func (conn Conn) signHeader(req *http.Request, canonicalizedResource string) {
 }
 
 func (conn Conn) getSignedStr(req *http.Request, canonicalizedResource string, keySecret string) string {
-	// Find out the "x-ks3-"'s address in header of the request
+	// Find out the "x-kss-"'s address in header of the request
 	ks3HeadersMap := make(map[string]string)
 	additionalList, additionalMap := conn.getAdditionalHeaderKeys(req)
 	for k, v := range req.Header {

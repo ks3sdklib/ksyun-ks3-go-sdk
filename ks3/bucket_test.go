@@ -1048,12 +1048,12 @@ func (s *Ks3BucketSuite) TestCopyObject(c *C) {
 	err = s.bucket.DeleteObject(objectNameDest)
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-copy-source-if-modified-since
+	// Copy with constraints x-kss-copy-source-if-modified-since
 	_, err = s.bucket.CopyObject(objectName, objectNameDest, CopySourceIfModifiedSince(futureDate))
 	c.Assert(err, NotNil)
 	testLogger.Println("CopyObject:", err)
 
-	// Copy with constraints x-ks3-copy-source-if-unmodified-since
+	// Copy with constraints x-kss-copy-source-if-unmodified-since
 	_, err = s.bucket.CopyObject(objectName, objectNameDest, CopySourceIfUnmodifiedSince(futureDate))
 	c.Assert(err, IsNil)
 
@@ -1072,7 +1072,7 @@ func (s *Ks3BucketSuite) TestCopyObject(c *C) {
 	err = s.bucket.DeleteObject(objectNameDest)
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-copy-source-if-match
+	// Copy with constraints x-kss-copy-source-if-match
 	meta, err := s.bucket.GetObjectDetailedMeta(objectName)
 	c.Assert(err, IsNil)
 	testLogger.Println("GetObjectDetailedMeta:", meta)
@@ -1090,11 +1090,11 @@ func (s *Ks3BucketSuite) TestCopyObject(c *C) {
 	err = s.bucket.DeleteObject(objectNameDest)
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-copy-source-if-none-match
+	// Copy with constraints x-kss-copy-source-if-none-match
 	_, err = s.bucket.CopyObject(objectName, objectNameDest, CopySourceIfNoneMatch(meta.Get("Etag")))
 	c.Assert(err, NotNil)
 
-	// Copy with constraints x-ks3-metadata-directive
+	// Copy with constraints x-kss-metadata-directive
 	_, err = s.bucket.CopyObject(objectName, objectNameDest, Meta("my", "mydestprop"),
 		MetadataDirective(MetaCopy))
 	c.Assert(err, IsNil)
@@ -1117,7 +1117,7 @@ func (s *Ks3BucketSuite) TestCopyObject(c *C) {
 	err = s.bucket.DeleteObject(objectNameDest)
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-metadata-directive and self defined dest object meta
+	// Copy with constraints x-kss-metadata-directive and self defined dest object meta
 	options := []Option{
 		ObjectACL(ACLPublicReadWrite),
 		Meta("my", "mydestprop"),
@@ -1281,7 +1281,7 @@ func (s *Ks3BucketSuite) TestAppendObject(c *C) {
 	testLogger.Println("GetObjectDetailedMeta:", meta, ",", nextPos)
 	c.Assert(meta.Get("X-Kss-Object-Type"), Equals, "Appendable")
 	c.Assert(meta.Get("X-Kss-Meta-My"), Equals, "myprop")
-	c.Assert(meta.Get("x-ks3-Meta-Mine"), Equals, "")
+	c.Assert(meta.Get("x-kss-Meta-Mine"), Equals, "")
 	c.Assert(meta.Get("X-Kss-Next-Append-Position"), Equals, strconv.FormatInt(nextPos, 10))
 
 	acl, err := s.bucket.GetObjectACL(objectName)
@@ -2484,8 +2484,8 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	var rule = CORSRule{
 		AllowedOrigin: []string{"http://www.ksyun.com"},
 		AllowedMethod: []string{"PUT", "GET", "POST"},
-		AllowedHeader: []string{"x-ks3-meta-author"},
-		ExposeHeader:  []string{"x-ks3-meta-name"},
+		AllowedHeader: []string{"x-kss-meta-author"},
+		ExposeHeader:  []string{"x-kss-meta-name"},
 		MaxAgeSeconds: 100,
 	}
 
@@ -2497,7 +2497,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	options := []Option{}
 	originOption := Origin("http://www.ksyun.com")
 	acMethodOption := ACReqMethod("PUT")
-	acHeadersOption := ACReqHeaders("x-ks3-meta-author")
+	acHeadersOption := ACReqHeaders("x-kss-meta-author")
 	options = append(options, originOption)
 	options = append(options, acMethodOption)
 	options = append(options, acHeadersOption)
@@ -2510,7 +2510,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	options = []Option{}
 	originOption = Origin("http://www.ksyun.com")
 	acMethodOption = ACReqMethod("PUT")
-	acHeadersOption = ACReqHeaders("x-ks3-meta-author-1")
+	acHeadersOption = ACReqHeaders("x-kss-meta-author-1")
 	options = append(options, originOption)
 	options = append(options, acMethodOption)
 	options = append(options, acHeadersOption)
@@ -2528,7 +2528,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	options = []Option{}
 	originOption = Origin("http://www.ksyun.com")
 	acMethodOption = ACReqMethod("PUT")
-	acHeadersOption = ACReqHeaders("x-ks3-meta-author")
+	acHeadersOption = ACReqHeaders("x-kss-meta-author")
 	options = append(options, originOption)
 	options = append(options, acMethodOption)
 	options = append(options, acHeadersOption)
@@ -2541,7 +2541,7 @@ func (s *Ks3BucketSuite) TestOptionsMethod(c *C) {
 	options = []Option{}
 	originOption = Origin("http://www.ksyun.com")
 	acMethodOption = ACReqMethod("PUT")
-	acHeadersOption = ACReqHeaders("x-ks3-meta-author-1")
+	acHeadersOption = ACReqHeaders("x-kss-meta-author-1")
 	options = append(options, originOption)
 	options = append(options, acMethodOption)
 	options = append(options, acHeadersOption)

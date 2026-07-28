@@ -116,7 +116,7 @@ func AppendObjectSample() {
 		HandleError(err)
 	}
 
-	// Case 5: Specify the object properties for the first append, including the "x-ks3-meta"'s custom metadata.
+	// Case 5: Specify the object properties for the first append, including the "x-kss-meta"'s custom metadata.
 	options := []ks3.Option{
 		ks3.Expires(futureDate),
 		ks3.ObjectACL(ks3.ACLPublicRead),
@@ -138,7 +138,7 @@ func AppendObjectSample() {
 	if err != nil {
 		HandleError(err)
 	}
-	fmt.Println("myprop:", props.Get("x-ks3-meta-myprop"))
+	fmt.Println("myprop:", props.Get("x-kss-meta-myprop"))
 
 	goar, err := bucket.GetObjectACL(objectKey)
 	if err != nil {

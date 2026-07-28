@@ -39,7 +39,7 @@ func ArchiveSample() {
 		HandleError(err)
 	}
 
-	if meta.Get("X-Ks3-Storage-Class") == string(ks3.StorageArchive) {
+	if meta.Get("X-Kss-Storage-Class") == string(ks3.StorageArchive) {
 		// Restore object
 		err = archiveBucket.RestoreObject(objectKey)
 		if err != nil {
@@ -48,8 +48,8 @@ func ArchiveSample() {
 
 		// Wait for restore completed
 		meta, err = archiveBucket.GetObjectDetailedMeta(objectKey)
-		for meta.Get("X-Ks3-Restore") == "ongoing-request=\"true\"" {
-			fmt.Println("x-ks3-restore:" + meta.Get("X-Ks3-Restore"))
+		for meta.Get("X-Kss-Restore") == "ongoing-request=\"true\"" {
+			fmt.Println("x-kss-restore:" + meta.Get("X-Kss-Restore"))
 			time.Sleep(1000 * time.Second)
 			meta, err = archiveBucket.GetObjectDetailedMeta(objectKey)
 		}

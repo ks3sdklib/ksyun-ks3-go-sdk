@@ -353,12 +353,12 @@ func (cs *Ks3CredentialBucketSuite) TestCopyObject(c *C) {
 	err = cs.creBucket.DeleteObject(objectNameDest, RequestPayer(Requester))
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-copy-source-if-modified-since
+	// Copy with constraints x-kss-copy-source-if-modified-since
 	_, err = cs.creBucket.CopyObject(objectName, objectNameDest, CopySourceIfModifiedSince(futureDate), RequestPayer(Requester))
 	c.Assert(err, NotNil)
 	testLogger.Println("CopyObject:", err)
 
-	// Copy with constraints x-ks3-copy-source-if-unmodified-since
+	// Copy with constraints x-kss-copy-source-if-unmodified-since
 	_, err = cs.creBucket.CopyObject(objectName, objectNameDest, CopySourceIfUnmodifiedSince(futureDate), RequestPayer(Requester))
 	c.Assert(err, IsNil)
 
@@ -377,7 +377,7 @@ func (cs *Ks3CredentialBucketSuite) TestCopyObject(c *C) {
 	err = cs.creBucket.DeleteObject(objectNameDest, RequestPayer(Requester))
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-copy-source-if-match
+	// Copy with constraints x-kss-copy-source-if-match
 	meta, err := cs.creBucket.GetObjectDetailedMeta(objectName, RequestPayer(Requester))
 	c.Assert(err, IsNil)
 	testLogger.Println("GetObjectDetailedMeta:", meta)
@@ -395,11 +395,11 @@ func (cs *Ks3CredentialBucketSuite) TestCopyObject(c *C) {
 	err = cs.creBucket.DeleteObject(objectNameDest, RequestPayer(Requester))
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-copy-source-if-none-match
+	// Copy with constraints x-kss-copy-source-if-none-match
 	_, err = cs.creBucket.CopyObject(objectName, objectNameDest, CopySourceIfNoneMatch(meta.Get("Etag")), RequestPayer(Requester))
 	c.Assert(err, NotNil)
 
-	// Copy with constraints x-ks3-metadata-directive
+	// Copy with constraints x-kss-metadata-directive
 	_, err = cs.creBucket.CopyObject(objectName, objectNameDest, Meta("my", "mydestprop"),
 		MetadataDirective(MetaCopy), RequestPayer(Requester))
 	c.Assert(err, IsNil)
@@ -422,7 +422,7 @@ func (cs *Ks3CredentialBucketSuite) TestCopyObject(c *C) {
 	err = cs.creBucket.DeleteObject(objectNameDest, RequestPayer(Requester))
 	c.Assert(err, IsNil)
 
-	// Copy with constraints x-ks3-metadata-directive and self defined dest object meta
+	// Copy with constraints x-kss-metadata-directive and self defined dest object meta
 	options := []Option{
 		ObjectACL(ACLPublicReadWrite),
 		Meta("my", "mydestprop"),
@@ -575,7 +575,7 @@ func (cs *Ks3CredentialBucketSuite) TestAppendObject(c *C) {
 	testLogger.Println("GetObjectDetailedMeta:", meta, ",", nextPos)
 	c.Assert(meta.Get("X-Kss-Object-Type"), Equals, "Appendable")
 	c.Assert(meta.Get("X-Kss-Meta-My"), Equals, "myprop")
-	c.Assert(meta.Get("x-ks3-Meta-Mine"), Equals, "")
+	c.Assert(meta.Get("x-kss-Meta-Mine"), Equals, "")
 	c.Assert(meta.Get("X-Kss-Next-Append-Position"), Equals, strconv.FormatInt(nextPos, 10))
 
 	acl, err := cs.creBucket.GetObjectACL(objectName, RequestPayer(Requester))

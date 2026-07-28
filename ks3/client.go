@@ -1476,7 +1476,7 @@ func (client Client) InitiateBucketWorm(bucketName string, retentionDays int, op
 	wormID := ""
 	err = CheckRespCode(resp.StatusCode, []int{http.StatusOK})
 	if err == nil && respOpt != nil {
-		wormID = (respOpt.(*http.Header)).Get("x-ks3-worm-id")
+		wormID = (respOpt.(*http.Header)).Get("x-kss-worm-id")
 	}
 	return wormID, err
 }

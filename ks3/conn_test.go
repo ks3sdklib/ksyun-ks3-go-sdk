@@ -127,9 +127,9 @@ func (s *Ks3ConnSuite) TestAuth(c *C) {
 	req.Header.Set("Content-Type", "text/html")
 	req.Header.Set("Date", "Thu, 17 Nov 2005 18:49:58 GMT")
 	req.Header.Set("Host", endpoint)
-	req.Header.Set("X-KS3-Meta-Your", "your")
-	req.Header.Set("X-KS3-Meta-Author", "foo@bar.com")
-	req.Header.Set("X-KS3-Magic", "abracadabra")
+	req.Header.Set("X-Kss-Meta-Your", "your")
+	req.Header.Set("X-Kss-Meta-Author", "foo@bar.com")
+	req.Header.Set("X-Kss-Magic", "abracadabra")
 	req.Header.Set("Content-Md5", "ODBGOERFMDMzQTczRUY3NUE3NzA5QzdFNUYzMDQxNEM=")
 
 	conn.signHeader(req, conn.getResource("bucket", "object", ""))
