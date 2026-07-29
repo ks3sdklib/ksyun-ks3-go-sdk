@@ -253,7 +253,7 @@ func (s *Ks3OptionSuite) TestHandleOptions(c *C) {
 }
 
 func (s *Ks3OptionSuite) TestHandleParams(c *C) {
-	client, err := New(endpoint, accessID, accessKey)
+	_, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
 
 	options := []Option{}
@@ -265,7 +265,7 @@ func (s *Ks3OptionSuite) TestHandleParams(c *C) {
 	params, err := GetRawParams(options)
 	c.Assert(err, IsNil)
 
-	out := client.Conn.getURLParams(params)
+	out := getURLParams(params)
 	c.Assert(len(out), Equals, 156)
 
 	options = []Option{KeyMarker(""), nil}
@@ -273,7 +273,7 @@ func (s *Ks3OptionSuite) TestHandleParams(c *C) {
 	params, err = GetRawParams(options)
 	c.Assert(err, IsNil)
 
-	out = client.Conn.getURLParams(params)
+	out = getURLParams(params)
 	c.Assert(out, Equals, "key-marker")
 }
 

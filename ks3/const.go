@@ -65,14 +65,14 @@ const (
 type StorageClassType string
 
 const (
-	StorageExtremePL3  StorageClassType = "EXTREME_PL3"
-	StorageExtremePL2  StorageClassType = "EXTREME_PL2"
-	StorageExtremePL1  StorageClassType = "EXTREME_PL1"
-	StorageStandard    StorageClassType = "STANDARD"
-	StorageIA          StorageClassType = "STANDARD_IA"
-	StorageDeepIA      StorageClassType = "DEEP_IA"
-	StorageArchive     StorageClassType = "ARCHIVE"
-	StorageColdArchive StorageClassType = "COLD_ARCHIVE"
+	StorageExtremePL3      StorageClassType = "EXTREME_PL3"
+	StorageExtremePL2      StorageClassType = "EXTREME_PL2"
+	StorageExtremePL1      StorageClassType = "EXTREME_PL1"
+	StorageStandard        StorageClassType = "STANDARD"
+	StorageIA              StorageClassType = "STANDARD_IA"
+	StorageDeepIA          StorageClassType = "DEEP_IA"
+	StorageArchive         StorageClassType = "ARCHIVE"
+	StorageColdArchive     StorageClassType = "COLD_ARCHIVE"
 	StorageDeepColdArchive StorageClassType = "DEEP_COLD_ARCHIVE"
 )
 
@@ -205,6 +205,8 @@ const (
 	HTTPHeaderKs3Prefix                      = "X-Kss-"
 	HTTPHeaderKs3ObjectACL                   = "X-Kss-Acl"
 	HTTPHeaderKs3SecurityToken               = "X-Kss-Security-Token"
+	HTTPHeaderKs3V4Date                      = "x-kss-date"
+	HTTPHeaderKs3V4ContentSHA256             = "x-kss-content-sha256"
 	HTTPHeaderKs3ServerSideEncryption        = "X-Kss-Server-Side-Encryption"
 	HTTPHeaderKs3ServerSideEncryptionKeyID   = "X-Kss-Server-Side-Encryption-Key-Id"
 	HTTPHeaderKs3ServerSideDataEncryption    = "X-Kss-Server-Side-Data-Encryption"
@@ -241,21 +243,6 @@ const (
 	HTTPHeaderKs3Shadowcopy                  = "X-Kss-Shadowcopy"
 )
 
-// HTTP Param
-const (
-	HTTPParamExpires       = "Expires"
-	HTTPParamAccessKeyID   = "KSSAccessKeyId"
-	HTTPParamSignature     = "Signature"
-	HTTPParamSecurityToken = "security-token"
-	HTTPParamPlaylistName  = "playlistName"
-
-	HTTPParamSignatureVersion    = "X-Kss-signature-version"
-	HTTPParamExpiresV2           = "X-Kss-expires"
-	HTTPParamAccessKeyIDV2       = "X-Kss-access-key-id"
-	HTTPParamSignatureV2         = "X-Kss-signature"
-	HTTPParamAdditionalHeadersV2 = "X-Kss-additional-headers"
-)
-
 // Other constants
 const (
 	MaxPartSize    = 5 * 1024 * 1024 * 1024 // Max part size, 5GB
@@ -289,10 +276,12 @@ const (
 type AuthVersionType string
 
 const (
-	// AuthV1 v1
-	AuthV1 AuthVersionType = "v1"
-	// AuthV2 v2
+	// AuthV2 v2 签名（HMAC-SHA1 / KSS 前缀）
 	AuthV2 AuthVersionType = "v2"
+	// AuthV4 v4 签名，对请求负载计算哈希（HMAC-SHA256）
+	AuthV4 AuthVersionType = "v4"
+	// AuthV4UnsignedPayload v4 签名，不对请求负载计算哈希（UNSIGNED-PAYLOAD）
+	AuthV4UnsignedPayload AuthVersionType = "v4-unsigned-payload"
 )
 
 const ALL_USERS = "http://acs.ksyun.com/groups/global/AllUsers"

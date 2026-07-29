@@ -1,7 +1,6 @@
 package ks3
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -28,33 +27,6 @@ type Conn struct {
 	Url    *UrlMaker
 	client *http.Client
 }
-
-var signKeyList = []string{"acl", "uploads", "location", "cors",
-	"logging", "website", "referer", "lifecycle",
-	"retention", "recycle", "recover", "clear",
-	"crr", "mirror", "inventory", "id", "encryption",
-	"delete", "append", "tagging", "objectMeta",
-	"uploadId", "partNumber", "security-token",
-	"position", "img", "style", "styleName",
-	"replication", "replicationProgress",
-	"replicationLocation", "cname", "bucketInfo",
-	"comp", "qos", "live", "status", "vod",
-	"startTime", "endTime", "symlink",
-	"x-kss-process", "response-content-type", "x-kss-traffic-limit",
-	"response-content-language", "response-expires",
-	"response-cache-control", "response-content-disposition",
-	"response-content-encoding", "udf", "udfName", "udfImage",
-	"udfId", "udfImageDesc", "udfApplication", "comp",
-	"udfApplicationLog", "restore", "callback", "callback-var", "qosInfo",
-	"policy", "stat", "encryption", "versions", "versioning", "versionId", "requestPayment",
-	"x-kss-request-payer", "sequential", "asyncFetch",
-	"worm", "wormId", "wormExtend", "withHashContext",
-	"x-kss-enable-md5", "x-kss-enable-sha1", "x-kss-enable-sha256",
-	"x-kss-hash-ctx", "x-kss-md5-ctx", "transferAcceleration",
-	"regionList",
-}
-
-var policySignKeyList = []string{"X-Kss-Policy", "security-token"}
 
 // init initializes Conn
 func (conn *Conn) init(config *Config, urlMaker *UrlMaker, client *http.Client) error {
@@ -105,11 +77,11 @@ func (conn Conn) Do(method, bucketName, objectName string, params map[string]int
 // DoWithContext sends request and returns the response
 func (conn Conn) DoWithContext(ctx context.Context, method, bucketName, objectName string, params map[string]interface{}, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
-	urlParams := conn.getURLParams(params)
-	subResource := conn.getSubResource(params)
+	urlParams := getURLParams(params)
+	subResource := getSubResource(params)
 	urltmp := encodeKS3Str(objectName)
 	uri := conn.Url.getURL(bucketName, urltmp, urlParams)
-	resource := conn.getResource(bucketName, objectName, subResource)
+	resource := getResource(bucketName, objectName, subResource)
 	return conn.doRequest(ctx, method, uri, resource, headers, data, initCRC, listener)
 }
 
@@ -197,7 +169,7 @@ func (conn Conn) DoURLWithContext(ctx context.Context, method HTTPMethod, signed
 	return conn.handleResponse(resp, crc)
 }
 
-func (conn Conn) getURLParams(params map[string]interface{}) string {
+func getURLParams(params map[string]interface{}) string {
 	// Sort
 	keys := make([]string, 0, len(params))
 	for k := range params {
@@ -220,18 +192,12 @@ func (conn Conn) getURLParams(params map[string]interface{}) string {
 	return buf.String()
 }
 
-func (conn Conn) getSubResource(params map[string]interface{}) string {
+func getSubResource(params map[string]interface{}) string {
 	// Sort
 	keys := make([]string, 0, len(params))
 	signParams := make(map[string]string)
 	for k := range params {
-		if conn.config.AuthVersion == AuthV2 {
-			encodedKey := url.QueryEscape(k)
-			keys = append(keys, encodedKey)
-			if params[k] != nil && params[k] != "" {
-				signParams[encodedKey] = strings.Replace(url.QueryEscape(params[k].(string)), "+", "%20", -1)
-			}
-		} else if conn.isParamSign(k) {
+		if isParamSign(k) {
 			keys = append(keys, k)
 			if params[k] != nil {
 				signParams[k] = params[k].(string)
@@ -254,60 +220,6 @@ func (conn Conn) getSubResource(params map[string]interface{}) string {
 		}
 	}
 	return buf.String()
-}
-
-func (conn Conn) isParamSign(paramKey string) bool {
-	for _, k := range signKeyList {
-		if paramKey == k {
-			return true
-		}
-	}
-	return false
-}
-
-func (conn Conn) getPolicySubResource(params map[string]interface{}) string {
-	// Sort
-	keys := make([]string, 0, len(params))
-	signParams := make(map[string]string)
-	for k := range params {
-		if conn.config.AuthVersion == AuthV2 {
-			encodedKey := url.QueryEscape(k)
-			keys = append(keys, encodedKey)
-			if params[k] != nil && params[k] != "" {
-				signParams[encodedKey] = strings.Replace(url.QueryEscape(params[k].(string)), "+", "%20", -1)
-			}
-		} else if conn.isPolicyParamSign(k) {
-			keys = append(keys, k)
-			if params[k] != nil {
-				signParams[k] = params[k].(string)
-			}
-		}
-	}
-	sort.Strings(keys)
-
-	// Serialize
-	var buf bytes.Buffer
-	for _, k := range keys {
-		if buf.Len() > 0 {
-			buf.WriteByte('&')
-		}
-		buf.WriteString(k)
-		if _, ok := signParams[k]; ok {
-			if signParams[k] != "" {
-				buf.WriteString("=" + signParams[k])
-			}
-		}
-	}
-	return buf.String()
-}
-
-func (conn Conn) isPolicyParamSign(paramKey string) bool {
-	for _, k := range policySignKeyList {
-		if paramKey == k {
-			return true
-		}
-	}
-	return false
 }
 
 // ks3 encode 字符串
@@ -325,18 +237,12 @@ func encodeKS3Str(str string) string {
 }
 
 // getResource gets canonicalized resource
-func (conn Conn) getResource(bucketName, objectName, subResource string) string {
+func getResource(bucketName, objectName, subResource string) string {
 	if subResource != "" {
 		subResource = "?" + subResource
 	}
 	if bucketName == "" {
-		if conn.config.AuthVersion == AuthV2 {
-			return url.QueryEscape("/") + subResource
-		}
 		return fmt.Sprintf("/%s%s", bucketName, subResource)
-	}
-	if conn.config.AuthVersion == AuthV2 {
-		return url.QueryEscape("/"+bucketName+"/") + strings.Replace(url.QueryEscape(objectName), "+", "%20", -1) + subResource
 	}
 	objectName = encodeKS3Str(objectName)
 	tmp := "/" + bucketName + "/" + objectName + subResource
@@ -361,6 +267,19 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	}
 
 	tracker := &readerTracker{completedBytes: 0}
+
+	// v4 签名时，在 handleBody 包装 body 前从原始 body 计算 content-sha256，
+	// 计算完哈希（并 Seek 回 0）的 reader 替换 data，使 handleBody 仍能拿到完整 body。
+	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
+		v4s := v4Signer{conn.config, conn.Url}
+		contentSha256, hashedData, err := v4s.computeContentSHA256FromReader(data)
+		if err != nil {
+			return nil, err
+		}
+		data = hashedData
+		req.Header.Set(v4s.getHeaderName(v4ContentSHA256), contentSha256)
+	}
+
 	fd, crc := conn.handleBody(req, data, initCRC, listener, tracker)
 	if fd != nil {
 		defer func() {
@@ -380,9 +299,9 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	req.Header.Set(HTTPHeaderHost, req.Host)
 	req.Header.Set(HTTPHeaderUserAgent, conn.config.UserAgent)
 
-	akIf := conn.config.GetCredentials()
-	if akIf.GetSecurityToken() != "" {
-		req.Header.Set(HTTPHeaderKs3SecurityToken, akIf.GetSecurityToken())
+	creds := conn.config.GetCredentials()
+	if creds.GetSecurityToken() != "" {
+		req.Header.Set(HTTPHeaderKs3SecurityToken, creds.GetSecurityToken())
 	}
 
 	if headers != nil {
@@ -391,7 +310,9 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 		}
 	}
 
-	conn.signHeader(req, canonicalizedResource)
+	if err := conn.signHeader(req, canonicalizedResource); err != nil {
+		return nil, err
+	}
 
 	// Transfer started
 	event := newProgressEvent(TransferStartedEvent, 0, req.ContentLength, 0)
@@ -429,108 +350,38 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	return ks3Resp, err
 }
 
-func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) string {
-	akIf := conn.config.GetCredentials()
-	if akIf.GetSecurityToken() != "" {
-		params[HTTPParamSecurityToken] = akIf.GetSecurityToken()
+func (conn Conn) signHeader(req *http.Request, canonicalizedResource string) error {
+	creds := conn.config.GetCredentials()
+	if creds.GetAccessKeyID() == "" && creds.GetAccessKeySecret() == "" && creds.GetSecurityToken() == "" {
+		return nil
 	}
-
-	m := strings.ToUpper(string(method))
-	req := &http.Request{
-		Method: m,
-		Header: make(http.Header),
+	var s signer
+	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
+		s = v4Signer{conn.config, conn.Url}
+	} else {
+		s = v2Signer{conn.config, conn.Url}
 	}
-
-	if conn.config.IsAuthProxy {
-		auth := conn.config.ProxyUser + ":" + conn.config.ProxyPassword
-		basic := "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
-		req.Header.Set("Proxy-Authorization", basic)
-	}
-
-	req.Header.Set(HTTPHeaderDate, strconv.FormatInt(expiration, 10))
-	req.Header.Set(HTTPHeaderUserAgent, conn.config.UserAgent)
-
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
-	if conn.config.AuthVersion == AuthV2 {
-		params[HTTPParamSignatureVersion] = "KSS2"
-		params[HTTPParamExpiresV2] = strconv.FormatInt(expiration, 10)
-		params[HTTPParamAccessKeyIDV2] = conn.config.AccessKeyID
-		additionalList, _ := conn.getAdditionalHeaderKeys(req)
-		if len(additionalList) > 0 {
-			params[HTTPParamAdditionalHeadersV2] = strings.Join(additionalList, ";")
-		}
-	}
-
-	subResource := conn.getSubResource(params)
-	canonicalResource := conn.getResource(bucketName, objectName, subResource)
-	signedStr := conn.getSignedStr(req, canonicalResource, akIf.GetAccessKeySecret())
-
-	if conn.config.AuthVersion == AuthV1 {
-		params[HTTPParamExpires] = strconv.FormatInt(expiration, 10)
-		params[HTTPParamAccessKeyID] = akIf.GetAccessKeyID()
-		params[HTTPParamSignature] = signedStr
-	} else if conn.config.AuthVersion == AuthV2 {
-		params[HTTPParamSignatureV2] = signedStr
-	}
-	str := encodeKS3Str(objectName)
-	urlParams := conn.getURLParams(params)
-	return conn.Url.getSignURL(bucketName, str, urlParams)
+	return s.signHeader(req, creds, canonicalizedResource)
 }
 
-func (conn Conn) signPolicyURL(bucketName string, expiration int64, params map[string]interface{}) string {
-	akIf := conn.config.GetCredentials()
-	if akIf.GetSecurityToken() != "" {
-		params[HTTPParamSecurityToken] = akIf.GetSecurityToken()
+func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) (string, error) {
+	var s signer
+	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
+		s = v4Signer{conn.config, conn.Url}
+	} else {
+		s = v2Signer{conn.config, conn.Url}
 	}
-
-	date := strconv.FormatInt(expiration, 10)
-	subResource := conn.getPolicySubResource(params)
-	canonicalResource := conn.getResource(bucketName, "", subResource)
-	signedStr := conn.getPolicySignedStr(canonicalResource, date, akIf.GetAccessKeySecret())
-
-	params[HTTPParamExpires] = strconv.FormatInt(expiration, 10)
-	params[HTTPParamAccessKeyID] = akIf.GetAccessKeyID()
-	params[HTTPParamSignature] = signedStr
-
-	urlParams := conn.getURLParams(params)
-	return conn.Url.getSignURL(bucketName, "", urlParams)
+	return s.signURL(method, bucketName, objectName, expiration, params, headers)
 }
 
-func (conn Conn) signRtmpURL(bucketName, channelName, playlistName string, expiration int64) string {
-	params := map[string]interface{}{}
-	if playlistName != "" {
-		params[HTTPParamPlaylistName] = playlistName
+func (conn Conn) signPolicyURL(bucketName string, expiration int64, params map[string]interface{}) (string, error) {
+	var s signer
+	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
+		s = v4Signer{conn.config, conn.Url}
+	} else {
+		s = v2Signer{conn.config, conn.Url}
 	}
-	expireStr := strconv.FormatInt(expiration, 10)
-	params[HTTPParamExpires] = expireStr
-
-	akIf := conn.config.GetCredentials()
-	if akIf.GetAccessKeyID() != "" {
-		params[HTTPParamAccessKeyID] = akIf.GetAccessKeyID()
-		if akIf.GetSecurityToken() != "" {
-			params[HTTPParamSecurityToken] = akIf.GetSecurityToken()
-		}
-		signedStr := conn.getRtmpSignedStr(bucketName, channelName, playlistName, expiration, akIf.GetAccessKeySecret(), params)
-		params[HTTPParamSignature] = signedStr
-	}
-
-	urlParams := conn.getURLParams(params)
-	return conn.Url.getSignRtmpURL(bucketName, channelName, urlParams)
-}
-
-func IsEmpty(r io.Reader) bool {
-
-	reader := bufio.NewReader(r)
-	_, err := reader.Peek(1)
-	if err != nil {
-		return true
-	}
-	return false
+	return s.signPolicyURL(bucketName, expiration, params)
 }
 
 // handleBody handles request body
@@ -952,16 +803,6 @@ func (um UrlMaker) getURL(bucket, object, params string) *url.URL {
 func (um UrlMaker) getSignURL(bucket, object, params string) string {
 	host, path := um.buildURL(bucket, object)
 	return fmt.Sprintf("%s://%s%s?%s", um.Scheme, host, path, params)
-}
-
-// getSignRtmpURL Build Sign Rtmp URL
-func (um UrlMaker) getSignRtmpURL(bucket, channelName, params string) string {
-	host, path := um.buildURL(bucket, "live")
-
-	channelName = url.QueryEscape(channelName)
-	channelName = strings.Replace(channelName, "+", "%20", -1)
-
-	return fmt.Sprintf("rtmp://%s%s/%s?%s", host, path, channelName, params)
 }
 
 // buildURL builds URL

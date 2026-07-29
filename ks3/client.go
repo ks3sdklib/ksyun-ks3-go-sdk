@@ -70,8 +70,12 @@ func New(endpoint, accessKeyID, accessKeySecret string, options ...ClientOption)
 		option(client)
 	}
 
-	if config.AuthVersion != AuthV1 && config.AuthVersion != AuthV2 {
+	if config.AuthVersion != AuthV2 && config.AuthVersion != AuthV4 && config.AuthVersion != AuthV4UnsignedPayload {
 		return nil, fmt.Errorf("Init client Error, invalid Auth version: %v", config.AuthVersion)
+	}
+	// v4 签名需要 region（region 是 scope 的一部分）。
+	if (config.AuthVersion == AuthV4 || config.AuthVersion == AuthV4UnsignedPayload) && config.Region == "" {
+		return nil, fmt.Errorf("Init client Error, v4 signature requires region")
 	}
 
 	// Create HTTP connection
@@ -2161,17 +2165,24 @@ func SetLocalAddr(localAddr net.Addr) ClientOption {
 	}
 }
 
-// AuthVersion  sets auth version: v1 or v2 signature which ks3_server needed
+// AuthVersion 设置签名版本：v2 签名（ks3_server 所需）
 func AuthVersion(authVersion AuthVersionType) ClientOption {
 	return func(client *Client) {
 		client.Config.AuthVersion = authVersion
 	}
 }
 
-// AdditionalHeaders sets special http headers needed to be signed
-func AdditionalHeaders(headers []string) ClientOption {
+// Region 设置 v4 签名 scope 中的 region（如 "BEIJING"、"us-east-1"）；v4 必填，v2 忽略。
+func Region(region string) ClientOption {
 	return func(client *Client) {
-		client.Config.AdditionalHeaders = headers
+		client.Config.Region = region
+	}
+}
+
+// UseAwsSignature 切换为 AWS 兼容命名空间（x-amz-/AWS/AWS4），影响 v2 与 v4，默认 false。
+func UseAwsSignature(useAws bool) ClientOption {
+	return func(client *Client) {
+		client.Config.UseAwsSignature = useAws
 	}
 }
 

@@ -108,8 +108,9 @@ type Config struct {
 	CredentialsProvider  CredentialsProvider // User provides interface to get AccessKeyID, AccessKeySecret, SecurityToken
 	LocalAddr            net.Addr            // local client host info
 	UserSetUa            bool                // UserAgent is set by user or not
-	AuthVersion          AuthVersionType     //  v1 or v2 signature,default is v1
-	AdditionalHeaders    []string            //  special http headers needed to be sign
+	AuthVersion          AuthVersionType     // v2 signature, default is v2
+	Region               string              // v4 签名 scope 中的 region（如 BEIJING / us-east-1），AuthVersion 为 v4 时必填
+	UseAwsSignature      bool                // 是否用 AWS 兼容签名命名空间（x-amz-/AWS/AWS4）替代 KS3 原生（x-kss-/KSS/KSS4），默认 false
 	RedirectEnabled      bool                //  only effective from go1.7 onward, enable http redirect or not
 	InsecureSkipVerify   bool                //  for https, Whether to skip verifying the server certificate file
 	ProxyFromEnvironment bool                //  Whether to use the system's proxy settings
@@ -237,7 +238,7 @@ func getDefaultKs3Config() *Config {
 	provider := &defaultCredentialsProvider{config: &config}
 	config.CredentialsProvider = provider
 
-	config.AuthVersion = AuthV1
+	config.AuthVersion = AuthV2
 	config.RedirectEnabled = true
 	config.InsecureSkipVerify = false
 	config.EnableHTTP2 = false
