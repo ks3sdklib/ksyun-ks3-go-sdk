@@ -58,7 +58,7 @@ func (s *Ks3ConnSuite) TestV4HeaderSign(c *C) {
 	c.Assert(req.Header.Get("x-kss-date"), Not(Equals), "")
 	c.Assert(req.Header.Get("x-kss-content-sha256"), Not(Equals), "")
 	// 可 seek body 的 content-sha256 在 AuthV4 下不是 "UNSIGNED-PAYLOAD"
-	c.Assert(req.Header.Get("x-kss-content-sha256"), Not(Equals), v4UnsignedPayload)
+	c.Assert(req.Header.Get("x-kss-content-sha256"), Not(Equals), unsignedPayload)
 }
 
 // TestV4UnsignedPayloadHeaderSign 验证 AuthV4UnsignedPayload 始终用 UNSIGNED-PAYLOAD。
@@ -85,7 +85,7 @@ func (s *Ks3ConnSuite) TestV4UnsignedPayloadHeaderSign(c *C) {
 
 	err := conn.signHeader(req, getResource("bucket", "object", ""))
 	c.Assert(err, IsNil)
-	c.Assert(req.Header.Get("x-kss-content-sha256"), Equals, v4UnsignedPayload)
+	c.Assert(req.Header.Get("x-kss-content-sha256"), Equals, unsignedPayload)
 	c.Assert(strings.HasPrefix(req.Header.Get(HTTPHeaderAuthorization), "KSS4-HMAC-SHA256 "), Equals, true)
 }
 

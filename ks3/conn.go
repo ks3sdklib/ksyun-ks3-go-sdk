@@ -350,38 +350,28 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	return ks3Resp, err
 }
 
+// signer 按 config.AuthVersion 返回对应的签名器实例（V4→v4Signer，否则→v2Signer）。
+func (conn Conn) signer() signer {
+	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
+		return v4Signer{conn.config, conn.Url}
+	}
+	return v2Signer{conn.config, conn.Url}
+}
+
 func (conn Conn) signHeader(req *http.Request, canonicalizedResource string) error {
 	creds := conn.config.GetCredentials()
 	if creds.GetAccessKeyID() == "" && creds.GetAccessKeySecret() == "" && creds.GetSecurityToken() == "" {
 		return nil
 	}
-	var s signer
-	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
-		s = v4Signer{conn.config, conn.Url}
-	} else {
-		s = v2Signer{conn.config, conn.Url}
-	}
-	return s.signHeader(req, creds, canonicalizedResource)
+	return conn.signer().signHeader(req, creds, canonicalizedResource)
 }
 
 func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) (string, error) {
-	var s signer
-	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
-		s = v4Signer{conn.config, conn.Url}
-	} else {
-		s = v2Signer{conn.config, conn.Url}
-	}
-	return s.signURL(method, bucketName, objectName, expiration, params, headers)
+	return conn.signer().signURL(method, bucketName, objectName, expiration, params, headers)
 }
 
 func (conn Conn) signPolicyURL(bucketName string, expiration int64, params map[string]interface{}) (string, error) {
-	var s signer
-	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
-		s = v4Signer{conn.config, conn.Url}
-	} else {
-		s = v2Signer{conn.config, conn.Url}
-	}
-	return s.signPolicyURL(bucketName, expiration, params)
+	return conn.signer().signPolicyURL(bucketName, expiration, params)
 }
 
 // handleBody handles request body

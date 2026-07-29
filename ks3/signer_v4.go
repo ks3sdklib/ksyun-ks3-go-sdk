@@ -38,8 +38,7 @@ const (
 	awsV4HeaderPrefix    = "x-amz-"
 	awsV4QueryPrefix     = "X-Amz-"
 
-	v4UnsignedPayload = "UNSIGNED-PAYLOAD"
-	v4LineSeparator   = "\n"
+	unsignedPayload = "UNSIGNED-PAYLOAD"
 )
 
 // namespace 返回当前命名空间的 V4 常量：默认 KS3 原生，UseAwsSignature 时为 AWS 兼容。
@@ -111,11 +110,8 @@ func (s v4Signer) signHeader(req *http.Request, creds Credentials, canonicalized
 	auth := s.buildAuthorizationHeader(req, signature, creds.GetAccessKeyID(), t, region)
 	req.Header.Set(HTTPHeaderAuthorization, auth)
 
-	// 调试日志
-	if s.config.LogLevel >= Debug {
-		s.config.WriteLog(Debug, "[Req:%p]v4 canonicalRequest:%q\n", req, canonicalRequest)
-		s.config.WriteLog(Debug, "[Req:%p]v4 stringToSign:%q\n", req, stringToSign)
-	}
+	s.config.WriteLog(Debug, "[Req:%p]v4 canonicalRequest:%q\n", req, canonicalRequest)
+	s.config.WriteLog(Debug, "[Req:%p]v4 stringToSign:%q\n", req, stringToSign)
 	return nil
 }
 
@@ -175,7 +171,7 @@ func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expi
 	}
 	req.URL = &url.URL{Path: path, RawQuery: query.Encode()}
 
-	canonicalRequest := s.createCanonicalRequest(req, v4UnsignedPayload)
+	canonicalRequest := s.createCanonicalRequest(req, unsignedPayload)
 	stringToSign := s.createStringToSign(canonicalRequest, t, region)
 	signingKey := s.deriveSigningKey(creds.GetAccessKeySecret(), dateStamp, region)
 	signature := v4ComputeSignature(stringToSign, signingKey)
@@ -238,7 +234,7 @@ func (s v4Signer) signPolicyURL(bucketName string, expiration int64, params map[
 			}
 		}
 	}
-	canonicalRequest := v4CanonicalizedQueryString(shareQuery) + v4LineSeparator + v4UnsignedPayload
+	canonicalRequest := v4CanonicalizedQueryString(shareQuery) + "\n" + unsignedPayload
 
 	stringToSign := s.createStringToSign(canonicalRequest, t, region)
 	signingKey := s.deriveSigningKey(creds.GetAccessKeySecret(), dateStamp, region)
@@ -255,7 +251,7 @@ func (s v4Signer) signPolicyURL(bucketName string, expiration int64, params map[
 //   - AuthV4 仅当 body 可重读（io.ReadSeeker）时算真实 sha256 并 Seek 回起始，否则 UNSIGNED-PAYLOAD
 func (s v4Signer) calculateContentHash(req *http.Request) (string, error) {
 	if s.config.AuthVersion == AuthV4UnsignedPayload {
-		return v4UnsignedPayload, nil
+		return unsignedPayload, nil
 	}
 	body := req.Body
 	if body == nil {
@@ -266,7 +262,7 @@ func (s v4Signer) calculateContentHash(req *http.Request) (string, error) {
 	// 可重读判断（io.ReadSeeker）。
 	r, ok := body.(io.ReadSeeker)
 	if !ok {
-		return v4UnsignedPayload, nil
+		return unsignedPayload, nil
 	}
 	// 算完 sha256 再把流 Seek 回起始，保证 body 仍可正常发送。
 	h := sha256.New()
@@ -285,7 +281,7 @@ func (s v4Signer) calculateContentHash(req *http.Request) (string, error) {
 //   - AuthV4：data 为 io.ReadSeeker 时算真实 sha256 并 Seek 回起始；否则 UNSIGNED-PAYLOAD
 func (s v4Signer) computeContentSHA256FromReader(data io.Reader) (string, io.Reader, error) {
 	if s.config.AuthVersion == AuthV4UnsignedPayload {
-		return v4UnsignedPayload, data, nil
+		return unsignedPayload, data, nil
 	}
 	if data == nil {
 		sum := sha256.Sum256(nil)
@@ -293,7 +289,7 @@ func (s v4Signer) computeContentSHA256FromReader(data io.Reader) (string, io.Rea
 	}
 	r, ok := data.(io.ReadSeeker)
 	if !ok {
-		return v4UnsignedPayload, data, nil
+		return unsignedPayload, data, nil
 	}
 	h := sha256.New()
 	if _, err := io.Copy(h, r); err != nil {
@@ -320,7 +316,7 @@ func (s v4Signer) canonicalizedHeaderString(req *http.Request) string {
 		value := req.Header.Get(name)
 		entry := strings.ToLower(name) + ":" + value
 		buf.WriteString(strings.TrimSpace(entry))
-		buf.WriteString(v4LineSeparator)
+		buf.WriteString("\n")
 	}
 	return buf.String()
 }
@@ -408,15 +404,15 @@ func (s v4Signer) createCanonicalRequest(req *http.Request, contentSha256 string
 
 	var buf bytes.Buffer
 	buf.WriteString(req.Method)
-	buf.WriteString(v4LineSeparator)
+	buf.WriteString("\n")
 	buf.WriteString(canonicalURI)
-	buf.WriteString(v4LineSeparator)
+	buf.WriteString("\n")
 	buf.WriteString(canonicalQuery)
-	buf.WriteString(v4LineSeparator)
+	buf.WriteString("\n")
 	buf.WriteString(canonicalHeaders)
-	buf.WriteString(v4LineSeparator)
+	buf.WriteString("\n")
 	buf.WriteString(signedHeaders)
-	buf.WriteString(v4LineSeparator)
+	buf.WriteString("\n")
 	buf.WriteString(contentSha256)
 	return buf.String()
 }
@@ -434,9 +430,9 @@ func (s v4Signer) createStringToSign(canonicalRequest string, t time.Time, regio
 	scope := fmt.Sprintf("%s/%s/%s/%s", dateStamp, region, service, terminator)
 	sum := sha256.Sum256([]byte(canonicalRequest))
 	return fmt.Sprintf("%s%s%s%s%s%s%s",
-		algorithm, v4LineSeparator,
-		dateTime, v4LineSeparator,
-		scope, v4LineSeparator,
+		algorithm, "\n",
+		dateTime, "\n",
+		scope, "\n",
 		hex.EncodeToString(sum[:]))
 }
 
