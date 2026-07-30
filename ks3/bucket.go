@@ -1031,6 +1031,10 @@ func (bucket Bucket) SignURL(objectKey string, method HTTPMethod, expiredInSec i
 	if expiredInSec < 0 {
 		return "", fmt.Errorf("invalid expires: %d, expires must bigger than 0", expiredInSec)
 	}
+	creds := bucket.Client.Config.GetCredentials()
+	if creds.GetAccessKeyID() == "" || creds.GetAccessKeySecret() == "" {
+		return "", fmt.Errorf("AccessKeyId or AccessKeySecret can't be empty")
+	}
 	A := time.Now().Unix()
 	expiration := A + expiredInSec
 
@@ -1049,6 +1053,10 @@ func (bucket Bucket) SignURL(objectKey string, method HTTPMethod, expiredInSec i
 }
 
 func (bucket Bucket) SignPolicyURL(policy string, expiration int64, options ...Option) (string, error) {
+	creds := bucket.Client.Config.GetCredentials()
+	if creds.GetAccessKeyID() == "" || creds.GetAccessKeySecret() == "" {
+		return "", fmt.Errorf("AccessKeyId or AccessKeySecret can't be empty")
+	}
 	params, err := GetRawParams(options)
 	if err != nil {
 		return "", err

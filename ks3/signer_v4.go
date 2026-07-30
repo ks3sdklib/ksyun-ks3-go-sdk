@@ -16,13 +16,12 @@ import (
 )
 
 // v4Signer 承载 V4（HMAC-SHA256）签名所需的状态，与 Conn 解耦。
-// AWS 兼容命名空间由 namespace 内部读 config.UseAwsSignature 切换，无需单独 signer。
 type v4Signer struct {
 	config   *Config
 	urlMaker *UrlMaker
 }
 
-// V4 签名常量，按命名空间区分：KS3 原生（ks3V4*）与 AWS 兼容（awsV4*）。
+// V4 签名命名空间常量。
 const (
 	ks3V4Algorithm       = "KSS4-HMAC-SHA256"
 	ks3V4Terminator      = "kss4_request"
@@ -41,7 +40,7 @@ const (
 	unsignedPayload = "UNSIGNED-PAYLOAD"
 )
 
-// namespace 返回当前命名空间的 V4 常量：默认 KS3 原生，UseAwsSignature 时为 AWS 兼容。
+// namespace 返回当前命名空间的 V4 常量。
 func (s v4Signer) namespace() (algorithm, terminator, service, secretPrefix, headerPrefix, queryPrefix string) {
 	if s.config.UseAwsSignature {
 		return awsV4Algorithm, awsV4Terminator, awsV4ServiceName, awsV4SecretKeyPrefix, awsV4HeaderPrefix, awsV4QueryPrefix
@@ -89,7 +88,6 @@ func (s v4Signer) signHeader(req *http.Request, creds Credentials, canonicalized
 
 	req.Header.Set(s.getHeaderName(v4Date), t.Format("20060102T150405Z"))
 	req.Header.Set("Host", req.Host)
-	// content-sha256：预算值缺失时回退现算
 	contentSha256 := req.Header.Get(s.getHeaderName(v4ContentSHA256))
 	if contentSha256 == "" {
 		var err error
@@ -121,9 +119,6 @@ func (s v4Signer) signHeader(req *http.Request, creds Credentials, canonicalized
 // *http.Request，而非只有 Method+Header 的桩请求。
 func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) (string, error) {
 	creds := s.config.GetCredentials()
-	if creds.GetAccessKeyID() == "" && creds.GetAccessKeySecret() == "" && creds.GetSecurityToken() == "" {
-		return "", fmt.Errorf("v4 presigned URL requires credentials")
-	}
 	region := s.config.Region
 	t := time.Now().UTC()
 	dateStamp := t.Format("20060102")
@@ -156,8 +151,17 @@ func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expi
 			query.Set(k, s)
 		}
 	}
-	// 预签名 URL 只签 Host 头。
 	presignHeaders := map[string]string{"Host": host}
+	for k, v := range headers {
+		if !s.isSignedHeader(k) {
+			continue
+		}
+		key := k
+		if s.config.UseAwsSignature {
+			key = awsHeaderName(k)
+		}
+		presignHeaders[key] = v
+	}
 	signedHeaders := s.signedHeadersStringForHeaders(presignHeaders)
 	params[qSignedHeaders] = signedHeaders
 	query.Set(qSignedHeaders, signedHeaders)
@@ -189,9 +193,6 @@ func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expi
 // 且只签分享相关的查询参数（Algorithm/Credential/Date/Expires/Policy/Security-Token）。
 func (s v4Signer) signPolicyURL(bucketName string, expiration int64, params map[string]interface{}) (string, error) {
 	creds := s.config.GetCredentials()
-	if creds.GetAccessKeyID() == "" && creds.GetAccessKeySecret() == "" && creds.GetSecurityToken() == "" {
-		return "", fmt.Errorf("v4 share URL requires credentials")
-	}
 	region := s.config.Region
 	t := time.Now().UTC()
 	dateStamp := t.Format("20060102")
@@ -301,11 +302,22 @@ func (s v4Signer) computeContentSHA256FromReader(data io.Reader) (string, io.Rea
 	return hex.EncodeToString(h.Sum(nil)), r, nil
 }
 
-// canonicalizedHeaderString 构造规范头字符串：头转小写、按大小写不敏感排序，
-// 以 "name:value\n" 连接。
+// isSignedHeader 判定请求头是否参与 V4 签名：Host、Content-Type 及命名空间前缀头。
+func (s v4Signer) isSignedHeader(name string) bool {
+	lower := strings.ToLower(name)
+	if lower == "host" || lower == "content-type" {
+		return true
+	}
+	return strings.HasPrefix(lower, ks3V4HeaderPrefix) || strings.HasPrefix(lower, awsV4HeaderPrefix)
+}
+
+// canonicalizedHeaderString 构造规范头字符串（仅白名单头）。
 func (s v4Signer) canonicalizedHeaderString(req *http.Request) string {
 	names := make([]string, 0, len(req.Header))
 	for name := range req.Header {
+		if !s.isSignedHeader(name) {
+			continue
+		}
 		names = append(names, name)
 	}
 	sort.Slice(names, func(i, j int) bool {
@@ -313,18 +325,18 @@ func (s v4Signer) canonicalizedHeaderString(req *http.Request) string {
 	})
 	var buf bytes.Buffer
 	for _, name := range names {
-		value := req.Header.Get(name)
-		entry := strings.ToLower(name) + ":" + value
-		buf.WriteString(strings.TrimSpace(entry))
-		buf.WriteString("\n")
+		buf.WriteString(strings.ToLower(name) + ":" + strings.TrimSpace(req.Header.Get(name)) + "\n")
 	}
 	return buf.String()
 }
 
-// signedHeadersString 构造 SignedHeaders 值：排序后转小写、分号连接。
+// signedHeadersString 构造 SignedHeaders 值（仅白名单头）。
 func (s v4Signer) signedHeadersString(req *http.Request) string {
 	names := make([]string, 0, len(req.Header))
 	for name := range req.Header {
+		if !s.isSignedHeader(name) {
+			continue
+		}
 		names = append(names, name)
 	}
 	sort.Slice(names, func(i, j int) bool {
@@ -337,21 +349,25 @@ func (s v4Signer) signedHeadersString(req *http.Request) string {
 	return strings.Join(lowered, ";")
 }
 
-// v4CanonicalizedQueryString 构造规范查询串：参数按 url 编码、按 key 排序、"key=value" 以 & 连接。
+// v4CanonicalizedQueryString 构造规范查询串：参数名/值各自编码后，按编码后的名称排序，
+// "key=value" 以 & 连接（子资源无值则 value 为空）。
 func v4CanonicalizedQueryString(query url.Values) string {
-	keys := make([]string, 0, len(query))
+	type kv struct{ key, val string }
+	pairs := make([]kv, 0, len(query))
 	for k := range query {
-		keys = append(keys, k)
+		pairs = append(pairs, kv{v4URLEncodeQuery(k), v4URLEncodeQuery(query.Get(k))})
 	}
-	sort.Strings(keys)
+	sort.Slice(pairs, func(i, j int) bool {
+		return pairs[i].key < pairs[j].key
+	})
 	var buf bytes.Buffer
-	for _, k := range keys {
-		if buf.Len() > 0 {
+	for i, p := range pairs {
+		if i > 0 {
 			buf.WriteString("&")
 		}
-		buf.WriteString(v4URLEncodeQuery(k))
+		buf.WriteString(p.key)
 		buf.WriteString("=")
-		buf.WriteString(v4URLEncodeQuery(query.Get(k)))
+		buf.WriteString(p.val)
 	}
 	return buf.String()
 }
@@ -393,7 +409,9 @@ func v4URLEncodePath(s string) string {
 //	SignedHeaders\n
 //	contentSha256
 func (s v4Signer) createCanonicalRequest(req *http.Request, contentSha256 string) string {
-	path := req.URL.EscapedPath()
+	// 用未编码的 Path 作为输入，由 v4CanonicalizedResourcePath 单次编码；
+	// 若用 EscapedPath()（已编码）会再编码一次，导致双重编码。
+	path := req.URL.Path
 	if path == "" {
 		path = "/"
 	}
@@ -516,9 +534,20 @@ func replaceAwsHeaders(req *http.Request) {
 	req.Header = newHeaders
 }
 
-// buildAuthorizationHeader 构造 Authorization 头：
-//
-//	Algorithm Credential=AK/scope, SignedHeaders=h;h, Signature=hex
+// awsHeaderName 在 AWS 模式把 x-kss- 头名改写为 x-amz-（ks3OnlyHeaders 保留）。仅 AWS 模式使用。
+func awsHeaderName(key string) string {
+	lowerKey := strings.ToLower(key)
+	if ks3OnlyHeaders[lowerKey] {
+		return key
+	}
+	if strings.HasPrefix(lowerKey, ks3V4HeaderPrefix) {
+		// X-Kss- 与 X-Amz- 等长，按位置切片改名
+		return awsHeaderPrefixCanonical + key[len(ks3HeaderPrefixCanonical):]
+	}
+	return key
+}
+
+// buildAuthorizationHeader 构造 Authorization 头：Algorithm Credential=AK/scope, SignedHeaders=..., Signature=hex。
 func (s v4Signer) buildAuthorizationHeader(req *http.Request, signature string, accessKeyID string, t time.Time, region string) string {
 	dateStamp := t.UTC().Format("20060102")
 	algorithm, terminator, service, _, _, _ := s.namespace()

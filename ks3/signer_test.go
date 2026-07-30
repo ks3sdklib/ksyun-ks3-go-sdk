@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"net/http"
+	"net/url"
 
 	. "gopkg.in/check.v1"
 )
@@ -53,6 +54,11 @@ func (s *Ks3ConnSuite) TestV4HeaderSign(c *C) {
 	c.Assert(strings.Contains(auth, "/BEIJING/ks3/kss4_request"), Equals, true)
 	c.Assert(strings.Contains(auth, "SignedHeaders="), Equals, true)
 	c.Assert(strings.Contains(auth, "Signature="), Equals, true)
+
+	// V4 白名单：SignedHeaders 含 Host/Content-Type/x-kss-*，不含 Date/User-Agent/Content-Length 等
+	c.Assert(strings.Contains(auth, "SignedHeaders=content-type;host;x-kss-content-sha256;x-kss-date"), Equals, true)
+	c.Assert(strings.Contains(auth, "user-agent"), Equals, false)
+	c.Assert(strings.Contains(auth, "content-length"), Equals, false)
 
 	// 必需的 v4 头
 	c.Assert(req.Header.Get("x-kss-date"), Not(Equals), "")
@@ -126,6 +132,109 @@ func (s *Ks3ConnSuite) TestV4PresignedURL(c *C) {
 	c.Assert(strings.Contains(signedURL, "X-Kss-Expires=3600"), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-SignedHeaders="), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Signature="), Equals, true)
+}
+
+// TestV4PresignedURLWithContentType 验证预签名 URL 纳入用户传入的 Content-Type 头。
+func (s *Ks3ConnSuite) TestV4PresignedURLWithContentType(c *C) {
+	endpoint := "https://ks3-example.com"
+	cfg := getDefaultKs3Config()
+	cfg.AuthVersion = AuthV4
+	cfg.Region = "BEIJING"
+	cfg.AccessKeyID = "test-ak"
+	cfg.AccessKeySecret = "test-sk"
+	um := UrlMaker{}
+	um.Init(endpoint, false, false, false)
+	conn := Conn{cfg, &um, nil}
+
+	params := map[string]interface{}{}
+	headers := map[string]string{"Content-Type": "text/plain"}
+	signedURL, err := conn.signURL("GET", "bucket", "object", 3600, params, headers)
+	c.Assert(err, IsNil)
+
+	// SignedHeaders 应含 content-type（; 在 URL 中编码为 %3B）
+	c.Assert(strings.Contains(signedURL, "X-Kss-SignedHeaders=content-type%3Bhost"), Equals, true)
+	c.Assert(strings.Contains(signedURL, "X-Kss-Signature="), Equals, true)
+
+	u, err := url.Parse(signedURL)
+	c.Assert(err, IsNil)
+	c.Assert(u.Query().Get("X-Kss-SignedHeaders"), Equals, "content-type;host")
+}
+
+// TestV4AwsPresignedURLWithXKssHeader 验证 AWS 模式预签名把 x-kss- 用户头改写为 x-amz- 再签。
+func (s *Ks3ConnSuite) TestV4AwsPresignedURLWithXKssHeader(c *C) {
+	endpoint := "https://ks3-example.com"
+	cfg := getDefaultKs3Config()
+	cfg.AuthVersion = AuthV4
+	cfg.UseAwsSignature = true
+	cfg.Region = "us-east-1"
+	cfg.AccessKeyID = "test-ak"
+	cfg.AccessKeySecret = "test-sk"
+	um := UrlMaker{}
+	um.Init(endpoint, false, false, false)
+	conn := Conn{cfg, &um, nil}
+
+	params := map[string]interface{}{}
+	headers := map[string]string{"X-Kss-Acl": "public-read"}
+	signedURL, err := conn.signURL("GET", "bucket", "object", 3600, params, headers)
+	c.Assert(err, IsNil)
+
+	u, err := url.Parse(signedURL)
+	c.Assert(err, IsNil)
+	c.Assert(u.Query().Get("X-Amz-SignedHeaders"), Equals, "host;x-amz-acl")
+}
+
+// TestV4CanonicalizedResourcePath 验证 CanonicalURI 对 object key 单次编码、保留 "/"。
+func (s *Ks3ConnSuite) TestV4CanonicalizedResourcePath(c *C) {
+	c.Assert(v4CanonicalizedResourcePath(""), Equals, "/")
+	c.Assert(v4CanonicalizedResourcePath("/"), Equals, "/")
+	c.Assert(v4CanonicalizedResourcePath("/photo.jpg"), Equals, "/photo.jpg")
+	// 空格单次编码为 %20，不应双重编码成 %2520
+	c.Assert(v4CanonicalizedResourcePath("/my file.jpg"), Equals, "/my%20file.jpg")
+	c.Assert(strings.Contains(v4CanonicalizedResourcePath("/my file.jpg"), "%25"), Equals, false)
+	// "/" 不编码
+	c.Assert(v4CanonicalizedResourcePath("/a/b/c"), Equals, "/a/b/c")
+}
+
+// TestV4PresignedURLWithSpacedKey 验证含空格的 object key 预签名不双重编码、签名可生成。
+func (s *Ks3ConnSuite) TestV4PresignedURLWithSpacedKey(c *C) {
+	endpoint := "https://ks3-example.com"
+	cfg := getDefaultKs3Config()
+	cfg.AuthVersion = AuthV4
+	cfg.Region = "BEIJING"
+	cfg.AccessKeyID = "test-ak"
+	cfg.AccessKeySecret = "test-sk"
+	um := UrlMaker{}
+	um.Init(endpoint, false, false, false)
+	conn := Conn{cfg, &um, nil}
+
+	params := map[string]interface{}{}
+	signedURL, err := conn.signURL("GET", "bucket", "my file.jpg", 3600, params, nil)
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(signedURL, "X-Kss-Signature="), Equals, true)
+	// URL 路径里空格应为 %20，不应出现双重编码的 %2520
+	c.Assert(strings.Contains(signedURL, "%2520"), Equals, false)
+}
+
+// TestSignURLRequiresCredentials 验证 V2/V4 预签名与分享外链在 AK 或 SK 为空时报错（对齐 Java 业务入口校验）。
+func (s *Ks3ConnSuite) TestSignURLRequiresCredentials(c *C) {
+	for _, auth := range []AuthVersionType{AuthV2, AuthV4} {
+		cfg := getDefaultKs3Config()
+		cfg.AuthVersion = auth
+		if auth == AuthV4 {
+			cfg.Region = "BEIJING"
+		}
+		// AK/SK 留空（getDefaultKs3Config 默认即空）
+		um := UrlMaker{}
+		um.Init("https://ks3-example.com", false, false, false)
+		conn := &Conn{cfg, &um, nil}
+		bucket := Bucket{Client: Client{Config: cfg, Conn: conn}, BucketName: "bucket"}
+
+		_, err := bucket.SignURL("object", "GET", 3600)
+		c.Assert(err, NotNil)
+
+		_, err = bucket.SignPolicyURL(`{"expiration":"2030-01-01T00:00:00Z"}`, 3600)
+		c.Assert(err, NotNil)
+	}
 }
 
 // TestV4AwsNamespace 验证 useAwsSignature 产出 AWS 兼容的 v4 命名空间：
