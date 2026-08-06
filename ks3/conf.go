@@ -100,10 +100,11 @@ type Config struct {
 	IsEnableCRC          bool                // Flag of enabling CRC for upload.
 	LogLevel             int                 // Log level
 	Logger LogPrinter                        // For write log
-	UploadLimitSpeed     int                 // Upload limit speed:KB/s, 0 is unlimited
+	UploadLimitSpeed     int                 // Upload limit speed in byte/s, 0 is unlimited
 	UploadLimiter        *Ks3Limiter         // Bandwidth limit reader for upload
-	DownloadLimitSpeed   int                 // Download limit speed:KB/s, 0 is unlimited
+	DownloadLimitSpeed   int                 // Download limit speed in byte/s, 0 is unlimited
 	DownloadLimiter      *Ks3Limiter         // Bandwidth limit reader for download
+	SpeedLimit           int                 // Limit speed (both upload and download) in byte/s, 0 is unlimited
 	CredentialsProvider  CredentialsProvider // User provides interface to get AccessKeyID, AccessKeySecret, SecurityToken
 	LocalAddr            net.Addr            // local client host info
 	UserSetUa            bool                // UserAgent is set by user or not
@@ -112,9 +113,10 @@ type Config struct {
 	RedirectEnabled      bool                //  only effective from go1.7 onward, enable http redirect or not
 	InsecureSkipVerify   bool                //  for https, Whether to skip verifying the server certificate file
 	ProxyFromEnvironment bool                //  Whether to use the system's proxy settings
+	EnableHTTP2          bool                //  If true, prefer HTTP/2 when server supports it (via ALPN), otherwise HTTP/1.1
 }
 
-// LimitUploadSpeed uploadSpeed:KB/s, 0 is unlimited,default is 0
+// LimitUploadSpeed uploadSpeed in byte/s, 0 is unlimited,default is 0
 func (config *Config) LimitUploadSpeed(uploadSpeed int) error {
 	if uploadSpeed < 0 {
 		return fmt.Errorf("invalid argument, the value of uploadSpeed is less than 0")
@@ -122,6 +124,8 @@ func (config *Config) LimitUploadSpeed(uploadSpeed int) error {
 		config.UploadLimitSpeed = 0
 		config.UploadLimiter = nil
 		return nil
+	} else if uploadSpeed < MinRateLimiterRate {
+		return fmt.Errorf("invalid argument, the value of uploadSpeed must be at least %d byte/s", MinRateLimiterRate)
 	}
 
 	var err error
@@ -132,7 +136,7 @@ func (config *Config) LimitUploadSpeed(uploadSpeed int) error {
 	return err
 }
 
-// LimitDownLoadSpeed downloadSpeed:KB/s, 0 is unlimited,default is 0
+// LimitDownLoadSpeed downloadSpeed in byte/s, 0 is unlimited,default is 0
 func (config *Config) LimitDownloadSpeed(downloadSpeed int) error {
 	if downloadSpeed < 0 {
 		return fmt.Errorf("invalid argument, the value of downloadSpeed is less than 0")
@@ -140,6 +144,8 @@ func (config *Config) LimitDownloadSpeed(downloadSpeed int) error {
 		config.DownloadLimitSpeed = 0
 		config.DownloadLimiter = nil
 		return nil
+	} else if downloadSpeed < MinRateLimiterRate {
+		return fmt.Errorf("invalid argument, the value of downloadSpeed must be at least %d byte/s", MinRateLimiterRate)
 	}
 
 	var err error
@@ -148,6 +154,31 @@ func (config *Config) LimitDownloadSpeed(downloadSpeed int) error {
 		config.DownloadLimitSpeed = downloadSpeed
 	}
 	return err
+}
+
+// LimitSpeed limits both upload and download speed in byte/s, 0 is unlimited,default is 0
+func (config *Config) LimitSpeed(speed int) error {
+	if speed < 0 {
+		return fmt.Errorf("invalid argument, the value of speed is less than 0")
+	} else if speed == 0 {
+		config.SpeedLimit = 0
+		config.UploadLimitSpeed = 0
+		config.UploadLimiter = nil
+		config.DownloadLimitSpeed = 0
+		config.DownloadLimiter = nil
+		return nil
+	} else if speed < MinRateLimiterRate {
+		return fmt.Errorf("invalid argument, the value of speed must be at least %d byte/s", MinRateLimiterRate)
+	}
+
+	if err := config.LimitUploadSpeed(speed); err != nil {
+		return err
+	}
+	if err := config.LimitDownloadSpeed(speed); err != nil {
+		return err
+	}
+	config.SpeedLimit = speed
+	return nil
 }
 
 // WriteLog output log function
@@ -209,6 +240,7 @@ func getDefaultKs3Config() *Config {
 	config.AuthVersion = AuthV1
 	config.RedirectEnabled = true
 	config.InsecureSkipVerify = false
+	config.EnableHTTP2 = false
 
 	return &config
 }

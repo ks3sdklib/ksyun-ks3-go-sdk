@@ -699,7 +699,7 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 	}
 }
 
-// isUploadLimitReq: judge limit upload speed or not
+// isDownloadLimitResponse: judge limit download speed or not
 func (conn Conn) isDownloadLimitResponse(resp *http.Response) bool {
 	if resp == nil || conn.config.DownloadLimitSpeed == 0 || conn.config.DownloadLimiter == nil {
 		return false
