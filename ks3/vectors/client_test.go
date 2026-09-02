@@ -86,7 +86,7 @@ func randLowStr(n int) string {
 	return string(b)
 }
 
-// cleanIndexes 清空指定向量桶下的所有索引（处理分页），用于删桶前清理。
+// cleanIndexes 清空指定向量桶下的所有索引（删索引前先清该索引下的向量），用于删桶前清理。
 func (s *Ks3VectorsClientSuite) cleanIndexes(c *C, bucketName *string) {
 	var nextToken *string
 	for {
@@ -99,6 +99,10 @@ func (s *Ks3VectorsClientSuite) cleanIndexes(c *C, bucketName *string) {
 			if idx.IndexKrn == nil {
 				continue
 			}
+			// 先清空该索引下的向量（删索引前）
+			if idx.IndexName != nil {
+				s.cleanVectors(c, bucketName, idx.IndexName)
+			}
 			c.Logf("cleanIndexes delete: %s", *idx.IndexKrn)
 			if _, err := s.vc.DeleteIndex(&DeleteIndexRequest{IndexKrn: idx.IndexKrn}); err != nil {
 				c.Logf("cleanIndexes delete %s failed: %v", *idx.IndexKrn, err)
@@ -108,6 +112,54 @@ func (s *Ks3VectorsClientSuite) cleanIndexes(c *C, bucketName *string) {
 			return
 		}
 		nextToken = listRes.NextToken
+	}
+}
+
+// cleanVectors 清空指定索引下的所有向量（ListVectors 后逐批 DeleteVectors），用于删索引前清理。
+func (s *Ks3VectorsClientSuite) cleanVectors(c *C, bucketName, indexName *string) {
+	var nextToken *string
+	for {
+		listRes, err := s.vc.ListVectors(&ListVectorsRequest{
+			VectorBucketName: bucketName,
+			IndexName:        indexName,
+			MaxResults:       intPtr(500),
+			NextToken:        nextToken,
+		})
+		if err != nil {
+			// 服务端若未部署 ListVectors 或索引已空，直接返回
+			c.Logf("cleanVectors list %s/%s failed: %v", *bucketName, *indexName, err)
+			return
+		}
+		if len(listRes.Vectors) == 0 {
+			return
+		}
+		keys := make([]string, 0, len(listRes.Vectors))
+		for _, v := range listRes.Vectors {
+			keys = append(keys, v.Key)
+		}
+		c.Logf("cleanVectors delete %d vectors in %s/%s", len(keys), *bucketName, *indexName)
+		if _, err := s.vc.DeleteVectors(&DeleteVectorsRequest{
+			VectorBucketName: bucketName,
+			IndexName:        indexName,
+			Keys:             keys,
+		}); err != nil {
+			c.Logf("cleanVectors delete failed: %v", err)
+		}
+		if listRes.NextToken == nil || *listRes.NextToken == "" {
+			return
+		}
+		nextToken = listRes.NextToken
+	}
+}
+
+// cleanPolicy 删除指定向量桶的策略，用于删桶前清理。
+func (s *Ks3VectorsClientSuite) cleanPolicy(c *C, bucketName *string) {
+	// 策略可能不存在，Get 失败直接返回；存在则删除
+	if _, err := s.vc.GetVectorBucketPolicy(&GetVectorBucketPolicyRequest{VectorBucketName: bucketName}); err != nil {
+		return
+	}
+	if _, err := s.vc.DeleteVectorBucketPolicy(&DeleteVectorBucketPolicyRequest{VectorBucketName: bucketName}); err != nil {
+		c.Logf("cleanPolicy delete %s failed: %v", *bucketName, err)
 	}
 }
 
@@ -126,7 +178,8 @@ func (s *Ks3VectorsClientSuite) cleanTestBuckets(c *C) {
 				continue
 			}
 			name := *b.VectorBucketName
-			// 删桶前先清空桶下所有索引，否则删桶失败。
+			// 删桶前先清空桶的策略和索引（索引清理含向量），否则删桶失败。
+			s.cleanPolicy(c, &name)
 			s.cleanIndexes(c, &name)
 			c.Logf("cleanTestBuckets delete: %s", name)
 			if _, err := s.vc.DeleteVectorBucket(&DeleteVectorBucketRequest{VectorBucketName: &name}); err != nil {
@@ -170,8 +223,9 @@ func (s *Ks3VectorsClientSuite) TearDownSuite(c *C) {
 	if !s.vectorsReady {
 		return
 	}
-	// 删共享桶前先清空其下索引
+	// 删共享桶前先清空其策略和索引（索引清理含向量）
 	if s.bucket != "" {
+		s.cleanPolicy(c, &s.bucket)
 		s.cleanIndexes(c, &s.bucket)
 		_, err := s.vc.DeleteVectorBucket(&DeleteVectorBucketRequest{VectorBucketName: strPtr(s.bucket)})
 		c.Logf("TearDownSuite delete shared bucket %s: %v", s.bucket, err)
@@ -396,26 +450,24 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 		c.Logf("ListVectors: %d vectors", len(listRes.Vectors))
 	}
 
-	// 相似性检索：含所有可选字段，强校验数量与距离（服务端若未部署 QueryVectors 返回错误则 skip）
+	// 相似性检索：含 filter（$eq 过滤 color=red），强校验数量与距离
 	queryRes, err := s.vc.QueryVectors(&QueryVectorsRequest{
 		VectorBucketName: strPtr(s.bucket),
 		IndexName:        strPtr(index),
 		QueryVector:      VectorData{Float32: []float32{1, 2, 3, 4}},
 		TopK:             intPtr(2),
-		Filter:           map[string]interface{}{"color": "red"},
+		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
 		ReturnData:       boolPtr(true),
 		ReturnMetadata:   boolPtr(true),
 		ReturnDistance:   boolPtr(true),
 	})
-	if err != nil {
-		c.Logf("QueryVectors not supported by server, skip: %v", err)
-	} else {
-		c.Assert(queryRes.Vectors, HasLen, 2, Commentf("QueryVectors should return 2 vectors"))
-		// 查询向量与 k1 相同，最近邻距离应为 0（欧氏距离）
-		c.Assert(*queryRes.Vectors[0].Distance, Equals, float64(0))
-		c.Assert(queryRes.Vectors[0].Key, Equals, "k1")
-		c.Logf("QueryVectors: top1 key=%s distance=%v", queryRes.Vectors[0].Key, *queryRes.Vectors[0].Distance)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(queryRes.StatusCode, Equals, http.StatusOK)
+	// filter color=red 只匹配 k1，应返回 1 个
+	c.Assert(queryRes.Vectors, HasLen, 1, Commentf("QueryVectors with filter color=red should return 1 vector"))
+	c.Assert(*queryRes.Vectors[0].Distance, Equals, float64(0))
+	c.Assert(queryRes.Vectors[0].Key, Equals, "k1")
+	c.Logf("QueryVectors: filter color=red, top1 key=%s distance=%v", queryRes.Vectors[0].Key, *queryRes.Vectors[0].Distance)
 
 	// 删除向量
 	_, err = s.vc.DeleteVectors(&DeleteVectorsRequest{
@@ -460,4 +512,44 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketPolicyIntegration(c *C) {
 	_, err = s.vc.DeleteVectorBucketPolicy(&DeleteVectorBucketPolicyRequest{VectorBucketName: strPtr(s.bucket)})
 	c.Assert(err, IsNil)
 	c.Logf("DeleteVectorBucketPolicy success")
+}
+
+// TestVectorServiceErrorIntegration 用参数错误（TopK 超范围）触发服务端 400，
+// 验证 VectorServiceError 的 Message/FieldList/RequestID/StatusCode 真实解析正确。
+func (s *Ks3VectorsClientSuite) TestVectorServiceErrorIntegration(c *C) {
+	s.skipIfNotReady(c)
+
+	// 用共享桶建临时索引（TopK 超范围是参数校验，不需写入数据）
+	index := "idx" + randLowStr(4)
+	_, err := s.vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr(s.bucket),
+		IndexName:        strPtr(index),
+		DataType:         strPtr("float32"),
+		Dimension:        intPtr(4),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, IsNil)
+	defer s.vc.DeleteIndex(&DeleteIndexRequest{VectorBucketName: strPtr(s.bucket), IndexName: strPtr(index)})
+
+	// TopK=100 超范围（上限 30），触发服务端参数校验错误
+	_, err = s.vc.QueryVectors(&QueryVectorsRequest{
+		VectorBucketName: strPtr(s.bucket),
+		IndexName:        strPtr(index),
+		QueryVector:      VectorData{Float32: []float32{1, 2, 3, 4}},
+		TopK:             intPtr(100),
+	})
+	c.Assert(err, NotNil)
+
+	// 验证解析为 VectorServiceError
+	se, ok := err.(ks3.VectorServiceError)
+	c.Assert(ok, Equals, true, Commentf("error should be VectorServiceError, got %T", err))
+	// 校验所有字段
+	c.Assert(se.StatusCode, Equals, 400)
+	c.Assert(se.Message, Not(Equals), "", Commentf("Message should not be empty"))
+	c.Assert(se.RequestID, Not(Equals), "", Commentf("RequestID should not be empty"))
+	c.Assert(se.FieldList, HasLen, 1, Commentf("FieldList should have 1 item"))
+	c.Assert(se.FieldList[0].Message, Not(Equals), "", Commentf("FieldList[0].Message should not be empty"))
+	c.Assert(se.FieldList[0].Path, Equals, "/topK")
+	c.Logf("VectorServiceError: StatusCode=%d Message=%q FieldList[0]={%q,%q} RequestID=%q",
+		se.StatusCode, se.Message, se.FieldList[0].Message, se.FieldList[0].Path, se.RequestID)
 }

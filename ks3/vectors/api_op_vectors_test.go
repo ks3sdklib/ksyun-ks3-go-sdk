@@ -81,7 +81,7 @@ func (s *Ks3VectorsClientSuite) TestListVectors(c *C) {
 		c.Assert(strings.Contains(body, `"returnMetadata":true`), Equals, true)
 		c.Assert(strings.Contains(body, `"segmentCount":4`), Equals, true)
 		c.Assert(strings.Contains(body, `"segmentIndex":3`), Equals, true)
-		c.Assert(strings.Contains(body, `"filter":{"color":"red"}`), Equals, true)
+		c.Assert(strings.Contains(body, `"filter":{"color":{"$eq":"red"}}`), Equals, true)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"nextToken":"tok2","vectors":[{"key":"k1","data":{"float32":[1,2]},"metadata":{"color":"red"}}]}`))
 	})
@@ -96,7 +96,7 @@ func (s *Ks3VectorsClientSuite) TestListVectors(c *C) {
 		ReturnMetadata:   boolPtr(true),
 		SegmentCount:     intPtr(4),
 		SegmentIndex:     intPtr(3),
-		Filter:           map[string]interface{}{"color": "red"},
+		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
 	})
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
@@ -140,25 +140,25 @@ func (s *Ks3VectorsClientSuite) TestQueryVectors(c *C) {
 		c.Assert(strings.Contains(body, `"returnData":true`), Equals, true)
 		c.Assert(strings.Contains(body, `"returnMetadata":true`), Equals, true)
 		c.Assert(strings.Contains(body, `"returnDistance":true`), Equals, true)
-		c.Assert(strings.Contains(body, `"filter":{"color":"red"}`), Equals, true)
+		c.Assert(strings.Contains(body, `"filter":{"color":{"$eq":"red"}}`), Equals, true)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"vectors":[{"key":"k1","data":{"float32":[1,2]},"metadata":{"color":"red"},"distance":0},{"key":"k2","data":{"float32":[3,4]},"distance":8}]}`))
 	})
 	defer srv.Close()
 
-	// 正常：请求构造与响应解析（路径为小写 queryVectors，含所有可选字段）
+	// 正常：请求构造与响应解析（含所有可选字段）
 	res, err := vc.QueryVectors(&QueryVectorsRequest{
 		VectorBucketName: strPtr("bkt"),
 		IndexName:        strPtr("idx"),
 		QueryVector:      VectorData{Float32: []float32{1, 2}},
 		TopK:             intPtr(2),
-		Filter:           map[string]interface{}{"color": "red"},
+		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
 		ReturnData:       boolPtr(true),
 		ReturnMetadata:   boolPtr(true),
 		ReturnDistance:   boolPtr(true),
 	})
 	c.Assert(err, IsNil)
-	c.Assert(gotPath, Equals, "/queryVectors")
+	c.Assert(gotPath, Equals, "/QueryVectors")
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
 	c.Assert(res.Vectors, HasLen, 2)
 	// 校验 QueryOutputVector[0] 所有字段

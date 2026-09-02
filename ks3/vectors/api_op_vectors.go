@@ -318,7 +318,7 @@ func (vc *VectorsClient) QueryVectors(req *QueryVectorsRequest, opts ...ks3.Opti
 	if err := ks3.HandleOptions(headers, opts); err != nil {
 		return nil, err
 	}
-	uri := vc.buildURI("/queryVectors") // 文档定义的路径为小写 queryVectors
+	uri := vc.buildURI("/QueryVectors")
 	resp, err := vc.client.DoRaw(nil, http.MethodPost, uri, headers, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
