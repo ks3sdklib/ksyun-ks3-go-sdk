@@ -20,17 +20,17 @@ const (
 )
 
 const (
-	deleteObjectsQuiet = "delete-objects-quiet"
-	routineNum         = "x-routine-num"
-	checkpointConfig   = "x-cp-config"
-	initCRC64          = "init-crc64"
-	progressListener   = "x-progress-listener"
-	storageClass       = "storage-class"
-	bucketType         = "bucket-type"
-	responseHeader     = "x-response-header"
-	redundancyType     = "redundancy-type"
-	objectHashFunc     = "object-hash-func"
-	contextArg         = "x-context-arg"
+	deleteObjectsQuiet  = "delete-objects-quiet"
+	routineNum          = "x-routine-num"
+	checkpointConfig    = "x-cp-config"
+	initCRC64           = "init-crc64"
+	progressListener    = "x-progress-listener"
+	storageClass        = "storage-class"
+	bucketType          = "bucket-type"
+	responseHeader      = "x-response-header"
+	redundancyType      = "redundancy-type"
+	objectHashFunc      = "object-hash-func"
+	contextArg          = "x-context-arg"
 	disableTempFileFlag = "disable-temp-file"
 	acrossRegion        = "across-region"
 )
@@ -527,7 +527,6 @@ func AcrossRegion(value bool) Option {
 	return addArg(acrossRegion, "false")
 }
 
-
 // ResponseContentType is an option to set response-content-type param
 func ResponseContentType(value string) Option {
 	return addParam("response-content-type", value)
@@ -624,6 +623,11 @@ func handleOptions(headers map[string]string, options []Option) error {
 		}
 	}
 	return nil
+}
+
+// HandleOptions 将 options 解析并合并到 headers（仅 optionHTTP 类型），供子包（如 vectors）应用可选请求头。
+func HandleOptions(headers map[string]string, options []Option) error {
+	return handleOptions(headers, options)
 }
 
 func GetRawParams(options []Option) (map[string]interface{}, error) {

@@ -461,8 +461,8 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 				}
 			} else {
 				// Response contains storage service error object, unmarshal
-				srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
-					resp.Header.Get(HTTPHeaderKs3RequestID))
+				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode,
+					resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
 				if errIn != nil { // error unmarshaling the error response
 					err = fmt.Errorf("ks3: service returned invalid response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderKs3RequestID))
 				} else {
@@ -499,8 +499,8 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 				}
 			} else {
 				// Response contains storage service error object, unmarshal
-				srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
-					resp.Header.Get(HTTPHeaderKs3RequestID))
+				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode,
+					resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
 				if errIn != nil { // error unmarshaling the error response
 					err = fmt.Errorf("unkown response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderKs3RequestID))
 				} else {
@@ -638,6 +638,41 @@ func serviceErrFromXML(body []byte, statusCode int, requestID string) (ServiceEr
 	storageErr.RequestID = requestID
 	storageErr.RawMessage = string(body)
 	return storageErr, nil
+}
+
+// serviceErrFromJSON 解析向量桶 JSON 格式的错误响应体为 VectorServiceError。
+// RequestID 不在 body 中，由响应头 x-kss-request-id（requestID 参数）填入。
+func serviceErrFromJSON(body []byte, statusCode int, requestID string) (VectorServiceError, error) {
+	var vErr VectorServiceError
+
+	if err := json.Unmarshal(body, &vErr); err != nil {
+		return vErr, err
+	}
+
+	vErr.StatusCode = statusCode
+	vErr.RequestID = requestID
+	vErr.RawMessage = string(body)
+	return vErr, nil
+}
+
+// isJSONContentType 判断响应是否为 JSON：Content-Type 含 json 即认为是。
+func isJSONContentType(contentType string) bool {
+	return strings.Contains(strings.ToLower(contentType), "json")
+}
+
+// serviceErrFromBody 解析错误响应体，按响应头 Content-Type 决定优先解析方式：
+// JSON（向量桶 → VectorServiceError）或 XML（普通 KS3 → ServiceError），主解析失败再兜底另一种。
+func serviceErrFromBody(body []byte, statusCode int, requestID, contentType string) (error, error) {
+	if isJSONContentType(contentType) {
+		if vErr, err := serviceErrFromJSON(body, statusCode, requestID); err == nil {
+			return vErr, nil
+		}
+		return serviceErrFromXML(body, statusCode, requestID)
+	}
+	if srvErr, err := serviceErrFromXML(body, statusCode, requestID); err == nil {
+		return srvErr, nil
+	}
+	return serviceErrFromJSON(body, statusCode, requestID)
 }
 
 func xmlUnmarshal(body io.Reader, v interface{}) error {

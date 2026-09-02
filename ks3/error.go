@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+// ValidateMessage 向量桶参数校验失败的详细信息。
+type ValidateMessage struct {
+	Message string `json:"message"` // 参数校验失败原因
+	Path    string `json:"path"`    // 参数字段在请求结构中的位置
+}
+
 // ServiceError contains fields of the error response from Ks3 Service REST API.
 type ServiceError struct {
 	XMLName    xml.Name `xml:"Error"`
@@ -16,6 +22,29 @@ type ServiceError struct {
 	Endpoint   string   `xml:"Endpoint"`
 	RawMessage string   // The raw messages from KS3
 	StatusCode int      // HTTP status code
+}
+
+// VectorServiceError 向量桶服务的错误响应（JSON 格式，与普通 KS3 的 XML 错误分离）。
+// body 仅含 message 和可选 fieldList；RequestID 不在 body 中，由响应头 x-kss-request-id 填入。
+type VectorServiceError struct {
+	Message    string            `json:"message"`             // 错误信息
+	FieldList  []ValidateMessage `json:"fieldList,omitempty"` // 参数校验失败详情（仅参数校验错误时返回）
+	RequestID  string            // 请求 ID（取自响应头 x-kss-request-id）
+	RawMessage string            // 原始响应体
+	StatusCode int               // HTTP status code
+}
+
+// Error implements interface error
+func (e VectorServiceError) Error() string {
+	s := fmt.Sprintf("ks3: vector service returned error: StatusCode=%d, ErrorMessage=%q", e.StatusCode, e.Message)
+	if len(e.FieldList) > 0 {
+		f := e.FieldList[0]
+		s += fmt.Sprintf(", FieldList[0]: message=%q, path=%q", f.Message, f.Path)
+	}
+	if e.RequestID != "" {
+		s += fmt.Sprintf(", RequestId=%s", e.RequestID)
+	}
+	return s
 }
 
 // Error implements interface error

@@ -4,6 +4,7 @@ package ks3
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -82,6 +84,14 @@ func New(endpoint, accessKeyID, accessKeySecret string, options ...ClientOption)
 	err = conn.init(config, url, client.HTTPClient)
 
 	return client, err
+}
+
+// DoRaw 发送由调用方构造 URI 的请求，复用 Conn 的签名与 HTTP 链路。
+// 与 Do/DoWithContext 不同，它不通过 UrlMaker 按 bucketName 拼路径，
+// 而是直接用传入的 uri（含 host 与字面 path），适合向量桶等非 bucketName 路径的接口。
+// V4 签名的 canonical URI 取 uri.Path；canonicalizedResource 仅 V2 需要，此处传空。
+func (client Client) DoRaw(ctx context.Context, method string, uri *url.URL, headers map[string]string, data io.Reader) (*Response, error) {
+	return client.Conn.doRequest(ctx, method, uri, "", headers, data, 0, nil)
 }
 
 // Bucket gets the bucket instance.
@@ -2176,6 +2186,13 @@ func AuthVersion(authVersion AuthVersionType) ClientOption {
 func Region(region string) ClientOption {
 	return func(client *Client) {
 		client.Config.Region = region
+	}
+}
+
+// ServiceName 覆盖 v4 签名 scope 中的 service（默认 ks3；向量桶等子产品用 "s3vectors"）。仅 v4 生效，v2 忽略。
+func ServiceName(serviceName string) ClientOption {
+	return func(client *Client) {
+		client.Config.ServiceName = serviceName
 	}
 }
 

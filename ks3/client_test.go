@@ -71,12 +71,21 @@ var (
 )
 
 var (
-	logPath            = "go_sdk_test_" + time.Now().Format("20060102_150405") + ".log"
-	testLogFile, _     = os.OpenFile(logPath, os.O_RDWR|os.O_CREATE, 0664)
+	logDir             = "go_sdk_test"
+	logPath            = logDir + string(os.PathSeparator) + "go_sdk_test_" + time.Now().Format("20060102_150405") + ".log"
+	testLogFile, _     = openTestLogFile(logPath)
 	testLogger         = log.New(testLogFile, "", log.Ldate|log.Ltime|log.Lshortfile)
 	letters            = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	timeoutInOperation = 1 * time.Second
 )
+
+// openTestLogFile 创建日志目录（若不存在）并打开日志文件，统一输出到 go_sdk_test/ 子目录，避免平铺。
+func openTestLogFile(path string) (*os.File, error) {
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0664)
+}
 
 // structs for replication get test
 type GetResult struct {
@@ -1467,7 +1476,7 @@ func (s *Ks3ClientSuite) getBucket(buckets []BucketProperties, bucket string) (b
 }
 
 func (s *Ks3ClientSuite) TestHttpLogNotSignUrl(c *C) {
-	logName := "." + string(os.PathSeparator) + "test-go-sdk-httpdebug.log" + RandStr(5)
+	logName := logDir + string(os.PathSeparator) + "test-go-sdk-httpdebug.log" + RandStr(5)
 	f, err := os.OpenFile(logName, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0660)
 	c.Assert(err, IsNil)
 

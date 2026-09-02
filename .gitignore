@@ -6,5 +6,9 @@
 
 # test logs
 *.log
+ks3/go_sdk_test/
+
+# agent guidelines
+CLAUDE.md
 
 .github/workflows/greetings.yaml

@@ -45,7 +45,12 @@ func (s v4Signer) namespace() (algorithm, terminator, service, secretPrefix, hea
 	if s.config.UseAwsSignature {
 		return awsV4Algorithm, awsV4Terminator, awsV4ServiceName, awsV4SecretKeyPrefix, awsV4HeaderPrefix, awsV4QueryPrefix
 	}
-	return ks3V4Algorithm, ks3V4Terminator, ks3V4ServiceName, ks3V4SecretKeyPrefix, ks3V4HeaderPrefix, ks3V4QueryPrefix
+	// ks3 默认分支允许用 config.ServiceName 覆盖 service（如向量桶 "s3vectors"），其余命名空间常量不变。
+	svc := ks3V4ServiceName
+	if s.config.ServiceName != "" {
+		svc = s.config.ServiceName
+	}
+	return ks3V4Algorithm, ks3V4Terminator, svc, ks3V4SecretKeyPrefix, ks3V4HeaderPrefix, ks3V4QueryPrefix
 }
 
 // v4 头/查询参数名后缀。
