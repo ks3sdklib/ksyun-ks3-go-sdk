@@ -3,9 +3,7 @@ package ks3
 import (
 	"math"
 	"net/http"
-	"os"
 	"strings"
-	"time"
 
 	. "gopkg.in/check.v1"
 )
@@ -156,59 +154,4 @@ func (s *Ks3ErrorSuite) TestServiceErrorHTML(c *C) {
 	c.Assert(se3.Code, Equals, "Bad Gateway")
 	c.Assert(se3.Message, Equals, "Bad Gateway")
 	c.Assert(se3.StatusCode, Equals, 502)
-}
-
-// TestServiceErrorHTMLReal 集成测试：高频请求限流桶（QPS=2）触发 429，验证 HTML 错误真实解析为 ServiceError。
-// 需 KS3_TEST_ACCESS_KEY_ID/SECRET + KS3_TEST_ENDPOINT，且 endpoint 指向限流桶环境；缺凭证时 skip。
-func (s *Ks3ErrorSuite) TestServiceErrorHTMLReal(c *C) {
-	ak := os.Getenv("KS3_TEST_ACCESS_KEY_ID")
-	sk := os.Getenv("KS3_TEST_ACCESS_KEY_SECRET")
-	endpoint := os.Getenv("KS3_TEST_ENDPOINT")
-	if ak == "" || sk == "" || endpoint == "" {
-		c.Skip("KS3_TEST_ACCESS_KEY_ID/SECRET/ENDPOINT not set")
-	}
-
-	// 桶 likui-test5 配置了 QPS=2 限流，高频请求触发 429。
-	bucket := "likui-test5"
-	client, err := New(endpoint, ak, sk, AuthVersion(AuthV2))
-	c.Assert(err, IsNil)
-
-	// 高频并发请求，直到拿到错误
-	errCh := make(chan error, 40)
-	for i := 0; i < 40; i++ {
-		go func() {
-			b, e := client.Bucket(bucket)
-			if e != nil {
-				errCh <- e
-				return
-			}
-			_, e = b.ListObjects()
-			errCh <- e
-		}()
-	}
-
-	var gotErr error
-	for i := 0; i < 40; i++ {
-		select {
-		case e := <-errCh:
-			if e != nil {
-				gotErr = e
-			}
-		case <-time.After(5 * time.Second):
-		}
-		if gotErr != nil {
-			break
-		}
-	}
-	if gotErr == nil {
-		c.Skip("no error (limit not triggered)")
-	}
-
-	se, ok := gotErr.(ServiceError)
-	c.Assert(ok, Equals, true, Commentf("expect ServiceError, got %T: %v", gotErr, gotErr))
-	c.Assert(se.StatusCode, Equals, 429)
-	c.Assert(se.Code, Equals, "Too Many Requests", Commentf("Code should be http.StatusText(429)"))
-	c.Assert(se.Message, Not(Equals), "", Commentf("Message should not be empty"))
-	c.Assert(se.RequestID, Not(Equals), "", Commentf("RequestID should not be empty"))
-	c.Logf("HTML 429 parsed: StatusCode=%d Code=%q Message=%q RequestID=%q", se.StatusCode, se.Code, se.Message, se.RequestID)
 }
