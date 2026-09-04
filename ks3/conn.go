@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -460,10 +461,9 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 					RequestID:  resp.Header.Get(HTTPHeaderKs3RequestID),
 				}
 			} else {
-				// Response contains storage service error object, unmarshal
-				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode,
-					resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
-				if errIn != nil { // error unmarshaling the error response
+				// 响应体为服务端错误，按 Content-Type 分发解析（HTML/XML/JSON），失败兜底
+				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode, resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
+				if errIn != nil { // 解析失败，返回原始错误信息
 					err = fmt.Errorf("ks3: service returned invalid response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderKs3RequestID))
 				} else {
 					err = srvErr
@@ -498,10 +498,9 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 					RequestID:  resp.Header.Get(HTTPHeaderKs3RequestID),
 				}
 			} else {
-				// Response contains storage service error object, unmarshal
-				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode,
-					resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
-				if errIn != nil { // error unmarshaling the error response
+				// 响应体为服务端错误，按 Content-Type 分发解析（HTML/XML/JSON），失败兜底
+				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode, resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
+				if errIn != nil { // 解析失败，返回原始错误信息
 					err = fmt.Errorf("unkown response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderKs3RequestID))
 				} else {
 					err = srvErr
@@ -655,24 +654,47 @@ func serviceErrFromJSON(body []byte, statusCode int, requestID string) (VectorSe
 	return vErr, nil
 }
 
+// serviceErrFromHTML 解析 HTML 错误响应（如网关/限流返回的 HTML 页）：
+// Code 取状态码文本（http.StatusText，如 "Too Many Requests"），Message 取 <title>（兜底同 Code）。
+func serviceErrFromHTML(body []byte, statusCode int, requestID string) ServiceError {
+	code := http.StatusText(statusCode) // Code 用规范的状态码描述，如 "Too Many Requests"
+	msg := code                         // 兜底：无 title 时用状态码文本
+	titleRegexp := regexp.MustCompile(`<title>([^<]*)</title>`)
+	if m := titleRegexp.FindSubmatch(body); len(m) >= 2 && len(m[1]) > 0 {
+		msg = string(m[1])
+	}
+	return ServiceError{
+		StatusCode: statusCode,
+		Code:       code,
+		Message:    msg,
+		RequestID:  requestID,
+		RawMessage: string(body),
+	}
+}
+
+// serviceErrFromBody 解析错误响应体，按响应头 Content-Type 分发：
+// HTML（网关/限流页）→ ServiceError（取 <title>）；JSON（向量桶）→ VectorServiceError；
+// 否则 XML（普通 KS3）→ ServiceError。解析失败返回 err，由调用处的非法 body 兜底。
+func serviceErrFromBody(body []byte, statusCode int, requestID, contentType string) (error, error) {
+	if isHTMLContentType(contentType) {
+		return serviceErrFromHTML(body, statusCode, requestID), nil
+	}
+	if isJSONContentType(contentType) {
+		vErr, err := serviceErrFromJSON(body, statusCode, requestID)
+		return vErr, err
+	}
+	srvErr, err := serviceErrFromXML(body, statusCode, requestID)
+	return srvErr, err
+}
+
+// isHTMLContentType 判断响应是否为 HTML：Content-Type 含 html 即认为是。
+func isHTMLContentType(contentType string) bool {
+	return strings.Contains(strings.ToLower(contentType), "html")
+}
+
 // isJSONContentType 判断响应是否为 JSON：Content-Type 含 json 即认为是。
 func isJSONContentType(contentType string) bool {
 	return strings.Contains(strings.ToLower(contentType), "json")
-}
-
-// serviceErrFromBody 解析错误响应体，按响应头 Content-Type 决定优先解析方式：
-// JSON（向量桶 → VectorServiceError）或 XML（普通 KS3 → ServiceError），主解析失败再兜底另一种。
-func serviceErrFromBody(body []byte, statusCode int, requestID, contentType string) (error, error) {
-	if isJSONContentType(contentType) {
-		if vErr, err := serviceErrFromJSON(body, statusCode, requestID); err == nil {
-			return vErr, nil
-		}
-		return serviceErrFromXML(body, statusCode, requestID)
-	}
-	if srvErr, err := serviceErrFromXML(body, statusCode, requestID); err == nil {
-		return srvErr, nil
-	}
-	return serviceErrFromJSON(body, statusCode, requestID)
 }
 
 func xmlUnmarshal(body io.Reader, v interface{}) error {
