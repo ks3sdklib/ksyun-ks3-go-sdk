@@ -4,6 +4,9 @@
 # IDEA
 .idea/
 
+# CLAUDE.md
+CLAUDE.md
+
 # test logs
 *.log
 
