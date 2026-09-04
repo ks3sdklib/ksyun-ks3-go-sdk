@@ -39,19 +39,19 @@ func (s *Ks3VectorsClientSuite) TestCheckVectorBucketName(c *C) {
 
 // TestNewVectorsClient 校验客户端构造与参数校验。
 func (s *Ks3VectorsClientSuite) TestNewVectorsClient(c *C) {
-	_, err := NewVectorsClient("", "", "QINGDAO", "http://example.com")
+	_, err := NewVectorsClient("", "", "BEIJING", "http://example.com")
 	c.Assert(err, NotNil)
 	_, err = NewVectorsClient("ak", "sk", "", "http://example.com")
 	c.Assert(err, NotNil)
-	_, err = NewVectorsClient("ak", "sk", "QINGDAO", "")
+	_, err = NewVectorsClient("ak", "sk", "BEIJING", "")
 	c.Assert(err, NotNil)
 
 	// 正常创建：断言向量桶专用配置已就位
-	vc, err := NewVectorsClient("ak", "sk", "QINGDAO", "http://example.com")
+	vc, err := NewVectorsClient("ak", "sk", "BEIJING", "http://example.com")
 	c.Assert(err, IsNil)
 	c.Assert(vc.client.Config.ServiceName, Equals, "ks3vectors")
 	c.Assert(vc.client.Config.AuthVersion, Equals, ks3.AuthV4)
-	c.Assert(vc.client.Config.Region, Equals, "QINGDAO")
+	c.Assert(vc.client.Config.Region, Equals, "BEIJING")
 	c.Assert(vc.client.Config.Endpoint, Equals, "http://example.com")
 	c.Assert(vc.client.Config.IsEnableCRC, Equals, false)
 	c.Assert(vc.client.Config.IsEnableMD5, Equals, false)
@@ -190,7 +190,7 @@ func (s *Ks3VectorsClientSuite) TestGetVectorBucket(c *C) {
 		body := readBody(c, r.Body)
 		c.Assert(strings.Contains(body, `"vectorBucketName":"test-bucket"`), Equals, true)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"vectorBucket":{"creationTime":1755127842368,"vectorBucketKrn":"krn:ksc:ks3vectors:qingdao:1:bucket/test-bucket","vectorBucketName":"test-bucket","location":"qingdao"}}`))
+		_, _ = w.Write([]byte(`{"vectorBucket":{"creationTime":1755127842368,"vectorBucketKrn":"krn:ksc:ks3vectors:beijing:1:bucket/test-bucket","vectorBucketName":"test-bucket","location":"beijing"}}`))
 	})
 	defer srv.Close()
 
@@ -200,8 +200,8 @@ func (s *Ks3VectorsClientSuite) TestGetVectorBucket(c *C) {
 	c.Assert(result.VectorBucket, NotNil)
 	// 校验响应所有字段（真实 API 返回 4 个字段）
 	c.Assert(*result.VectorBucket.VectorBucketName, Equals, "test-bucket")
-	c.Assert(*result.VectorBucket.VectorBucketKrn, Equals, "krn:ksc:ks3vectors:qingdao:1:bucket/test-bucket")
-	c.Assert(*result.VectorBucket.Location, Equals, "qingdao")
+	c.Assert(*result.VectorBucket.VectorBucketKrn, Equals, "krn:ksc:ks3vectors:beijing:1:bucket/test-bucket")
+	c.Assert(*result.VectorBucket.Location, Equals, "beijing")
 	c.Assert(*result.VectorBucket.CreationTime, Equals, int64(1755127842368))
 }
 
@@ -214,7 +214,7 @@ func (s *Ks3VectorsClientSuite) TestListVectorBuckets(c *C) {
 		c.Assert(strings.Contains(body, `"nextToken":"tok1"`), Equals, true)
 		c.Assert(strings.Contains(body, `"prefix":"go-sdk-"`), Equals, true)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"nextToken":"token-2","vectorBuckets":[{"creationTime":1735449000,"vectorBucketName":"b1","vectorBucketKrn":"krn:1","location":"qingdao"},{"creationTime":1732924800,"vectorBucketName":"b2","vectorBucketKrn":"krn:2","location":"beijing"}]}`))
+		_, _ = w.Write([]byte(`{"nextToken":"token-2","vectorBuckets":[{"creationTime":1735449000,"vectorBucketName":"b1","vectorBucketKrn":"krn:1","location":"beijing"},{"creationTime":1732924800,"vectorBucketName":"b2","vectorBucketKrn":"krn:2","location":"shanghai"}]}`))
 	})
 	defer srv.Close()
 
@@ -233,11 +233,11 @@ func (s *Ks3VectorsClientSuite) TestListVectorBuckets(c *C) {
 	e0 := result.VectorBuckets[0]
 	c.Assert(*e0.VectorBucketName, Equals, "b1")
 	c.Assert(*e0.VectorBucketKrn, Equals, "krn:1")
-	c.Assert(*e0.Location, Equals, "qingdao")
+	c.Assert(*e0.Location, Equals, "beijing")
 	c.Assert(*e0.CreationTime, Equals, int64(1735449000))
 	// 校验 VectorBucketEntry[1] 部分字段（验证多元素解析）
 	c.Assert(*result.VectorBuckets[1].VectorBucketName, Equals, "b2")
-	c.Assert(*result.VectorBuckets[1].Location, Equals, "beijing")
+	c.Assert(*result.VectorBuckets[1].Location, Equals, "shanghai")
 
 	// 容错：req 为 nil 不 panic，发送空 body（独立 server，handler 不断言 body 内容）
 	nilVC, nilSrv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {

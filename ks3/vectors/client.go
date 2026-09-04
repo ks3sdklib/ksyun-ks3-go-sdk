@@ -19,7 +19,7 @@ type VectorsClient struct {
 
 // NewVectorsClient 创建向量桶客户端。
 //
-// ak/sk 为凭证，region 为 V4 签名 scope（如 QINGDAO），endpoint 为向量桶请求 host（如 http://ks3vectors-cn-qingdao.ksyuncs.com）。
+// ak/sk 为凭证，region 为 V4 签名 scope（大写，如 BEIJING），endpoint 为向量桶请求 host（如 http://ks3vectors-cn-beijing.ksyuncs.com）。
 // opts 复用 ks3.ClientOption 传额外配置（如 ks3.SetLogLevel(ks3.Debug)），签名版本（V4）、签名 service（ks3vectors）
 // 由本函数内部追加，调用方无需关心；其余字段由 ks3.New 补默认。
 func NewVectorsClient(ak, sk, region, endpoint string, opts ...ks3.ClientOption) (*VectorsClient, error) {

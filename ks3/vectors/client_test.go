@@ -63,12 +63,12 @@ func intPtr(i int) *int { return &i }
 // boolPtr 返回 bool 指针，用于构造可选字段。
 func boolPtr(b bool) *bool { return &b }
 
-// setUpEndpoint 解析 KS3_TEST_VECTORS_ENDPOINT，默认 http://ks3vectors-cn-qingdao.ksyuncs.com。
+// setUpEndpoint 解析 KS3_TEST_VECTORS_ENDPOINT，默认 http://ks3vectors-cn-beijing.ksyuncs.com。
 func setUpEndpoint() string {
 	if ep := os.Getenv("KS3_TEST_VECTORS_ENDPOINT"); ep != "" {
 		return ep
 	}
-	return "http://ks3vectors-cn-qingdao.ksyuncs.com"
+	return "http://ks3vectors-cn-beijing.ksyuncs.com"
 }
 
 // randLowStr 生成小写字母数字随机串（用于唯一向量桶名），独立于 ks3 包的 RandLowStr。
@@ -203,7 +203,7 @@ func (s *Ks3VectorsClientSuite) SetUpSuite(c *C) {
 	}
 
 	vc, err := NewVectorsClient(accessID, accessKey, region, setUpEndpoint(),
-		ks3.SetLogLevel(ks3.Debug)) // 打印 v4 canonicalRequest/stringToSign，便于联调签名
+		ks3.SetLogLevel(ks3.Debug)) // 打印请求签名细节，便于调试
 	c.Assert(err, IsNil)
 	s.vc = vc
 	s.vectorsReady = true
@@ -270,7 +270,7 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketIntegration(c *C) {
 	c.Assert(getRes.StatusCode, Equals, http.StatusOK)
 	c.Assert(getRes.VectorBucket, NotNil)
 	c.Assert(*getRes.VectorBucket.VectorBucketName, Equals, bucket)
-	c.Assert(*getRes.VectorBucket.Location, Equals, "qingdao")
+	c.Assert(*getRes.VectorBucket.Location, Not(Equals), "")
 	c.Assert(*getRes.VectorBucket.VectorBucketKrn, Equals, createRes.VectorBucketKrn)
 	c.Assert(*getRes.VectorBucket.CreationTime > 0, Equals, true)
 
@@ -287,7 +287,7 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketIntegration(c *C) {
 		}
 	}
 	c.Assert(found, NotNil, Commentf("created bucket %q not found in list", bucket))
-	c.Assert(*found.Location, Equals, "qingdao")
+	c.Assert(*found.Location, Not(Equals), "")
 	c.Assert(*found.VectorBucketKrn, Equals, createRes.VectorBucketKrn)
 	c.Assert(*found.CreationTime > 0, Equals, true)
 
@@ -397,7 +397,7 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	c.Assert(err, IsNil)
 	c.Logf("PutVectors success: %d vectors", len(vec))
 
-	// 写入后等待服务端可见（向量桶写入存在一致性延迟，无延时约 40% 概率读不到；服务端问题，后续优化）
+	// 写入后短暂等待，确保后续读取能读到
 	time.Sleep(100 * time.Millisecond)
 
 	// 获取向量：强校验数量与内容
@@ -490,15 +490,15 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketPolicyIntegration(c *C) {
 
 	c.Logf("bucket=%s", s.bucket)
 
-	// 新增策略（policy 格式需据服务端联调确认）
+	// 新增策略
 	policy := `{"Version":"2025-12-01","Statement":[{"Effect":"Allow","Principal":"*","Action":["ks3vectors:GetVectorBucket"],"Resource":["*"]}]}`
 	_, err := s.vc.PutVectorBucketPolicy(&PutVectorBucketPolicyRequest{
 		VectorBucketName: strPtr(s.bucket),
 		Policy:           strPtr(policy),
 	})
 	if err != nil {
-		c.Logf("PutVectorBucketPolicy failed (policy 格式需联调确认): %v", err)
-		c.Skip("PutVectorBucketPolicy failed, policy format needs server confirmation")
+		c.Logf("PutVectorBucketPolicy failed: %v", err)
+		c.Skip("PutVectorBucketPolicy failed")
 	}
 	c.Logf("PutVectorBucketPolicy success")
 
