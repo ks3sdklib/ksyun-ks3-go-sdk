@@ -23,7 +23,7 @@ func (s *Ks3VectorsClientSuite) TestPutVectors(c *C) {
 	res, err := vc.PutVectors(&PutVectorsRequest{
 		VectorBucketName: strPtr("bkt"),
 		IndexName:        strPtr("idx"),
-		Vectors: []InputVector{{
+		Vectors: []Vector{{
 			Key:      "k1",
 			Data:     VectorData{Float32: []float32{1, 2, 3}},
 			Metadata: map[string]interface{}{"color": "red"},
@@ -60,12 +60,12 @@ func (s *Ks3VectorsClientSuite) TestGetVectors(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
 	c.Assert(res.Vectors, HasLen, 2)
-	// 校验 OutputVector[0] 所有字段
+	// 校验 Vector[0] 所有字段
 	v0 := res.Vectors[0]
 	c.Assert(v0.Key, Equals, "k1")
 	c.Assert(v0.Data.Float32, DeepEquals, []float32{1, 2})
 	c.Assert(v0.Metadata, DeepEquals, map[string]interface{}{"color": "red"})
-	// 校验 OutputVector[1]：无 metadata
+	// 校验 Vector[1]：无 metadata
 	c.Assert(res.Vectors[1].Key, Equals, "k2")
 	c.Assert(res.Vectors[1].Data.Float32, DeepEquals, []float32{3, 4})
 	c.Assert(res.Vectors[1].Metadata, IsNil)
@@ -102,7 +102,7 @@ func (s *Ks3VectorsClientSuite) TestListVectors(c *C) {
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
 	c.Assert(*res.NextToken, Equals, "tok2")
 	c.Assert(res.Vectors, HasLen, 1)
-	// 校验 OutputVector[0] 所有字段
+	// 校验 Vector[0] 所有字段
 	v0 := res.Vectors[0]
 	c.Assert(v0.Key, Equals, "k1")
 	c.Assert(v0.Data.Float32, DeepEquals, []float32{1, 2})

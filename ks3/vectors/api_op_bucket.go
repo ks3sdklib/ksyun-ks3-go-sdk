@@ -172,18 +172,6 @@ type ListVectorBucketsRequest struct {
 	Prefix *string `json:"prefix,omitempty"`
 }
 
-// VectorBucketEntry 列举结果中的向量桶条目。
-type VectorBucketEntry struct {
-	// 创建时间（Unix 毫秒）。
-	CreationTime *int64 `json:"creationTime"`
-	// 向量桶 KRN。
-	VectorBucketKrn *string `json:"vectorBucketKrn"`
-	// 向量桶名称。
-	VectorBucketName *string `json:"vectorBucketName"`
-	// 所属地域。
-	Location *string `json:"location"`
-}
-
 // ListVectorBucketsResult 列举向量桶的响应结果。
 type ListVectorBucketsResult struct {
 	// HTTP 响应状态码。
@@ -193,7 +181,7 @@ type ListVectorBucketsResult struct {
 	// 分页令牌，用于获取下一页。
 	NextToken *string `json:"nextToken"`
 	// 向量桶列表。
-	VectorBuckets []VectorBucketEntry `json:"vectorBuckets"`
+	VectorBuckets []VectorBucket `json:"vectorBuckets"`
 }
 
 // ListVectorBuckets 列举当前账号下全地域的向量桶。

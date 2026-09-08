@@ -48,7 +48,7 @@ func (s *Ks3VectorsClientSuite) TestGetIndex(c *C) {
 		body := readBody(c, r.Body)
 		c.Assert(strings.Contains(body, `"indexName":"my-index"`), Equals, true)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"index":{"creationTime":1735449900,"dataType":"float32","dimension":768,"distanceMetric":"kssine","indexKrn":"krn:1","indexName":"my-index","vectorBucketName":"bkt"}}`))
+		_, _ = w.Write([]byte(`{"index":{"creationTime":1735449900,"dataType":"float32","dimension":768,"distanceMetric":"kssine","indexKrn":"krn:1","indexName":"my-index","metadataConfiguration":{"nonFilterableMetadataKeys":["color"]},"vectorBucketName":"bkt"}}`))
 	})
 	defer srv.Close()
 
@@ -56,7 +56,7 @@ func (s *Ks3VectorsClientSuite) TestGetIndex(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
 	c.Assert(res.Index, NotNil)
-	// 校验响应所有字段（真实 API 返回 7 个字段，无 metadataConfiguration）
+	// 校验响应所有字段（真实 API 返回 8 个字段）
 	idx := res.Index
 	c.Assert(*idx.IndexName, Equals, "my-index")
 	c.Assert(*idx.IndexKrn, Equals, "krn:1")
@@ -65,7 +65,8 @@ func (s *Ks3VectorsClientSuite) TestGetIndex(c *C) {
 	c.Assert(*idx.Dimension, Equals, 768)
 	c.Assert(*idx.DistanceMetric, Equals, "kssine")
 	c.Assert(*idx.CreationTime, Equals, int64(1735449900))
-	c.Assert(idx.MetadataConfiguration, IsNil)
+	c.Assert(idx.MetadataConfiguration, NotNil)
+	c.Assert(idx.MetadataConfiguration.NonFilterableMetadataKeys, DeepEquals, []string{"color"})
 }
 
 // TestListIndexes 校验列举索引的请求构造与响应解析。
@@ -76,7 +77,7 @@ func (s *Ks3VectorsClientSuite) TestListIndexes(c *C) {
 		c.Assert(strings.Contains(body, `"nextToken":"tok1"`), Equals, true)
 		c.Assert(strings.Contains(body, `"prefix":"idx"`), Equals, true)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"nextToken":"tok2","indexes":[{"creationTime":1735449900,"dataType":"float32","dimension":768,"distanceMetric":"euclidean","indexKrn":"krn:1","indexName":"idx1","vectorBucketName":"bkt"},{"creationTime":1731657600,"dataType":"float32","dimension":4,"distanceMetric":"kssine","indexKrn":"krn:2","indexName":"idx2","vectorBucketName":"bkt"}]}`))
+		_, _ = w.Write([]byte(`{"nextToken":"tok2","indexes":[{"creationTime":1735449900,"indexKrn":"krn:1","indexName":"idx1","vectorBucketName":"bkt"},{"creationTime":1731657600,"indexKrn":"krn:2","indexName":"idx2","vectorBucketName":"bkt"}]}`))
 	})
 	defer srv.Close()
 
@@ -91,14 +92,11 @@ func (s *Ks3VectorsClientSuite) TestListIndexes(c *C) {
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
 	c.Assert(*res.NextToken, Equals, "tok2")
 	c.Assert(res.Indexes, HasLen, 2)
-	// 校验 IndexEntry[0] 所有字段（真实 API 返回 7 个字段）
+	// 校验 IndexEntry[0] 所有字段（真实 API 返回 4 个字段）
 	e0 := res.Indexes[0]
 	c.Assert(*e0.IndexName, Equals, "idx1")
 	c.Assert(*e0.IndexKrn, Equals, "krn:1")
 	c.Assert(*e0.VectorBucketName, Equals, "bkt")
-	c.Assert(*e0.DataType, Equals, "float32")
-	c.Assert(*e0.Dimension, Equals, 768)
-	c.Assert(*e0.DistanceMetric, Equals, "euclidean")
 	c.Assert(*e0.CreationTime, Equals, int64(1735449900))
 }
 

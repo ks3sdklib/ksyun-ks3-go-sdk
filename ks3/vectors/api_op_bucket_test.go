@@ -229,13 +229,13 @@ func (s *Ks3VectorsClientSuite) TestListVectorBuckets(c *C) {
 	c.Assert(result.StatusCode, Equals, http.StatusOK)
 	c.Assert(*result.NextToken, Equals, "token-2")
 	c.Assert(result.VectorBuckets, HasLen, 2)
-	// 校验 VectorBucketEntry[0] 所有字段（真实 API 返回 4 个字段）
+	// 校验 VectorBucket[0] 所有字段（真实 API 返回 4 个字段）
 	e0 := result.VectorBuckets[0]
 	c.Assert(*e0.VectorBucketName, Equals, "b1")
 	c.Assert(*e0.VectorBucketKrn, Equals, "krn:1")
 	c.Assert(*e0.Location, Equals, "beijing")
 	c.Assert(*e0.CreationTime, Equals, int64(1735449000))
-	// 校验 VectorBucketEntry[1] 部分字段（验证多元素解析）
+	// 校验 VectorBucket[1] 部分字段（验证多元素解析）
 	c.Assert(*result.VectorBuckets[1].VectorBucketName, Equals, "b2")
 	c.Assert(*result.VectorBuckets[1].Location, Equals, "shanghai")
 

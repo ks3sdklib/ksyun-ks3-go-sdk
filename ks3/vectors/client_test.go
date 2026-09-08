@@ -279,7 +279,7 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketIntegration(c *C) {
 	listRes, err := s.vc.ListVectorBuckets(&ListVectorBucketsRequest{MaxResults: &maxResults, Prefix: strPtr(bucket)})
 	c.Assert(err, IsNil)
 	c.Assert(listRes.StatusCode, Equals, http.StatusOK)
-	var found *VectorBucketEntry
+	var found *VectorBucket
 	for i := range listRes.VectorBuckets {
 		if listRes.VectorBuckets[i].VectorBucketName != nil && *listRes.VectorBuckets[i].VectorBucketName == bucket {
 			found = &listRes.VectorBuckets[i]
@@ -335,6 +335,8 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	c.Assert(*idx.Dimension, Equals, 1024)
 	c.Assert(*idx.DistanceMetric, Equals, "euclidean")
 	c.Assert(*idx.CreationTime > 0, Equals, true)
+	c.Assert(idx.MetadataConfiguration, NotNil)
+	c.Assert(idx.MetadataConfiguration.NonFilterableMetadataKeys, DeepEquals, []string{"color"})
 
 	// 列举索引：含所有可选字段，应能查到并校验条目字段
 	maxResults := 100
@@ -355,9 +357,6 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	c.Assert(found, NotNil, Commentf("created index %q not found in list", index))
 	c.Assert(*found.IndexKrn, Equals, createRes.IndexKrn)
 	c.Assert(*found.VectorBucketName, Equals, s.bucket)
-	c.Assert(*found.DataType, Equals, "float32")
-	c.Assert(*found.Dimension, Equals, 1024)
-	c.Assert(*found.DistanceMetric, Equals, "euclidean")
 	c.Assert(*found.CreationTime > 0, Equals, true)
 
 	// 删除索引
@@ -385,7 +384,7 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	c.Assert(err, IsNil)
 
 	// 写入向量
-	vec := []InputVector{
+	vec := []Vector{
 		{Key: "k1", Data: VectorData{Float32: []float32{1, 2, 3, 4}}, Metadata: map[string]interface{}{"color": "red"}},
 		{Key: "k2", Data: VectorData{Float32: []float32{5, 6, 7, 8}}, Metadata: map[string]interface{}{"color": "blue"}},
 	}
@@ -411,7 +410,7 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(getRes.Vectors, HasLen, 2, Commentf("GetVectors should return 2 vectors"))
 	// 校验内容：k1 的数据与元数据
-	var k1 *OutputVector
+	var k1 *Vector
 	for i := range getRes.Vectors {
 		if getRes.Vectors[i].Key == "k1" {
 			k1 = &getRes.Vectors[i]
@@ -436,8 +435,8 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	} else {
 		c.Assert(listRes.StatusCode, Equals, http.StatusOK)
 		c.Assert(listRes.Vectors, HasLen, 2, Commentf("ListVectors should return 2 vectors"))
-		// 校验 OutputVector[0] 所有字段
-		var lv1 *OutputVector
+		// 校验 Vector[0] 所有字段
+		var lv1 *Vector
 		for i := range listRes.Vectors {
 			if listRes.Vectors[i].Key == "k1" {
 				lv1 = &listRes.Vectors[i]

@@ -14,23 +14,13 @@ type VectorData struct {
 	Float32 []float32 `json:"float32,omitempty"`
 }
 
-// InputVector 写入向量数据时单条向量的结构。
-type InputVector struct {
+// Vector 向量数据中的单条向量，用于写入（PutVectors）与读取（GetVectors/ListVectors）。
+type Vector struct {
 	// 向量主键，桶内唯一，长度 1-1024，UTF-8。
 	Key string `json:"key"`
 	// 向量数据，维度与数据类型须与 CreateIndex 指定的匹配。
 	Data VectorData `json:"data"`
 	// 向量关联的元数据，可选，支持整数/浮点/字符串/数组。
-	Metadata interface{} `json:"metadata,omitempty"`
-}
-
-// OutputVector 读取向量数据时单条向量的结构。
-type OutputVector struct {
-	// 向量主键。
-	Key string `json:"key"`
-	// 向量数据。
-	Data VectorData `json:"data"`
-	// 向量元数据。
 	Metadata interface{} `json:"metadata,omitempty"`
 }
 
@@ -43,7 +33,7 @@ type PutVectorsRequest struct {
 	// 索引 KRN，与 IndexName+VectorBucketName 二选一。
 	IndexKrn *string `json:"indexKrn,omitempty"`
 	// 写入的向量列表，1-500 条。
-	Vectors []InputVector `json:"vectors"`
+	Vectors []Vector `json:"vectors"`
 }
 
 // PutVectorsResult 写入向量数据的响应结果（无响应体，仅状态码与响应头）。
@@ -105,7 +95,7 @@ type GetVectorsResult struct {
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
 	// 获取到的向量列表。
-	Vectors []OutputVector `json:"vectors"`
+	Vectors []Vector `json:"vectors"`
 }
 
 // GetVectors 根据 key 获取一条或多条向量数据。
@@ -175,7 +165,7 @@ type ListVectorsResult struct {
 	// 分页令牌，用于获取下一页，已列举完则为空。
 	NextToken *string `json:"nextToken"`
 	// 列举出的向量列表。
-	Vectors []OutputVector `json:"vectors"`
+	Vectors []Vector `json:"vectors"`
 }
 
 // ListVectors 列举向量索引中的所有向量数据。

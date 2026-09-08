@@ -165,12 +165,6 @@ type ListIndexesRequest struct {
 type IndexEntry struct {
 	// 创建时间（Unix 毫秒）。
 	CreationTime *int64 `json:"creationTime"`
-	// 向量数据类型。
-	DataType *string `json:"dataType"`
-	// 向量维度。
-	Dimension *int `json:"dimension"`
-	// 距离度量函数。
-	DistanceMetric *string `json:"distanceMetric"`
 	// 索引 KRN。
 	IndexKrn *string `json:"indexKrn"`
 	// 索引名称。
