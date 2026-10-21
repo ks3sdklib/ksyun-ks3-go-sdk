@@ -23,12 +23,12 @@ type CreateIndexRequest struct {
 	VectorBucketKrn *string `json:"vectorBucketKrn,omitempty"`
 	// 索引名称，桶内唯一，3-63 字符，仅小写字母与数字，首字符须为字母。
 	IndexName *string `json:"indexName"`
-	// 向量数据类型，当前固定 float32。
+	// 向量数据类型，默认 float32，缺省时自动填充。
 	DataType *string `json:"dataType,omitempty"`
 	// 向量维度，取值范围 1-4096。
 	Dimension *int `json:"dimension,omitempty"`
-	// 距离度量函数：euclidean（欧氏距离，默认）/ kssine（余弦距离）。
-	DistanceMetric *string `json:"distanceMetric,omitempty"`
+	// 距离度量函数：euclidean（欧氏距离）/ cosine（余弦距离），必填。
+	DistanceMetric *string `json:"distanceMetric"`
 	// 元数据配置，可选。
 	MetadataConfiguration *MetadataConfiguration `json:"metadataConfiguration,omitempty"`
 }
@@ -50,6 +50,12 @@ func (vc *VectorsClient) CreateIndex(req *CreateIndexRequest, opts ...ks3.Option
 	}
 	if req.IndexName == nil {
 		return nil, fmt.Errorf("vectors: requires indexName")
+	}
+	if req.DistanceMetric == nil {
+		return nil, fmt.Errorf("vectors: requires distanceMetric")
+	}
+	if req.DataType == nil {
+		req.DataType = ks3.String("float32")
 	}
 
 	body, err := json.Marshal(req)
@@ -161,18 +167,6 @@ type ListIndexesRequest struct {
 	VectorBucketKrn *string `json:"vectorBucketKrn,omitempty"`
 }
 
-// IndexEntry 列举结果中的索引条目。
-type IndexEntry struct {
-	// 创建时间（Unix 毫秒）。
-	CreationTime *int64 `json:"creationTime"`
-	// 索引 KRN。
-	IndexKrn *string `json:"indexKrn"`
-	// 索引名称。
-	IndexName *string `json:"indexName"`
-	// 所属向量桶名称。
-	VectorBucketName *string `json:"vectorBucketName"`
-}
-
 // ListIndexesResult 列举向量索引的响应结果。
 type ListIndexesResult struct {
 	// HTTP 响应状态码。
@@ -182,7 +176,7 @@ type ListIndexesResult struct {
 	// 分页令牌，用于获取下一页。
 	NextToken *string `json:"nextToken"`
 	// 索引列表。
-	Indexes []IndexEntry `json:"indexes"`
+	Indexes []Index `json:"indexes"`
 }
 
 // ListIndexes 列举向量桶中的所有向量索引。

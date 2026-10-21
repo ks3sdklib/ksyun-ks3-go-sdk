@@ -179,4 +179,12 @@ func (s *Ks3VectorsClientSuite) TestQueryVectors(c *C) {
 		TopK:             intPtr(0),
 	})
 	c.Assert(err, NotNil)
+
+	// 校验：topK > 100 报错（topK 上限 100，SDK 校验）
+	_, err = vc.QueryVectors(&QueryVectorsRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("idx"),
+		TopK:             intPtr(101),
+	})
+	c.Assert(err, NotNil)
 }

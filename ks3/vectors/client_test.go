@@ -347,7 +347,7 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	})
 	c.Assert(err, IsNil)
 	c.Assert(listRes.StatusCode, Equals, http.StatusOK)
-	var found *IndexEntry
+	var found *Index
 	for i := range listRes.Indexes {
 		if listRes.Indexes[i].IndexName != nil && *listRes.Indexes[i].IndexName == index {
 			found = &listRes.Indexes[i]
@@ -358,6 +358,10 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	c.Assert(*found.IndexKrn, Equals, createRes.IndexKrn)
 	c.Assert(*found.VectorBucketName, Equals, s.bucket)
 	c.Assert(*found.CreationTime > 0, Equals, true)
+	// 列举项应返回完整索引字段
+	c.Assert(*found.DataType, Equals, "float32")
+	c.Assert(*found.Dimension, Equals, 1024)
+	c.Assert(*found.DistanceMetric, Equals, "euclidean")
 
 	// 删除索引
 	delRes, err := s.vc.DeleteIndex(&DeleteIndexRequest{VectorBucketName: strPtr(s.bucket), IndexName: strPtr(index)})

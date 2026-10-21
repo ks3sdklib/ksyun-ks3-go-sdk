@@ -20,7 +20,7 @@ type Vector struct {
 	Key string `json:"key"`
 	// 向量数据，维度与数据类型须与 CreateIndex 指定的匹配。
 	Data VectorData `json:"data"`
-	// 向量关联的元数据，可选，支持整数/浮点/字符串/数组。
+	// 向量关联的元数据，可选，支持整数/浮点/字符串/布尔/数组/对象。
 	Metadata interface{} `json:"metadata,omitempty"`
 }
 
@@ -252,7 +252,7 @@ type QueryOutputVector struct {
 	Key string `json:"key"`
 	// 向量数据。
 	Data VectorData `json:"data"`
-	// 向量元数据。
+	// 向量元数据，可选，支持整数/浮点/字符串/布尔/数组/对象。
 	Metadata interface{} `json:"metadata,omitempty"`
 	// 结果向量与查询向量的相似度距离。
 	Distance *float64 `json:"distance,omitempty"`
@@ -268,7 +268,7 @@ type QueryVectorsRequest struct {
 	IndexKrn *string `json:"indexKrn,omitempty"`
 	// 查询向量，维度与数据类型须与索引匹配。
 	QueryVector VectorData `json:"queryVector"`
-	// 返回的最近邻结果数，1-30。
+	// 返回的最近邻结果数，取值范围 1-100。
 	TopK *int `json:"topK"`
 	// 元数据预过滤器，可选。
 	Filter interface{} `json:"filter,omitempty"`
@@ -295,8 +295,8 @@ func (vc *VectorsClient) QueryVectors(req *QueryVectorsRequest, opts ...ks3.Opti
 	if req == nil {
 		req = &QueryVectorsRequest{}
 	}
-	if req.TopK == nil || *req.TopK < 1 {
-		return nil, fmt.Errorf("vectors: requires topK >= 1")
+	if req.TopK == nil || *req.TopK < 1 || *req.TopK > 100 {
+		return nil, fmt.Errorf("vectors: requires topK in [1, 100]")
 	}
 
 	body, err := json.Marshal(req)
