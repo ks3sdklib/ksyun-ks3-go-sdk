@@ -1,6 +1,8 @@
 package vectors
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +16,7 @@ import (
 	"github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"
 )
 
-// Test hooks up gocheck into the "go test" runner.
+// Test 将 gocheck 接入 go test 测试运行器。
 func Test(t *testing.T) { TestingT(t) }
 
 type Ks3VectorsClientSuite struct {
@@ -71,7 +73,7 @@ func setUpEndpoint() string {
 	return "http://ks3vectors-cn-beijing.ksyuncs.com"
 }
 
-// randLowStr 生成小写字母数字随机串（用于唯一向量桶名），独立于 ks3 包的 RandLowStr。
+// randLowStr 生成小写字母数字随机串，用于唯一向量桶名。
 func randLowStr(n int) string {
 	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, n)
@@ -126,7 +128,7 @@ func (s *Ks3VectorsClientSuite) cleanVectors(c *C, bucketName, indexName *string
 			NextToken:        nextToken,
 		})
 		if err != nil {
-			// 服务端若未部署 ListVectors 或索引已空，直接返回
+			// 索引为空或列举失败时直接返回
 			c.Logf("cleanVectors list %s/%s failed: %v", *bucketName, *indexName, err)
 			return
 		}
@@ -202,8 +204,7 @@ func (s *Ks3VectorsClientSuite) SetUpSuite(c *C) {
 		return
 	}
 
-	vc, err := NewVectorsClient(accessID, accessKey, region, setUpEndpoint(),
-		ks3.SetLogLevel(ks3.Debug)) // 打印请求签名细节，便于调试
+	vc, err := NewVectorsClient(accessID, accessKey, region, setUpEndpoint())
 	c.Assert(err, IsNil)
 	s.vc = vc
 	s.vectorsReady = true
@@ -250,7 +251,7 @@ func (s *Ks3VectorsClientSuite) TestCreateVectorBucketNameInvalid(c *C) {
 	}
 }
 
-// TestVectorBucketIntegration 独立用例：用独立桶测试向量桶的创建、列举、获取、删除（完整生命周期，不影响共享桶）。
+// TestVectorBucketIntegration 用独立桶测试向量桶的创建、列举、获取、删除完整生命周期。
 func (s *Ks3VectorsClientSuite) TestVectorBucketIntegration(c *C) {
 	s.skipIfNotReady(c)
 
@@ -274,6 +275,11 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketIntegration(c *C) {
 	c.Assert(*getRes.VectorBucket.VectorBucketKrn, Equals, createRes.VectorBucketKrn)
 	c.Assert(*getRes.VectorBucket.CreationTime > 0, Equals, true)
 
+	// 按 KRN 获取
+	krnRes, err := s.vc.GetVectorBucket(&GetVectorBucketRequest{VectorBucketKrn: strPtr(createRes.VectorBucketKrn)})
+	c.Assert(err, IsNil)
+	c.Assert(*krnRes.VectorBucket.VectorBucketName, Equals, bucket)
+
 	// 列举：含所有可选字段 maxResults/prefix，应能查到并校验条目字段
 	maxResults := 100
 	listRes, err := s.vc.ListVectorBuckets(&ListVectorBucketsRequest{MaxResults: &maxResults, Prefix: strPtr(bucket)})
@@ -291,11 +297,24 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketIntegration(c *C) {
 	c.Assert(*found.VectorBucketKrn, Equals, createRes.VectorBucketKrn)
 	c.Assert(*found.CreationTime > 0, Equals, true)
 
+	// maxResults 限制返回数量
+	one := 1
+	pageRes, err := s.vc.ListVectorBuckets(&ListVectorBucketsRequest{MaxResults: &one, Prefix: strPtr(bucketNamePrefix)})
+	c.Assert(err, IsNil)
+	c.Assert(len(pageRes.VectorBuckets) <= 1, Equals, true)
+
 	// 删除
 	delRes, err := s.vc.DeleteVectorBucket(&DeleteVectorBucketRequest{VectorBucketName: strPtr(bucket)})
 	c.Assert(err, IsNil)
 	c.Assert(delRes.StatusCode, Equals, http.StatusOK)
 	c.Logf("DeleteVectorBucket success: %s", bucket)
+
+	// 删除后查询应返回 404
+	_, err = s.vc.GetVectorBucket(&GetVectorBucketRequest{VectorBucketName: strPtr(bucket)})
+	c.Assert(err, NotNil)
+	se, ok := err.(ks3.VectorServiceError)
+	c.Assert(ok, Equals, true, Commentf("error should be VectorServiceError, got %T", err))
+	c.Assert(se.StatusCode, Equals, 404)
 }
 
 // TestIndexIntegration 用共享桶测试索引的创建、列举、获取、删除。
@@ -305,7 +324,7 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	index := "idx" + randLowStr(4)
 	c.Logf("bucket=%s index=%s", s.bucket, index)
 
-	// 创建索引（含所有可选字段，MetadataConfiguration 用上 NonFilterableMetadataKeys）
+	// 创建索引（含所有可选字段）
 	createRes, err := s.vc.CreateIndex(&CreateIndexRequest{
 		VectorBucketName: strPtr(s.bucket),
 		DataType:         strPtr("float32"),
@@ -322,7 +341,7 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	c.Assert(strings.Contains(createRes.IndexKrn, index), Equals, true)
 	c.Logf("CreateIndex success: IndexKrn=%s", createRes.IndexKrn)
 
-	// 获取索引：校验所有字段（dataType/dimension/distanceMetric 用创建值）
+	// 获取索引：校验所有字段
 	getRes, err := s.vc.GetIndex(&GetIndexRequest{VectorBucketName: strPtr(s.bucket), IndexName: strPtr(index)})
 	c.Assert(err, IsNil)
 	c.Assert(getRes.StatusCode, Equals, http.StatusOK)
@@ -337,6 +356,11 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	c.Assert(*idx.CreationTime > 0, Equals, true)
 	c.Assert(idx.MetadataConfiguration, NotNil)
 	c.Assert(idx.MetadataConfiguration.NonFilterableMetadataKeys, DeepEquals, []string{"color"})
+
+	// 按 IndexKrn 获取
+	krnRes, err := s.vc.GetIndex(&GetIndexRequest{IndexKrn: strPtr(createRes.IndexKrn)})
+	c.Assert(err, IsNil)
+	c.Assert(*krnRes.Index.IndexName, Equals, index)
 
 	// 列举索引：含所有可选字段，应能查到并校验条目字段
 	maxResults := 100
@@ -363,11 +387,33 @@ func (s *Ks3VectorsClientSuite) TestIndexIntegration(c *C) {
 	c.Assert(*found.Dimension, Equals, 1024)
 	c.Assert(*found.DistanceMetric, Equals, "euclidean")
 
-	// 删除索引
-	delRes, err := s.vc.DeleteIndex(&DeleteIndexRequest{VectorBucketName: strPtr(s.bucket), IndexName: strPtr(index)})
+	// 按 VectorBucketKrn 列举
+	bucketRes, err := s.vc.GetVectorBucket(&GetVectorBucketRequest{VectorBucketName: strPtr(s.bucket)})
+	c.Assert(err, IsNil)
+	bucketKrn := *bucketRes.VectorBucket.VectorBucketKrn
+	krnListRes, err := s.vc.ListIndexes(&ListIndexesRequest{VectorBucketKrn: strPtr(bucketKrn)})
+	c.Assert(err, IsNil)
+	var krnFound bool
+	for _, it := range krnListRes.Indexes {
+		if it.IndexName != nil && *it.IndexName == index {
+			krnFound = true
+			break
+		}
+	}
+	c.Assert(krnFound, Equals, true)
+
+	// 删除索引（按 KRN）
+	delRes, err := s.vc.DeleteIndex(&DeleteIndexRequest{IndexKrn: strPtr(createRes.IndexKrn)})
 	c.Assert(err, IsNil)
 	c.Assert(delRes.StatusCode, Equals, http.StatusOK)
 	c.Logf("DeleteIndex success: %s", index)
+
+	// 删除后查询应返回 404
+	_, err = s.vc.GetIndex(&GetIndexRequest{VectorBucketName: strPtr(s.bucket), IndexName: strPtr(index)})
+	c.Assert(err, NotNil)
+	se, ok := err.(ks3.VectorServiceError)
+	c.Assert(ok, Equals, true, Commentf("error should be VectorServiceError, got %T", err))
+	c.Assert(se.StatusCode, Equals, 404)
 }
 
 // TestVectorsIntegration 用共享桶测试向量：先建索引，再写入、列举、获取、查询、删除向量，最后删索引。
@@ -378,7 +424,7 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	c.Logf("bucket=%s index=%s", s.bucket, index)
 
 	// 先创建索引（维度 4，便于测试）
-	_, err := s.vc.CreateIndex(&CreateIndexRequest{
+	createRes, err := s.vc.CreateIndex(&CreateIndexRequest{
 		VectorBucketName: strPtr(s.bucket),
 		DataType:         strPtr("float32"),
 		Dimension:        intPtr(4),
@@ -391,6 +437,7 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	vec := []Vector{
 		{Key: "k1", Data: VectorData{Float32: []float32{1, 2, 3, 4}}, Metadata: map[string]interface{}{"color": "red"}},
 		{Key: "k2", Data: VectorData{Float32: []float32{5, 6, 7, 8}}, Metadata: map[string]interface{}{"color": "blue"}},
+		{Key: "k3", Data: VectorData{Float32: []float32{9, 9, 9, 9}}, Metadata: map[string]interface{}{"color": "green"}},
 	}
 	_, err = s.vc.PutVectors(&PutVectorsRequest{
 		VectorBucketName: strPtr(s.bucket),
@@ -400,19 +447,19 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	c.Assert(err, IsNil)
 	c.Logf("PutVectors success: %d vectors", len(vec))
 
-	// 写入后短暂等待，确保后续读取能读到
+	// 等待写入生效
 	time.Sleep(100 * time.Millisecond)
 
 	// 获取向量：强校验数量与内容
 	getRes, err := s.vc.GetVectors(&GetVectorsRequest{
 		VectorBucketName: strPtr(s.bucket),
 		IndexName:        strPtr(index),
-		Keys:             []string{"k1", "k2"},
+		Keys:             []string{"k1", "k2", "k3"},
 		ReturnData:       boolPtr(true),
 		ReturnMetadata:   boolPtr(true),
 	})
 	c.Assert(err, IsNil)
-	c.Assert(getRes.Vectors, HasLen, 2, Commentf("GetVectors should return 2 vectors"))
+	c.Assert(getRes.Vectors, HasLen, 3, Commentf("GetVectors should return 3 vectors"))
 	// 校验内容：k1 的数据与元数据
 	var k1 *Vector
 	for i := range getRes.Vectors {
@@ -423,63 +470,158 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	}
 	c.Assert(k1, NotNil, Commentf("k1 not found in GetVectors result"))
 	c.Assert(k1.Data.Float32, DeepEquals, []float32{1, 2, 3, 4})
+	c.Assert(k1.Metadata, DeepEquals, map[string]interface{}{"color": "red"})
 	c.Logf("GetVectors: key=%s data=%v", k1.Key, k1.Data.Float32)
 
-	// 列举向量：含所有可选字段，强校验数量与内容（服务端若未部署 ListVectors 返回错误则 skip）
-	listRes, err := s.vc.ListVectors(&ListVectorsRequest{
+	// 按 IndexKrn 获取
+	krnGetRes, err := s.vc.GetVectors(&GetVectorsRequest{
+		IndexKrn:   strPtr(createRes.IndexKrn),
+		Keys:       []string{"k1"},
+		ReturnData: boolPtr(true),
+	})
+	c.Assert(err, IsNil)
+	c.Assert(krnGetRes.Vectors, HasLen, 1)
+	c.Assert(krnGetRes.Vectors[0].Key, Equals, "k1")
+
+	// 不返回数据与元数据
+	plainRes, err := s.vc.GetVectors(&GetVectorsRequest{
 		VectorBucketName: strPtr(s.bucket),
 		IndexName:        strPtr(index),
-		MaxResults:       intPtr(100),
-		ReturnData:       boolPtr(true),
-		ReturnMetadata:   boolPtr(true),
-		Filter:           map[string]interface{}{"color": "red"},
+		Keys:             []string{"k1"},
 	})
-	if err != nil {
-		c.Logf("ListVectors not supported by server, skip: %v", err)
-	} else {
+	c.Assert(err, IsNil)
+	c.Assert(plainRes.Vectors, HasLen, 1)
+	c.Assert(len(plainRes.Vectors[0].Data.Float32), Equals, 0)
+	c.Assert(plainRes.Vectors[0].Metadata, IsNil)
+
+	// 列举向量：分页取全量（MaxResults 生效）
+	var listed []string
+	var nextToken *string
+	for {
+		listRes, err := s.vc.ListVectors(&ListVectorsRequest{
+			VectorBucketName: strPtr(s.bucket),
+			IndexName:        strPtr(index),
+			MaxResults:       intPtr(2),
+			ReturnData:       boolPtr(true),
+			ReturnMetadata:   boolPtr(true),
+			NextToken:        nextToken,
+		})
+		c.Assert(err, IsNil)
 		c.Assert(listRes.StatusCode, Equals, http.StatusOK)
-		c.Assert(listRes.Vectors, HasLen, 2, Commentf("ListVectors should return 2 vectors"))
-		// 校验 Vector[0] 所有字段
-		var lv1 *Vector
+		c.Assert(len(listRes.Vectors) <= 2, Equals, true)
 		for i := range listRes.Vectors {
-			if listRes.Vectors[i].Key == "k1" {
-				lv1 = &listRes.Vectors[i]
-				break
+			v := &listRes.Vectors[i]
+			listed = append(listed, v.Key)
+			if v.Key == "k1" {
+				c.Assert(v.Data.Float32, DeepEquals, []float32{1, 2, 3, 4})
+				c.Assert(v.Metadata, DeepEquals, map[string]interface{}{"color": "red"})
 			}
 		}
-		c.Assert(lv1, NotNil)
-		c.Assert(lv1.Data.Float32, DeepEquals, []float32{1, 2, 3, 4})
-		c.Assert(lv1.Metadata, DeepEquals, map[string]interface{}{"color": "red"})
-		c.Logf("ListVectors: %d vectors", len(listRes.Vectors))
+		if listRes.NextToken == nil || *listRes.NextToken == "" {
+			break
+		}
+		nextToken = listRes.NextToken
 	}
+	c.Assert(len(listed), Equals, 3, Commentf("ListVectors should return 3 vectors in total, got %v", listed))
+	c.Logf("ListVectors: %v", listed)
 
-	// 相似性检索：含 filter（$eq 过滤 color=red），强校验数量与距离
+	// 带 filter 列举
+	filterRes, err := s.vc.ListVectors(&ListVectorsRequest{
+		VectorBucketName: strPtr(s.bucket),
+		IndexName:        strPtr(index),
+		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
+	})
+	c.Assert(err, IsNil)
+	c.Assert(filterRes.StatusCode, Equals, http.StatusOK)
+
+	// 不返回数据与元数据
+	plainList, err := s.vc.ListVectors(&ListVectorsRequest{
+		VectorBucketName: strPtr(s.bucket),
+		IndexName:        strPtr(index),
+	})
+	c.Assert(err, IsNil)
+	c.Assert(plainList.Vectors, HasLen, 3)
+	c.Assert(len(plainList.Vectors[0].Data.Float32), Equals, 0)
+	c.Assert(plainList.Vectors[0].Metadata, IsNil)
+
+	// 并行分段列举：SegmentIndex 从 1 开始，两段合并覆盖全部向量
+	var segKeys []string
+	for i := 1; i <= 2; i++ {
+		segRes, err := s.vc.ListVectors(&ListVectorsRequest{
+			VectorBucketName: strPtr(s.bucket),
+			IndexName:        strPtr(index),
+			SegmentCount:     intPtr(2),
+			SegmentIndex:     intPtr(i),
+		})
+		c.Assert(err, IsNil)
+		for _, v := range segRes.Vectors {
+			segKeys = append(segKeys, v.Key)
+		}
+	}
+	c.Assert(len(segKeys), Equals, 3, Commentf("segments should cover all 3 vectors, got %v", segKeys))
+	c.Logf("ListVectors segments: %v", segKeys)
+
+	// 相似性检索：TopK 生效
 	queryRes, err := s.vc.QueryVectors(&QueryVectorsRequest{
 		VectorBucketName: strPtr(s.bucket),
 		IndexName:        strPtr(index),
 		QueryVector:      VectorData{Float32: []float32{1, 2, 3, 4}},
 		TopK:             intPtr(2),
-		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
 		ReturnData:       boolPtr(true),
 		ReturnMetadata:   boolPtr(true),
 		ReturnDistance:   boolPtr(true),
 	})
 	c.Assert(err, IsNil)
 	c.Assert(queryRes.StatusCode, Equals, http.StatusOK)
-	// filter color=red 只匹配 k1，应返回 1 个
-	c.Assert(queryRes.Vectors, HasLen, 1, Commentf("QueryVectors with filter color=red should return 1 vector"))
-	c.Assert(*queryRes.Vectors[0].Distance, Equals, float64(0))
+	c.Assert(queryRes.Vectors, HasLen, 2, Commentf("TopK=2 should return 2 vectors"))
 	c.Assert(queryRes.Vectors[0].Key, Equals, "k1")
-	c.Logf("QueryVectors: filter color=red, top1 key=%s distance=%v", queryRes.Vectors[0].Key, *queryRes.Vectors[0].Distance)
+	c.Assert(*queryRes.Vectors[0].Distance, Equals, float64(0))
+	c.Assert(queryRes.Vectors[0].Data.Float32, DeepEquals, []float32{1, 2, 3, 4})
+	c.Assert(queryRes.Vectors[0].Metadata, DeepEquals, map[string]interface{}{"color": "red"})
+	c.Logf("QueryVectors: top1 key=%s distance=%v", queryRes.Vectors[0].Key, *queryRes.Vectors[0].Distance)
 
-	// 删除向量
-	_, err = s.vc.DeleteVectors(&DeleteVectorsRequest{
+	// 相似性检索：$eq 过滤 color=red 只返回 k1
+	filterQueryRes, err := s.vc.QueryVectors(&QueryVectorsRequest{
 		VectorBucketName: strPtr(s.bucket),
 		IndexName:        strPtr(index),
-		Keys:             []string{"k1", "k2"},
+		QueryVector:      VectorData{Float32: []float32{1, 2, 3, 4}},
+		TopK:             intPtr(2),
+		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
+		ReturnDistance:   boolPtr(true),
 	})
 	c.Assert(err, IsNil)
-	c.Logf("DeleteVectors success: k1, k2")
+	c.Assert(filterQueryRes.Vectors, HasLen, 1, Commentf("filter color=red should return 1 vector"))
+	c.Assert(filterQueryRes.Vectors[0].Key, Equals, "k1")
+
+	// 按 IndexKrn 检索
+	krnQueryRes, err := s.vc.QueryVectors(&QueryVectorsRequest{
+		IndexKrn:    strPtr(createRes.IndexKrn),
+		QueryVector: VectorData{Float32: []float32{1, 2, 3, 4}},
+		TopK:        intPtr(1),
+	})
+	c.Assert(err, IsNil)
+	c.Assert(krnQueryRes.Vectors, HasLen, 1)
+	c.Assert(krnQueryRes.Vectors[0].Key, Equals, "k1")
+
+	// 删除向量（按 IndexKrn）
+	_, err = s.vc.DeleteVectors(&DeleteVectorsRequest{
+		IndexKrn: strPtr(createRes.IndexKrn),
+		Keys:     []string{"k1", "k2", "k3"},
+	})
+	c.Assert(err, IsNil)
+	c.Logf("DeleteVectors success: k1, k2, k3")
+
+	// 删除后向量不再可见
+	var afterRes *ListVectorsResult
+	for i := 0; i < 10; i++ {
+		afterRes, err = s.vc.ListVectors(&ListVectorsRequest{IndexKrn: strPtr(createRes.IndexKrn)})
+		c.Assert(err, IsNil)
+		if len(afterRes.Vectors) == 0 {
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	c.Assert(afterRes.Vectors, HasLen, 0, Commentf("vectors should be removed after delete"))
 
 	// 最后删除索引
 	_, err = s.vc.DeleteIndex(&DeleteIndexRequest{VectorBucketName: strPtr(s.bucket), IndexName: strPtr(index)})
@@ -493,36 +635,55 @@ func (s *Ks3VectorsClientSuite) TestVectorBucketPolicyIntegration(c *C) {
 
 	c.Logf("bucket=%s", s.bucket)
 
-	// 新增策略
-	policy := `{"Version":"2025-12-01","Statement":[{"Effect":"Allow","Principal":"*","Action":["ks3vectors:GetVectorBucket"],"Resource":["*"]}]}`
-	_, err := s.vc.PutVectorBucketPolicy(&PutVectorBucketPolicyRequest{
+	// 取桶 KRN 作为策略 Resource
+	getBucketRes, err := s.vc.GetVectorBucket(&GetVectorBucketRequest{VectorBucketName: strPtr(s.bucket)})
+	c.Assert(err, IsNil)
+	c.Assert(getBucketRes.VectorBucket, NotNil)
+	c.Assert(getBucketRes.VectorBucket.VectorBucketKrn, NotNil)
+	krn := *getBucketRes.VectorBucket.VectorBucketKrn
+
+	// 新增策略：Principal 须为 {"KSC":[...]}，Action 须为 ks3 动作（如 ks3:*），Resource 为桶 KRN
+	policy := fmt.Sprintf(`{"Version":"2025-12-01","Statement":[{"Effect":"Allow","Principal":{"KSC":["*"]},"Action":["ks3:*"],"Resource":["%s"]}]}`, krn)
+	_, err = s.vc.PutVectorBucketPolicy(&PutVectorBucketPolicyRequest{
 		VectorBucketName: strPtr(s.bucket),
 		Policy:           strPtr(policy),
 	})
-	if err != nil {
-		c.Logf("PutVectorBucketPolicy failed: %v", err)
-		c.Skip("PutVectorBucketPolicy failed")
-	}
+	c.Assert(err, IsNil)
 	c.Logf("PutVectorBucketPolicy success")
 
-	// 获取策略
+	// 获取策略：内容与 Put 一致
 	getRes, err := s.vc.GetVectorBucketPolicy(&GetVectorBucketPolicyRequest{VectorBucketName: strPtr(s.bucket)})
 	c.Assert(err, IsNil)
-	c.Assert(getRes.Policy, Not(Equals), "")
+	var putPolicy, gotPolicy interface{}
+	c.Assert(json.Unmarshal([]byte(policy), &putPolicy), IsNil)
+	c.Assert(json.Unmarshal([]byte(getRes.Policy), &gotPolicy), IsNil)
+	c.Assert(gotPolicy, DeepEquals, putPolicy)
 	c.Logf("GetVectorBucketPolicy: %s", getRes.Policy)
 
-	// 删除策略
-	_, err = s.vc.DeleteVectorBucketPolicy(&DeleteVectorBucketPolicyRequest{VectorBucketName: strPtr(s.bucket)})
+	// 按 VectorBucketKrn 查询
+	krnGetRes, err := s.vc.GetVectorBucketPolicy(&GetVectorBucketPolicyRequest{VectorBucketKrn: strPtr(krn)})
+	c.Assert(err, IsNil)
+	c.Assert(krnGetRes.Policy, Not(Equals), "")
+
+	// 删除策略（按 KRN）
+	_, err = s.vc.DeleteVectorBucketPolicy(&DeleteVectorBucketPolicyRequest{VectorBucketKrn: strPtr(krn)})
 	c.Assert(err, IsNil)
 	c.Logf("DeleteVectorBucketPolicy success")
+
+	// 删除后查询应返回 404
+	_, err = s.vc.GetVectorBucketPolicy(&GetVectorBucketPolicyRequest{VectorBucketName: strPtr(s.bucket)})
+	c.Assert(err, NotNil)
+	se, ok := err.(ks3.VectorServiceError)
+	c.Assert(ok, Equals, true, Commentf("error should be VectorServiceError, got %T", err))
+	c.Assert(se.StatusCode, Equals, 404)
 }
 
-// TestVectorServiceErrorIntegration 用参数错误（TopK 超范围）触发服务端 400，
-// 验证 VectorServiceError 的 Message/FieldList/RequestID/StatusCode 真实解析正确。
+// TestVectorServiceErrorIntegration 用查询向量维度与索引不一致触发服务端 400，
+// 验证 VectorServiceError 的 Message/FieldList/RequestID/StatusCode 解析正确。
 func (s *Ks3VectorsClientSuite) TestVectorServiceErrorIntegration(c *C) {
 	s.skipIfNotReady(c)
 
-	// 用共享桶建临时索引（TopK 超范围是参数校验，不需写入数据）
+	// 创建维度 4 的临时索引
 	index := "idx" + randLowStr(4)
 	_, err := s.vc.CreateIndex(&CreateIndexRequest{
 		VectorBucketName: strPtr(s.bucket),
@@ -534,12 +695,12 @@ func (s *Ks3VectorsClientSuite) TestVectorServiceErrorIntegration(c *C) {
 	c.Assert(err, IsNil)
 	defer s.vc.DeleteIndex(&DeleteIndexRequest{VectorBucketName: strPtr(s.bucket), IndexName: strPtr(index)})
 
-	// TopK=100 超范围（上限 30），触发服务端参数校验错误
+	// 查询向量给 3 维，与索引维度 4 不一致，触发服务端参数校验错误
 	_, err = s.vc.QueryVectors(&QueryVectorsRequest{
 		VectorBucketName: strPtr(s.bucket),
 		IndexName:        strPtr(index),
-		QueryVector:      VectorData{Float32: []float32{1, 2, 3, 4}},
-		TopK:             intPtr(100),
+		QueryVector:      VectorData{Float32: []float32{1, 2, 3}},
+		TopK:             intPtr(2),
 	})
 	c.Assert(err, NotNil)
 
@@ -552,7 +713,7 @@ func (s *Ks3VectorsClientSuite) TestVectorServiceErrorIntegration(c *C) {
 	c.Assert(se.RequestID, Not(Equals), "", Commentf("RequestID should not be empty"))
 	c.Assert(se.FieldList, HasLen, 1, Commentf("FieldList should have 1 item"))
 	c.Assert(se.FieldList[0].Message, Not(Equals), "", Commentf("FieldList[0].Message should not be empty"))
-	c.Assert(se.FieldList[0].Path, Equals, "/topK")
+	c.Assert(se.FieldList[0].Path, Equals, "/queryVector")
 	c.Logf("VectorServiceError: StatusCode=%d Message=%q FieldList[0]={%q,%q} RequestID=%q",
 		se.StatusCode, se.Message, se.FieldList[0].Message, se.FieldList[0].Path, se.RequestID)
 }

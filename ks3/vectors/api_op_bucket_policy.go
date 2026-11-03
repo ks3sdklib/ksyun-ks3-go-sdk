@@ -15,7 +15,7 @@ type PutVectorBucketPolicyRequest struct {
 	VectorBucketName *string `json:"vectorBucketName,omitempty"`
 	// 向量桶 KRN，与 VectorBucketName 二选一。
 	VectorBucketKrn *string `json:"vectorBucketKrn,omitempty"`
-	// 策略字符串，JSON 格式的策略序列化后的字符串。
+	// 策略 JSON 字符串。
 	Policy *string `json:"policy"`
 }
 
@@ -27,7 +27,7 @@ type PutVectorBucketPolicyResult struct {
 	Headers http.Header `json:"-"`
 }
 
-// PutVectorBucketPolicy 设置向量桶的存储桶策略。
+// PutVectorBucketPolicy 设置向量桶策略。
 func (vc *VectorsClient) PutVectorBucketPolicy(req *PutVectorBucketPolicyRequest, opts ...ks3.Option) (*PutVectorBucketPolicyResult, error) {
 	if req == nil {
 		req = &PutVectorBucketPolicyRequest{}
@@ -69,11 +69,11 @@ type GetVectorBucketPolicyResult struct {
 	StatusCode int `json:"-"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
-	// 策略字符串，JSON 格式的策略序列化后的字符串。
-	Policy string `json:"policy"`
+	// 策略 JSON 字符串。
+	Policy string `json:"-"`
 }
 
-// GetVectorBucketPolicy 查询向量桶的存储桶策略。
+// GetVectorBucketPolicy 查询向量桶策略。
 func (vc *VectorsClient) GetVectorBucketPolicy(req *GetVectorBucketPolicyRequest, opts ...ks3.Option) (*GetVectorBucketPolicyResult, error) {
 	if req == nil {
 		req = &GetVectorBucketPolicyRequest{}
@@ -97,8 +97,21 @@ func (vc *VectorsClient) GetVectorBucketPolicy(req *GetVectorBucketPolicyRequest
 	result := &GetVectorBucketPolicyResult{}
 	result.StatusCode = resp.StatusCode
 	result.Headers = resp.Headers
-	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+
+	// 统一转换为策略 JSON 字符串
+	var respBody struct {
+		Policy json.RawMessage `json:"policy"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
 		return nil, err
+	}
+	if len(respBody.Policy) > 0 {
+		var s string
+		if err := json.Unmarshal(respBody.Policy, &s); err == nil {
+			result.Policy = s
+		} else {
+			result.Policy = string(respBody.Policy)
+		}
 	}
 	return result, nil
 }
@@ -119,7 +132,7 @@ type DeleteVectorBucketPolicyResult struct {
 	Headers http.Header `json:"-"`
 }
 
-// DeleteVectorBucketPolicy 删除向量桶的存储桶策略。
+// DeleteVectorBucketPolicy 删除向量桶策略。
 func (vc *VectorsClient) DeleteVectorBucketPolicy(req *DeleteVectorBucketPolicyRequest, opts ...ks3.Option) (*DeleteVectorBucketPolicyResult, error) {
 	if req == nil {
 		req = &DeleteVectorBucketPolicyRequest{}

@@ -43,7 +43,7 @@ type CreateIndexResult struct {
 	IndexKrn string `json:"indexKrn"`
 }
 
-// CreateIndex 在向量存储桶中创建向量索引。
+// CreateIndex 在向量桶中创建向量索引。
 func (vc *VectorsClient) CreateIndex(req *CreateIndexRequest, opts ...ks3.Option) (*CreateIndexResult, error) {
 	if req == nil {
 		req = &CreateIndexRequest{}
@@ -123,7 +123,7 @@ type GetIndexResult struct {
 	Index *Index `json:"index"`
 }
 
-// GetIndex 获取向量索引的详细信息。
+// GetIndex 获取向量索引详情。
 func (vc *VectorsClient) GetIndex(req *GetIndexRequest, opts ...ks3.Option) (*GetIndexResult, error) {
 	if req == nil {
 		req = &GetIndexRequest{}
@@ -155,7 +155,7 @@ func (vc *VectorsClient) GetIndex(req *GetIndexRequest, opts ...ks3.Option) (*Ge
 
 // ListIndexesRequest 列举向量索引的请求。
 type ListIndexesRequest struct {
-	// 返回的最大数量，取值范围 1-500，不设默认 100。
+	// 返回的最大数量，取值范围 1-500，不设时默认 100。
 	MaxResults *int `json:"maxResults,omitempty"`
 	// 分页令牌，用于获取下一页。
 	NextToken *string `json:"nextToken,omitempty"`

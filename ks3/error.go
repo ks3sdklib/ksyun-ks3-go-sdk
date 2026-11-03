@@ -1,6 +1,7 @@
 package ks3
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -38,8 +39,9 @@ type VectorServiceError struct {
 func (e VectorServiceError) Error() string {
 	s := fmt.Sprintf("ks3: vector service returned error: StatusCode=%d, ErrorMessage=%q", e.StatusCode, e.Message)
 	if len(e.FieldList) > 0 {
-		f := e.FieldList[0]
-		s += fmt.Sprintf(", FieldList[0]: message=%q, path=%q", f.Message, f.Path)
+		if b, err := json.Marshal(e.FieldList); err == nil {
+			s += fmt.Sprintf(", FieldList=%s", b)
+		}
 	}
 	if e.RequestID != "" {
 		s += fmt.Sprintf(", RequestId=%s", e.RequestID)

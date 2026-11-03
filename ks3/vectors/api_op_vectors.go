@@ -9,12 +9,12 @@ import (
 	"github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"
 )
 
-// VectorData 向量数据，当前固定 float32 类型。
+// VectorData 向量数据，仅支持 float32 类型。
 type VectorData struct {
 	Float32 []float32 `json:"float32,omitempty"`
 }
 
-// Vector 向量数据中的单条向量，用于写入（PutVectors）与读取（GetVectors/ListVectors）。
+// Vector 单条向量数据，用于写入与读取。
 type Vector struct {
 	// 向量主键，桶内唯一，长度 1-1024，UTF-8。
 	Key string `json:"key"`
@@ -150,7 +150,7 @@ type ListVectorsRequest struct {
 	ReturnMetadata *bool `json:"returnMetadata,omitempty"`
 	// 并行列举的段数，1-16，需与 SegmentIndex 同时指定。
 	SegmentCount *int `json:"segmentCount,omitempty"`
-	// 当前列举的段索引，需小于 SegmentCount。
+	// 列举的段索引，取值范围 1-SegmentCount。
 	SegmentIndex *int `json:"segmentIndex,omitempty"`
 	// 元数据过滤器。
 	Filter interface{} `json:"filter,omitempty"`

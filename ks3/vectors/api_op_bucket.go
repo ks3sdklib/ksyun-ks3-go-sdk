@@ -25,7 +25,7 @@ type CreateVectorBucketResult struct {
 	VectorBucketKrn string `json:"vectorBucketKrn"`
 }
 
-// CreateVectorBucket 创建向量存储桶。
+// CreateVectorBucket 创建向量桶。
 func (vc *VectorsClient) CreateVectorBucket(req *CreateVectorBucketRequest, opts ...ks3.Option) (*CreateVectorBucketResult, error) {
 	if req == nil {
 		req = &CreateVectorBucketRequest{}
@@ -78,7 +78,7 @@ type DeleteVectorBucketResult struct {
 	Headers http.Header `json:"-"`
 }
 
-// DeleteVectorBucket 删除向量存储桶（须先清空桶下所有索引）。
+// DeleteVectorBucket 删除向量桶（须先清空桶下所有索引）。
 func (vc *VectorsClient) DeleteVectorBucket(req *DeleteVectorBucketRequest, opts ...ks3.Option) (*DeleteVectorBucketResult, error) {
 	if req == nil {
 		req = &DeleteVectorBucketRequest{}
@@ -132,7 +132,7 @@ type GetVectorBucketResult struct {
 	VectorBucket *VectorBucket `json:"vectorBucket"`
 }
 
-// GetVectorBucket 获取向量存储桶的详细信息。
+// GetVectorBucket 获取向量桶详情。
 func (vc *VectorsClient) GetVectorBucket(req *GetVectorBucketRequest, opts ...ks3.Option) (*GetVectorBucketResult, error) {
 	if req == nil {
 		req = &GetVectorBucketRequest{}
@@ -164,7 +164,7 @@ func (vc *VectorsClient) GetVectorBucket(req *GetVectorBucketRequest, opts ...ks
 
 // ListVectorBucketsRequest 列举向量桶的请求。
 type ListVectorBucketsRequest struct {
-	// 返回的最大数量，取值范围 1-500，不设默认 100。
+	// 返回的最大数量，取值范围 1-500，不设时默认 100。
 	MaxResults *int `json:"maxResults,omitempty"`
 	// 分页令牌，用于获取下一页。
 	NextToken *string `json:"nextToken,omitempty"`
