@@ -217,11 +217,6 @@ func ObjectACL(acl ACLType) Option {
 	return setHeader(HTTPHeaderKs3ObjectACL, string(acl))
 }
 
-// symlinkTarget is an option to set X-Kss-Symlink-Target
-func symlinkTarget(targetObjectKey string) Option {
-	return setHeader(HTTPHeaderKs3SymlinkTarget, targetObjectKey)
-}
-
 // Origin is an option to set Origin header
 func Origin(value string) Option {
 	return setHeader(HTTPHeaderOrigin, value)
@@ -240,16 +235,6 @@ func Callback(callback string) Option {
 // CallbackVar is an option to set callback user defined values
 func CallbackVar(callbackVar string) Option {
 	return setHeader(HTTPHeaderKs3CallbackVar, callbackVar)
-}
-
-// RequestPayer is an option to set payer who pay for the request
-func RequestPayer(payerType PayerType) Option {
-	return setHeader(HTTPHeaderKs3Requester, strings.ToLower(string(payerType)))
-}
-
-// RequestPayerParam is an option to set payer who pay for the request
-func RequestPayerParam(payerType PayerType) Option {
-	return addParam(strings.ToLower(HTTPHeaderKs3Requester), strings.ToLower(string(payerType)))
 }
 
 // SetTagging is an option to set object tagging
@@ -361,16 +346,6 @@ func MaxUploads(value int) Option {
 // KeyMarker is an option to set key-marker parameter
 func KeyMarker(value string) Option {
 	return addParam("key-marker", value)
-}
-
-// VersionIdMarker is an option to set version-id-marker parameter
-func VersionIdMarker(value string) Option {
-	return addParam("version-id-marker", value)
-}
-
-// VersionId is an option to set versionId parameter
-func VersionId(value string) Option {
-	return addParam("versionId", value)
 }
 
 // TagKey is an option to set tag key parameter

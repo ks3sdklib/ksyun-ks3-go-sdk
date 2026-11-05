@@ -2,6 +2,7 @@ package ks3
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"os"
 
 	. "gopkg.in/check.v1"
@@ -10,6 +11,23 @@ import (
 type Ks3ConnSuite struct{}
 
 var _ = Suite(&Ks3ConnSuite{})
+
+// TestHandleResponse3xxClosesBody 验证 3xx 响应返回可安全关闭的空 body。
+func (s *Ks3ConnSuite) TestHandleResponse3xxClosesBody(c *C) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL)
+	c.Assert(err, IsNil)
+
+	conn := Conn{config: getDefaultKs3Config()}
+	res, err := conn.handleResponse(resp, nil)
+	c.Assert(err, NotNil)
+	c.Assert(res, NotNil)
+	c.Assert(res.Body, Equals, http.NoBody)
+}
 
 func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 	c.Skip("skip conn")

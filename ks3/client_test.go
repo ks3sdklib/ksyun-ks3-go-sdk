@@ -26,6 +26,12 @@ import (
 
 // Test hooks up gocheck into the "go test" runner.
 func Test(t *testing.T) {
+	defer func() {
+		if testLogFile != nil {
+			testLogFile.Close()
+		}
+		os.RemoveAll(logDir)
+	}()
 	TestingT(t)
 }
 
@@ -323,7 +329,7 @@ func (s *Ks3ClientSuite) TestCreateBucket(c *C) {
 	err = client.DeleteBucket(bucketNameTest)
 	c.Assert(err, IsNil)
 
-	// Create bucket with configuration and test GetBucketInfo
+	// Create bucket with configuration
 	for _, storage := range []BucketType{TypeNormal, TypeIA, TypeArchive} {
 		bucketNameTest := bucketNamePrefix + RandLowStr(6)
 		err = client.CreateBucket(bucketNameTest, BucketTypeClass(storage), ACL(ACLPublicRead))
@@ -786,7 +792,7 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 		StorageClass: StorageIA,
 	}
 	transition2 := LifecycleTransition{
-		Days: 40,
+		Days:         40,
 		StorageClass: StorageArchive,
 	}
 	transitions := []LifecycleTransition{transition1, transition2}
@@ -2591,7 +2597,7 @@ func (s *Ks3ClientSuite) TestBucketReplication(c *C) {
 	c.Assert(err, NotNil)
 
 	replication := Replication{
-		Prefix: []string{"abc/"},
+		Prefix:                      []string{"abc/"},
 		DeleteMarkerStatus:          "Enabled",
 		TargetBucket:                targetBucket,
 		HistoricalObjectReplication: "Enabled",

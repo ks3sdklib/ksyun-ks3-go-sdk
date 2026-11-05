@@ -523,7 +523,6 @@ func (s *Ks3CopySuite) TestCopyFileChoiceOptions(c *C) {
 	// copyfile with properties
 	options := []Option{
 		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
 		TrafficLimitHeader(1024 * 1024 * 8),
 		ServerSideEncryption("AES256"),
 		Routines(5), // without checkpoint
@@ -549,7 +548,6 @@ func (s *Ks3CopySuite) TestCopyFileChoiceOptions(c *C) {
 	// Copy file with options
 	options = []Option{
 		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
 		TrafficLimitHeader(1024 * 1024 * 8),
 		ServerSideEncryption("AES256"),
 		Routines(10),

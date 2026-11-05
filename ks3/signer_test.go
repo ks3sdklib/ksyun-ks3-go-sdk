@@ -2,8 +2,14 @@ package ks3
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
+	"io"
+	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"net/http"
 	"net/url"
@@ -17,6 +23,43 @@ type seekableReadCloser struct {
 }
 
 func (seekableReadCloser) Close() error { return nil }
+
+// expiresIn 从预签名 URL 中解析 X-Kss-Expires 的相对秒数。
+func expiresIn(signedURL string) int64 {
+	u, err := url.Parse(signedURL)
+	if err != nil {
+		return -1
+	}
+	seconds, err := strconv.ParseInt(u.Query().Get("X-Kss-Expires"), 10, 64)
+	if err != nil {
+		return -1
+	}
+	return seconds
+}
+
+// TestComputeContentSHA256FromReaderOffset 验证预哈希按当前偏移计算并恢复原偏移。
+func (s *Ks3ConnSuite) TestComputeContentSHA256FromReaderOffset(c *C) {
+	cfg := getDefaultKs3Config()
+	cfg.AuthVersion = AuthV4
+	signer := v4Signer{config: cfg}
+
+	r := bytes.NewReader([]byte("hello world"))
+	_, err := r.Seek(6, io.SeekStart)
+	c.Assert(err, IsNil)
+
+	sum, hashed, err := signer.computeContentSHA256FromReader(r)
+	c.Assert(err, IsNil)
+	expected := sha256.Sum256([]byte("world"))
+	c.Assert(sum, Equals, hex.EncodeToString(expected[:]))
+
+	// 偏移恢复到 6，后续发送的正是参与哈希的区间
+	pos, err := hashed.(io.ReadSeeker).Seek(0, io.SeekCurrent)
+	c.Assert(err, IsNil)
+	c.Assert(pos, Equals, int64(6))
+	rest, err := io.ReadAll(hashed)
+	c.Assert(err, IsNil)
+	c.Assert(string(rest), Equals, "world")
+}
 
 // TestV4HeaderSign 构造一个 v4 签名请求并断言 Authorization 头结构与必需的 v4 头。
 // 不与已知签名向量比对签名值（仅做结构断言）。
@@ -123,13 +166,15 @@ func (s *Ks3ConnSuite) TestV4PresignedURL(c *C) {
 	conn := Conn{cfg, &um, nil}
 
 	params := map[string]interface{}{}
-	signedURL, err := conn.signURL("GET", "bucket", "object", 3600, params, nil)
+	signedURL, err := conn.signURL("GET", "bucket", "object", time.Now().Unix()+3600, params, nil)
 	c.Assert(err, IsNil)
 	testLogger.Println("V4 PRESIGNED URL:", signedURL)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Algorithm=KSS4-HMAC-SHA256"), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Credential=test-ak"), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Date="), Equals, true)
-	c.Assert(strings.Contains(signedURL, "X-Kss-Expires=3600"), Equals, true)
+	// X-Kss-Expires 为相对当前时间的有效秒数
+	expires := expiresIn(signedURL)
+	c.Assert(expires >= 3599 && expires <= 3600, Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-SignedHeaders="), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Signature="), Equals, true)
 }
@@ -215,7 +260,29 @@ func (s *Ks3ConnSuite) TestV4PresignedURLWithSpacedKey(c *C) {
 	c.Assert(strings.Contains(signedURL, "%2520"), Equals, false)
 }
 
-// TestSignURLRequiresCredentials 验证 V2/V4 预签名与分享外链在 AK 或 SK 为空时报错（对齐 Java 业务入口校验）。
+// TestV4PresignedURLWithPlusKey 验证含 "+" 的 object key 预签名按字面量编码为 %2B，路径可还原且无双重编码。
+func (s *Ks3ConnSuite) TestV4PresignedURLWithPlusKey(c *C) {
+	endpoint := "https://ks3-example.com"
+	cfg := getDefaultKs3Config()
+	cfg.AuthVersion = AuthV4
+	cfg.Region = "BEIJING"
+	cfg.AccessKeyID = "test-ak"
+	cfg.AccessKeySecret = "test-sk"
+	um := UrlMaker{}
+	um.Init(endpoint, false, false, false)
+	conn := Conn{cfg, &um, nil}
+
+	params := map[string]interface{}{}
+	signedURL, err := conn.signURL("GET", "bucket", "a+b.jpg", 3600, params, nil)
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(signedURL, "%2520"), Equals, false)
+	u, err := url.Parse(signedURL)
+	c.Assert(err, IsNil)
+	// url.Parse 的 Path 为解码后的路径，应与原始 object key 一致
+	c.Assert(u.Path, Equals, "/a+b.jpg")
+}
+
+// TestSignURLRequiresCredentials 验证 V2/V4 预签名与分享外链在 AK 或 SK 为空时报错。
 func (s *Ks3ConnSuite) TestSignURLRequiresCredentials(c *C) {
 	for _, auth := range []AuthVersionType{AuthV2, AuthV4} {
 		cfg := getDefaultKs3Config()
@@ -304,7 +371,49 @@ func (s *Ks3ConnSuite) TestV4AwsPresignedURL(c *C) {
 	c.Assert(strings.Contains(signedURL, "X-Kss-"), Equals, false)
 }
 
-// TestV4ShareURL 验证带 X-Kss-Policy 的 v4 分享外链（对应 Java signInQuery 分享分支）：
+// TestV2ShareURL 验证 V2 分享外链使用 KSSAccessKeyId 与 X-Kss-Policy 参数。
+func (s *Ks3ConnSuite) TestV2ShareURL(c *C) {
+	endpoint := "https://ks3-example.com"
+	cfg := getDefaultKs3Config()
+	cfg.AuthVersion = AuthV2
+	cfg.AccessKeyID = "test-ak"
+	cfg.AccessKeySecret = "test-sk"
+	um := UrlMaker{}
+	um.Init(endpoint, false, false, false)
+	conn := Conn{cfg, &um, nil}
+
+	params := map[string]interface{}{
+		"X-Kss-Policy": base64.StdEncoding.EncodeToString([]byte(`{"expiration":"2030-01-01T00:00:00Z"}`)),
+	}
+	signedURL, err := conn.signPolicyURL("bucket", 3600, params)
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(signedURL, "KSSAccessKeyId=test-ak"), Equals, true)
+	c.Assert(strings.Contains(signedURL, "X-Kss-Policy="), Equals, true)
+}
+
+// TestV2AwsShareURL 验证 useAwsSignature 下 V2 分享外链用 AWSAccessKeyId 与 X-Amz-Policy 参数。
+func (s *Ks3ConnSuite) TestV2AwsShareURL(c *C) {
+	endpoint := "https://ks3-example.com"
+	cfg := getDefaultKs3Config()
+	cfg.AuthVersion = AuthV2
+	cfg.UseAwsSignature = true
+	cfg.AccessKeyID = "test-ak"
+	cfg.AccessKeySecret = "test-sk"
+	um := UrlMaker{}
+	um.Init(endpoint, false, false, false)
+	conn := Conn{cfg, &um, nil}
+
+	params := map[string]interface{}{
+		"X-Kss-Policy": base64.StdEncoding.EncodeToString([]byte(`{"expiration":"2030-01-01T00:00:00Z"}`)),
+	}
+	signedURL, err := conn.signPolicyURL("bucket", 3600, params)
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(signedURL, "AWSAccessKeyId=test-ak"), Equals, true)
+	c.Assert(strings.Contains(signedURL, "X-Amz-Policy="), Equals, true)
+	c.Assert(strings.Contains(signedURL, "X-Kss-Policy="), Equals, false)
+}
+
+// TestV4ShareURL 验证带 X-Kss-Policy 的 v4 分享外链：
 // 含 Algorithm/Credential/Date/Expires/Policy/Signature，且不带 SignedHeaders 查询参数。
 func (s *Ks3ConnSuite) TestV4ShareURL(c *C) {
 	endpoint := "https://ks3-example.com"
@@ -321,13 +430,15 @@ func (s *Ks3ConnSuite) TestV4ShareURL(c *C) {
 		"X-Kss-Policy": base64.StdEncoding.EncodeToString([]byte(`{"expiration":"2030-01-01T00:00:00Z"}`)),
 		"prefix":       "shared/",
 	}
-	signedURL, err := conn.signPolicyURL("bucket", 3600, params)
+	signedURL, err := conn.signPolicyURL("bucket", time.Now().Unix()+3600, params)
 	c.Assert(err, IsNil)
 	testLogger.Println("V4 SHARE URL:", signedURL)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Algorithm=KSS4-HMAC-SHA256"), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Credential=test-ak"), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Date="), Equals, true)
-	c.Assert(strings.Contains(signedURL, "X-Kss-Expires=3600"), Equals, true)
+	// X-Kss-Expires 为相对当前时间的有效秒数
+	expires := expiresIn(signedURL)
+	c.Assert(expires >= 3599 && expires <= 3600, Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Policy="), Equals, true)
 	c.Assert(strings.Contains(signedURL, "X-Kss-Signature="), Equals, true)
 	// 分享外链不带 SignedHeaders
@@ -352,7 +463,7 @@ func (s *Ks3ConnSuite) TestV4AwsShareURL(c *C) {
 	params := map[string]interface{}{
 		"X-Kss-Policy": base64.StdEncoding.EncodeToString([]byte(`{"expiration":"2030-01-01T00:00:00Z"}`)),
 	}
-	// AWS 命名空间下 signPolicyURLV4 自动把 X-Kss-Policy 改为 X-Amz-Policy（对应 Java AwsV4Signer.beforeSigning）
+	// AWS 命名空间下 X-Kss-Policy 改写为 X-Amz-Policy
 	signedURL, err := conn.signPolicyURL("bucket", 3600, params)
 	c.Assert(err, IsNil)
 	testLogger.Println("AWS V4 SHARE URL:", signedURL)
@@ -426,4 +537,101 @@ func (s *Ks3ConnSuite) TestKs3OnlyHeaderPreserved(c *C) {
 	c.Assert(err, IsNil)
 	// x-kss-callbackurl 被保留（不改为 x-amz-callbackurl）
 	c.Assert(req.Header.Get("X-Kss-Callbackurl"), Equals, "http://example.com/cb")
+}
+
+// Ks3SignIntegrationSuite 用真实 KS3 服务验证 V2/V4 预签名与分享外链。
+type Ks3SignIntegrationSuite struct{}
+
+var _ = Suite(&Ks3SignIntegrationSuite{})
+
+// newIntegrationClient 创建指向真实 KS3 的客户端，缺凭证时跳过。
+func (s *Ks3SignIntegrationSuite) newIntegrationClient(c *C, authVersion AuthVersionType) *Client {
+	endpoint := os.Getenv("KS3_TEST_ENDPOINT")
+	accessID := os.Getenv("KS3_TEST_ACCESS_KEY_ID")
+	accessKey := os.Getenv("KS3_TEST_ACCESS_KEY_SECRET")
+	region := os.Getenv("KS3_TEST_REGION")
+	if endpoint == "" || accessID == "" || accessKey == "" || region == "" {
+		c.Skip("KS3_TEST_ENDPOINT/ACCESS_KEY_ID/ACCESS_KEY_SECRET/REGION not set")
+	}
+
+	opts := []ClientOption{AuthVersion(authVersion)}
+	if authVersion == AuthV4 {
+		opts = append(opts, Region(region))
+	}
+	client, err := New(endpoint, accessID, accessKey, opts...)
+	c.Assert(err, IsNil)
+	return client
+}
+
+// newIntegrationBucket 创建测试桶并返回，调用方负责 defer 清理。
+func (s *Ks3SignIntegrationSuite) newIntegrationBucket(c *C, client *Client) (*Bucket, string) {
+	bucketName := bucketNamePrefix + RandLowStr(8)
+	c.Assert(client.CreateBucket(bucketName), IsNil)
+	bucket, err := client.Bucket(bucketName)
+	c.Assert(err, IsNil)
+	return bucket, bucketName
+}
+
+// TestV4PresignedURLIntegration 验证含空格和 "+" 的 object key 生成的 V4 预签名 URL 可被服务端接受。
+func (s *Ks3SignIntegrationSuite) TestV4PresignedURLIntegration(c *C) {
+	client := s.newIntegrationClient(c, AuthV4)
+	bucket, bucketName := s.newIntegrationBucket(c, client)
+	defer ForceDeleteBucket(client, bucketName, c)
+
+	objectKey := "a+b c.txt"
+	content := "hello v4 presign"
+	c.Assert(bucket.PutObject(objectKey, strings.NewReader(content), nil), IsNil)
+
+	signedURL, err := bucket.SignURL(objectKey, HTTPMethod("GET"), 3600)
+	c.Assert(err, IsNil)
+
+	resp, err := http.Get(signedURL)
+	c.Assert(err, IsNil)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK, Commentf("signedURL=%s body=%s", signedURL, body))
+	c.Assert(string(body), Equals, content)
+}
+
+// TestV2PresignedURLIntegration 验证含空格和 "+" 的 object key 生成的 V2 预签名 URL 可被服务端接受。
+func (s *Ks3SignIntegrationSuite) TestV2PresignedURLIntegration(c *C) {
+	client := s.newIntegrationClient(c, AuthV2)
+	bucket, bucketName := s.newIntegrationBucket(c, client)
+	defer ForceDeleteBucket(client, bucketName, c)
+
+	objectKey := "a+b c.txt"
+	content := "hello v2 presign"
+	c.Assert(bucket.PutObject(objectKey, strings.NewReader(content), nil), IsNil)
+
+	signedURL, err := bucket.SignURL(objectKey, HTTPMethod("GET"), 3600)
+	c.Assert(err, IsNil)
+
+	resp, err := http.Get(signedURL)
+	c.Assert(err, IsNil)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK, Commentf("signedURL=%s body=%s", signedURL, body))
+	c.Assert(string(body), Equals, content)
+}
+
+// TestV2ShareURLIntegration 验证 V2 分享外链可被服务端接受。
+func (s *Ks3SignIntegrationSuite) TestV2ShareURLIntegration(c *C) {
+	client := s.newIntegrationClient(c, AuthV2)
+	bucket, bucketName := s.newIntegrationBucket(c, client)
+	defer ForceDeleteBucket(client, bucketName, c)
+
+	c.Assert(bucket.PutObject("share.txt", strings.NewReader("hello share"), nil), IsNil)
+
+	policy := `{"expiration":"2030-01-01T00:00:00Z","conditions":[{"bucket":"` + bucketName + `"}]}`
+	signedURL, err := bucket.SignPolicyURL(policy, time.Now().Unix()+3600)
+	c.Assert(err, IsNil)
+
+	resp, err := http.Get(signedURL)
+	c.Assert(err, IsNil)
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	c.Assert(err, IsNil)
+	c.Assert(resp.StatusCode, Equals, http.StatusOK, Commentf("signedURL=%s body=%s", signedURL, body))
 }

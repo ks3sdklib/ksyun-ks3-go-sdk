@@ -309,16 +309,6 @@ func ChoiceTransferPartOption(options []Option) []Option {
 		outOption = append(outOption, Progress(listener.(ProgressListener)))
 	}
 
-	payer, _ := FindOption(options, HTTPHeaderKs3Requester, nil)
-	if payer != nil {
-		outOption = append(outOption, RequestPayer(PayerType(payer.(string))))
-	}
-
-	versionId, _ := FindOption(options, "versionId", nil)
-	if versionId != nil {
-		outOption = append(outOption, VersionId(versionId.(string)))
-	}
-
 	trafficLimit, _ := FindOption(options, HTTPHeaderKs3TrafficLimit, nil)
 	if trafficLimit != nil {
 		speed, _ := strconv.ParseInt(trafficLimit.(string), 10, 64)
@@ -340,11 +330,6 @@ func ChoiceCompletePartOption(options []Option) []Option {
 	listener, _ := FindOption(options, progressListener, nil)
 	if listener != nil {
 		outOption = append(outOption, Progress(listener.(ProgressListener)))
-	}
-
-	payer, _ := FindOption(options, HTTPHeaderKs3Requester, nil)
-	if payer != nil {
-		outOption = append(outOption, RequestPayer(PayerType(payer.(string))))
 	}
 
 	acl, _ := FindOption(options, HTTPHeaderKs3ObjectACL, nil)
@@ -382,10 +367,6 @@ func ChoiceCompletePartOption(options []Option) []Option {
 // ChoiceAbortPartOption choices valid option supported by AbortMultipartUpload
 func ChoiceAbortPartOption(options []Option) []Option {
 	var outOption []Option
-	payer, _ := FindOption(options, HTTPHeaderKs3Requester, nil)
-	if payer != nil {
-		outOption = append(outOption, RequestPayer(PayerType(payer.(string))))
-	}
 
 	respHeader, _ := FindOption(options, responseHeader, nil)
 	if respHeader != nil {
@@ -400,16 +381,6 @@ func ChoiceHeadObjectOption(options []Option) []Option {
 	var outOption []Option
 
 	// not select HTTPHeaderRange to get whole object length
-	payer, _ := FindOption(options, HTTPHeaderKs3Requester, nil)
-	if payer != nil {
-		outOption = append(outOption, RequestPayer(PayerType(payer.(string))))
-	}
-
-	versionId, _ := FindOption(options, "versionId", nil)
-	if versionId != nil {
-		outOption = append(outOption, VersionId(versionId.(string)))
-	}
-
 	respHeader, _ := FindOption(options, responseHeader, nil)
 	if respHeader != nil {
 		outOption = append(outOption, GetResponseHeader(respHeader.(*http.Header)))

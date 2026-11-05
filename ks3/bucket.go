@@ -11,7 +11,6 @@ import (
 	"hash/crc64"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -569,7 +568,7 @@ func (bucket Bucket) DeleteObjects(objectKeys []string, options ...Option) (Dele
 	}
 	defer resp.Body.Close()
 
-	deletedResult := DeleteObjectVersionsResult{}
+	deletedResult := deleteObjectsResult{}
 	if !dxml.Quiet {
 		if err = xmlUnmarshal(resp.Body, &deletedResult); err == nil {
 			err = decodeDeleteObjectsResult(&deletedResult)
@@ -582,54 +581,6 @@ func (bucket Bucket) DeleteObjects(objectKeys []string, options ...Option) (Dele
 		out.DeletedObjects = append(out.DeletedObjects, v.Key)
 	}
 
-	return out, err
-}
-
-// DeleteObjectVersions deletes multiple object versions.
-//
-// objectVersions    the object keys and versions to delete.
-// options    the options for deleting objects.
-//
-//	Supported option is DeleteObjectsQuiet which means it will not return error even deletion failed (not recommended). By default, it's not used.
-//
-// DeleteObjectVersionsResult    the result object.
-// error    it's nil if no error, otherwise it's an error object.
-func (bucket Bucket) DeleteObjectVersions(objectVersions []DeleteObject, options ...Option) (DeleteObjectVersionsResult, error) {
-	out := DeleteObjectVersionsResult{}
-	dxml := deleteXML{}
-	dxml.Objects = objectVersions
-
-	isQuiet, _ := FindOption(options, deleteObjectsQuiet, false)
-	dxml.Quiet = isQuiet.(bool)
-
-	bs, err := xml.Marshal(dxml)
-	if err != nil {
-		return out, err
-	}
-	buffer := new(bytes.Buffer)
-	buffer.Write(bs)
-
-	contentType := http.DetectContentType(buffer.Bytes())
-	options = append(options, ContentType(contentType))
-	sum := md5.Sum(bs)
-	b64 := base64.StdEncoding.EncodeToString(sum[:])
-	options = append(options, ContentMD5(b64))
-
-	params := map[string]interface{}{}
-	params["delete"] = nil
-	params["encoding-type"] = "url"
-
-	resp, err := bucket.do("POST", "", params, options, buffer, nil)
-	if err != nil {
-		return out, err
-	}
-	defer resp.Body.Close()
-
-	if !dxml.Quiet {
-		if err = xmlUnmarshal(resp.Body, &out); err == nil {
-			err = decodeDeleteObjectsResult(&out)
-		}
-	}
 	return out, err
 }
 
@@ -764,31 +715,6 @@ func (bucket Bucket) ListObjectsV2WithURL(signedURL string, options ...Option) (
 	return out, err
 }
 
-// ListObjectVersions lists objects of all versions under the current bucket.
-func (bucket Bucket) ListObjectVersions(options ...Option) (ListObjectVersionsResult, error) {
-	var out ListObjectVersionsResult
-
-	params, err := GetRawParams(options)
-	if err != nil {
-		return out, err
-	}
-	params["versions"] = nil
-
-	resp, err := bucket.do("GET", "", params, options, nil, nil)
-	if err != nil {
-		return out, err
-	}
-	defer resp.Body.Close()
-
-	err = xmlUnmarshal(resp.Body, &out)
-	if err != nil {
-		return out, err
-	}
-
-	err = decodeListObjectVersionsResult(&out)
-	return out, err
-}
-
 // SetObjectMeta sets the metadata of the Object.
 //
 // objectKey    object
@@ -899,56 +825,6 @@ func (bucket Bucket) GetObjectACL(objectKey string, options ...Option) (GetObjec
 
 	err = xmlUnmarshal(resp.Body, &out)
 	return out, err
-}
-
-// PutSymlink creates a symlink (to point to an existing object)
-//
-// Symlink cannot point to another symlink.
-// When creating a symlink, it does not check the existence of the target file, and does not check if the target file is symlink.
-// Neither it checks the caller's permission on the target file. All these checks are deferred to the actual GetObject call via this symlink.
-// If trying to add an existing file, as long as the caller has the write permission, the existing one will be overwritten.
-// If the x-kss-meta- is specified, it will be added as the metadata of the symlink file.
-//
-// symObjectKey    the symlink object's key.
-// targetObjectKey    the target object key to point to.
-//
-// error    it's nil if no error, otherwise it's an error object.
-func (bucket Bucket) PutSymlink(symObjectKey string, targetObjectKey string, options ...Option) error {
-	options = append(options, symlinkTarget(url.QueryEscape(targetObjectKey)))
-	params, _ := GetRawParams(options)
-	params["symlink"] = nil
-	resp, err := bucket.do("PUT", symObjectKey, params, options, nil, nil)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return CheckRespCode(resp.StatusCode, []int{http.StatusOK})
-}
-
-// GetSymlink gets the symlink object with the specified key.
-// If the symlink object does not exist, returns 404.
-//
-// objectKey    the symlink object's key.
-//
-// error    it's nil if no error, otherwise it's an error object.
-//
-//	When error is nil, the target file key is in the X-Kss-Symlink-Target header of the returned object.
-func (bucket Bucket) GetSymlink(objectKey string, options ...Option) (http.Header, error) {
-	params, _ := GetRawParams(options)
-	params["symlink"] = nil
-	resp, err := bucket.do("GET", objectKey, params, options, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	targetObjectKey := resp.Headers.Get(HTTPHeaderKs3SymlinkTarget)
-	targetObjectKey, err = url.QueryUnescape(targetObjectKey)
-	if err != nil {
-		return resp.Headers, err
-	}
-	resp.Headers.Set(HTTPHeaderKs3SymlinkTarget, targetObjectKey)
-	return resp.Headers, err
 }
 
 // RestoreObject restores the object from the archive storage.
@@ -1344,17 +1220,6 @@ func (bucket Bucket) DeleteObjectTagging(objectKey string, options ...Option) er
 	defer resp.Body.Close()
 
 	return CheckRespCode(resp.StatusCode, []int{http.StatusNoContent})
-}
-
-func (bucket Bucket) OptionsMethod(objectKey string, options ...Option) (http.Header, error) {
-	var out http.Header
-	resp, err := bucket.do("OPTIONS", objectKey, nil, options, nil, nil)
-	if err != nil {
-		return out, err
-	}
-	defer resp.Body.Close()
-	out = resp.Headers
-	return out, nil
 }
 
 func (bucket Bucket) ListRetention(options ...Option) (ListRetentionResult, error) {

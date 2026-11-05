@@ -225,7 +225,7 @@ func (s *Ks3VectorsClientSuite) TestListVectorBuckets(c *C) {
 		c.Assert(strings.Contains(body, `"nextToken":"tok1"`), Equals, true)
 		c.Assert(strings.Contains(body, `"prefix":"go-sdk-"`), Equals, true)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"nextToken":"token-2","vectorBuckets":[{"creationTime":1735449000,"vectorBucketName":"b1","vectorBucketKrn":"krn:1","location":"beijing"},{"creationTime":1732924800,"vectorBucketName":"b2","vectorBucketKrn":"krn:2","location":"shanghai"}]}`))
+		_, _ = w.Write([]byte(`{"nextToken":"token-2","vectorBuckets":[{"creationTime":1735449000000,"vectorBucketName":"b1","vectorBucketKrn":"krn:1","location":"beijing"},{"creationTime":1732924800,"vectorBucketName":"b2","vectorBucketKrn":"krn:2","location":"shanghai"}]}`))
 	})
 	defer srv.Close()
 
@@ -245,7 +245,7 @@ func (s *Ks3VectorsClientSuite) TestListVectorBuckets(c *C) {
 	c.Assert(*e0.VectorBucketName, Equals, "b1")
 	c.Assert(*e0.VectorBucketKrn, Equals, "krn:1")
 	c.Assert(*e0.Location, Equals, "beijing")
-	c.Assert(*e0.CreationTime, Equals, int64(1735449000))
+	c.Assert(*e0.CreationTime, Equals, int64(1735449000000))
 	// 校验 VectorBucket[1] 部分字段
 	c.Assert(*result.VectorBuckets[1].VectorBucketName, Equals, "b2")
 	c.Assert(*result.VectorBuckets[1].Location, Equals, "shanghai")

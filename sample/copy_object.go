@@ -81,25 +81,25 @@ func CopyObjectSample() {
 
 	// Case 6: Big file's multipart copy. It supports concurrent copy with resumable upload
 	// copy file with multipart. The part size is 100K. By default one routine is used without resumable upload
-	err = bucket.CopyFile(bucketName, objectKey, descObjectKey, 100*1024)
+	err = bucket.CopyFile(bucket, objectKey, descObjectKey, 100*1024)
 	if err != nil {
 		HandleError(err)
 	}
 
 	// Part size is 100K and three coroutines for the concurrent copy
-	err = bucket.CopyFile(bucketName, objectKey, descObjectKey, 100*1024, ks3.Routines(3))
+	err = bucket.CopyFile(bucket, objectKey, descObjectKey, 100*1024, ks3.Routines(3))
 	if err != nil {
 		HandleError(err)
 	}
 
 	// Part size is 100K and three coroutines for the concurrent copy with resumable upload
-	err = bucket.CopyFile(bucketName, objectKey, descObjectKey, 100*1024, ks3.Routines(3), ks3.Checkpoint(true, ""))
+	err = bucket.CopyFile(bucket, objectKey, descObjectKey, 100*1024, ks3.Routines(3), ks3.Checkpoint(true, ""))
 	if err != nil {
 		HandleError(err)
 	}
 
 	// Specify the checkpoint file path. If the checkpoint file path is not specified, the current folder is used.
-	err = bucket.CopyFile(bucketName, objectKey, descObjectKey, 100*1024, ks3.Checkpoint(true, localFile+".cp"))
+	err = bucket.CopyFile(bucket, objectKey, descObjectKey, 100*1024, ks3.Checkpoint(true, localFile+".cp"))
 	if err != nil {
 		HandleError(err)
 	}

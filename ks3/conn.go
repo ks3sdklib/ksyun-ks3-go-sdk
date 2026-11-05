@@ -478,10 +478,11 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 		} else if statusCode >= 300 && statusCode <= 307 {
 			// KS3 use 3xx, but response has no body
 			err := fmt.Errorf("ks3: service returned %d,%s", resp.StatusCode, resp.Status)
+			resp.Body.Close()
 			return &Response{
 				StatusCode: resp.StatusCode,
 				Headers:    resp.Header,
-				Body:       resp.Body,
+				Body:       http.NoBody,
 			}, err
 		} else {
 			// (0,300) [308,400) [506,)
@@ -654,13 +655,15 @@ func serviceErrFromJSON(body []byte, statusCode int, requestID string) (VectorSe
 	return vErr, nil
 }
 
+// htmlTitleRegexp 匹配 HTML 错误页的 <title>。
+var htmlTitleRegexp = regexp.MustCompile(`<title>([^<]*)</title>`)
+
 // serviceErrFromHTML 解析 HTML 错误响应（如网关/限流返回的 HTML 页）：
 // Code 取状态码文本（http.StatusText，如 "Too Many Requests"），Message 取 <title>（兜底同 Code）。
 func serviceErrFromHTML(body []byte, statusCode int, requestID string) ServiceError {
 	code := http.StatusText(statusCode) // Code 用规范的状态码描述，如 "Too Many Requests"
 	msg := code                         // 兜底：无 title 时用状态码文本
-	titleRegexp := regexp.MustCompile(`<title>([^<]*)</title>`)
-	if m := titleRegexp.FindSubmatch(body); len(m) >= 2 && len(m[1]) > 0 {
+	if m := htmlTitleRegexp.FindSubmatch(body); len(m) >= 2 && len(m[1]) > 0 {
 		msg = string(m[1])
 	}
 	return ServiceError{
@@ -854,11 +857,14 @@ func (um UrlMaker) getSignURL(bucket, object, params string) string {
 
 // buildURL builds URL
 func (um UrlMaker) buildURL(bucket, object string) (string, string) {
+	// object 中的 "+" 按空格编码为 "%20"
+	return um.buildURLRaw(bucket, strings.Replace(object, "+", "%20", -1))
+}
+
+// buildURLRaw 构造 URL，保留 object 原始字符，供 V4 规范 URI 单次编码使用。
+func (um UrlMaker) buildURLRaw(bucket, object string) (string, string) {
 	var host = ""
 	var path = ""
-
-	//object = url.QueryEscape(object)
-	object = strings.Replace(object, "+", "%20", -1)
 
 	if um.Type == urlTypeCname {
 		host = um.NetLoc

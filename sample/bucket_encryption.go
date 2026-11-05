@@ -21,9 +21,9 @@ func BucketEncryptionSample() {
 	}
 
 	// SetBucketEncryption:AES256 ,"123"
-	encryptionRule := ks3.ServerEncryptionRule{}
-	encryptionRule.SSEDefault.SSEAlgorithm = string(ks3.AESAlgorithm)
-	err = client.SetBucketEncryption(bucketName, encryptionRule)
+	encryptionRule := ks3.ServerSideEncryptionRule{}
+	encryptionRule.ApplyServerSideEncryptionByDefault.SSEAlgorithm = string(ks3.AESAlgorithm)
+	err = client.PutBucketEncryption(bucketName, encryptionRule)
 	if err != nil {
 		HandleError(err)
 	}

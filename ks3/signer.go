@@ -37,7 +37,7 @@ var queryParam = []string{
 	"response-content-type", "response-content-language",
 	"response-expires", "response-cache-control",
 	"response-content-disposition", "response-content-encoding",
-	"security-token", "X-Kss-Policy",
+	"security-token", "X-Kss-Policy", "X-Amz-Policy",
 }
 
 // isParamSign 判定查询参数是否参与 V2 普通签名：纳入 subResource ∪ queryParam 的并集。

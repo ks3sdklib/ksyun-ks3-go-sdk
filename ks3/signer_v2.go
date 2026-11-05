@@ -23,6 +23,9 @@ const (
 	v2Expires       = "Expires"
 	v2Signature     = "Signature"
 	v2SecurityToken = "security-token"
+
+	v2PolicyParam    = "X-Kss-Policy"
+	awsV2PolicyParam = "X-Amz-Policy"
 )
 
 // V2 签名命名空间常量。
@@ -108,12 +111,20 @@ func (s v2Signer) signPolicyURL(bucketName string, expiration int64, params map[
 	}
 
 	date := strconv.FormatInt(expiration, 10)
+	_, _, accessKeyIdParam := s.namespace()
+	if s.config.UseAwsSignature {
+		// AWS 模式把 X-Kss-Policy 改写为 X-Amz-Policy。
+		if p, ok := params[v2PolicyParam]; ok {
+			params[awsV2PolicyParam] = p
+			delete(params, v2PolicyParam)
+		}
+	}
 	subResource := getSubResource(params)
 	canonicalResource := getResource(bucketName, "", subResource)
 	signedStr := s.getPolicySignedStr(canonicalResource, date, creds.GetAccessKeySecret())
 
 	params[v2Expires] = strconv.FormatInt(expiration, 10)
-	params[ks3V2AccessKeyIDParam] = creds.GetAccessKeyID()
+	params[accessKeyIdParam] = creds.GetAccessKeyID()
 	params[v2Signature] = signedStr
 
 	urlParams := getURLParams(params)

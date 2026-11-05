@@ -115,7 +115,7 @@ func (s *Ks3VectorsClientSuite) TestGetIndex(c *C) {
 	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
 		gotBody = readBody(c, r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"index":{"creationTime":1735449900,"dataType":"float32","dimension":768,"distanceMetric":"cosine","indexKrn":"krn:1","indexName":"my-index","metadataConfiguration":{"nonFilterableMetadataKeys":["color"]},"vectorBucketName":"bkt"}}`))
+		_, _ = w.Write([]byte(`{"index":{"creationTime":1735449900000,"dataType":"float32","dimension":768,"distanceMetric":"cosine","indexKrn":"krn:1","indexName":"my-index","metadataConfiguration":{"nonFilterableMetadataKeys":["color"]},"vectorBucketName":"bkt"}}`))
 	})
 	defer srv.Close()
 
@@ -133,7 +133,7 @@ func (s *Ks3VectorsClientSuite) TestGetIndex(c *C) {
 	c.Assert(*idx.DataType, Equals, "float32")
 	c.Assert(*idx.Dimension, Equals, 768)
 	c.Assert(*idx.DistanceMetric, Equals, "cosine")
-	c.Assert(*idx.CreationTime, Equals, int64(1735449900))
+	c.Assert(*idx.CreationTime, Equals, int64(1735449900000))
 	c.Assert(idx.MetadataConfiguration, NotNil)
 	c.Assert(idx.MetadataConfiguration.NonFilterableMetadataKeys, DeepEquals, []string{"color"})
 
@@ -149,7 +149,7 @@ func (s *Ks3VectorsClientSuite) TestListIndexes(c *C) {
 	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
 		gotBody = readBody(c, r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"nextToken":"tok2","indexes":[{"creationTime":1735449900,"dataType":"float32","dimension":1024,"distanceMetric":"cosine","indexKrn":"krn:1","indexName":"idx1","metadataConfiguration":{"nonFilterableMetadataKeys":["color"]},"vectorBucketName":"bkt"},{"creationTime":1731657600,"dataType":"float32","dimension":768,"distanceMetric":"euclidean","indexKrn":"krn:2","indexName":"idx2","vectorBucketName":"bkt"}]}`))
+		_, _ = w.Write([]byte(`{"nextToken":"tok2","indexes":[{"creationTime":1735449900000,"dataType":"float32","dimension":1024,"distanceMetric":"cosine","indexKrn":"krn:1","indexName":"idx1","metadataConfiguration":{"nonFilterableMetadataKeys":["color"]},"vectorBucketName":"bkt"},{"creationTime":1731657600000,"dataType":"float32","dimension":768,"distanceMetric":"euclidean","indexKrn":"krn:2","indexName":"idx2","vectorBucketName":"bkt"}]}`))
 	})
 	defer srv.Close()
 
@@ -173,7 +173,7 @@ func (s *Ks3VectorsClientSuite) TestListIndexes(c *C) {
 	c.Assert(*e0.IndexName, Equals, "idx1")
 	c.Assert(*e0.IndexKrn, Equals, "krn:1")
 	c.Assert(*e0.VectorBucketName, Equals, "bkt")
-	c.Assert(*e0.CreationTime, Equals, int64(1735449900))
+	c.Assert(*e0.CreationTime, Equals, int64(1735449900000))
 	c.Assert(*e0.DataType, Equals, "float32")
 	c.Assert(*e0.Dimension, Equals, 1024)
 	c.Assert(*e0.DistanceMetric, Equals, "cosine")

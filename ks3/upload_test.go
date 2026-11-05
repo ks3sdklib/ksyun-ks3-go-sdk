@@ -522,7 +522,6 @@ func (s *Ks3UploadSuite) TestUploadFileChoiceOptions(c *C) {
 	// UploadFile with properties
 	options := []Option{
 		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
 		TrafficLimitHeader(1024 * 1024 * 8),
 		ServerSideEncryption("AES256"),
 		ObjectStorageClass(StorageArchive),
@@ -563,7 +562,6 @@ func (s *Ks3UploadSuite) TestUploadFileWithCpChoiceOptions(c *C) {
 	// UploadFile with properties
 	options := []Option{
 		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
 		TrafficLimitHeader(1024 * 1024 * 8),
 		ServerSideEncryption("AES256"),
 		ObjectStorageClass(StorageArchive),

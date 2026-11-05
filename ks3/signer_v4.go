@@ -120,8 +120,7 @@ func (s v4Signer) signHeader(req *http.Request, creds Credentials, canonicalized
 
 // signURL 构造 v4 预签名 URL。
 //
-// 与 v2 signURL 不同，v4 的规范 URI 需要真实 host + path，故用 s.urlMaker 构造真实的
-// *http.Request，而非只有 Method+Header 的桩请求。
+// V4 规范 URI 需要真实 host + path，故用 s.urlMaker 构造真实的 *http.Request。
 func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) (string, error) {
 	creds := s.config.GetCredentials()
 	region := s.config.Region
@@ -130,7 +129,7 @@ func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expi
 	algorithm, terminator, service, _, _, _ := s.namespace()
 	scope := fmt.Sprintf("%s/%s/%s/%s", dateStamp, region, service, terminator)
 
-	host, path := s.urlMaker.buildURL(bucketName, objectName)
+	host, path := s.urlMaker.buildURLRaw(bucketName, objectName)
 
 	qAlgorithm := s.getQueryName(v4Algorithm)
 	qCredential := s.getQueryName(v4Credential)
@@ -141,7 +140,8 @@ func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expi
 	params[qAlgorithm] = algorithm
 	params[qCredential] = creds.GetAccessKeyID() + "/" + scope
 	params[qDate] = t.Format("20060102T150405Z")
-	params[qExpires] = strconv.FormatInt(expiration, 10)
+	// X-Kss-Expires 为相对当前时间的有效秒数
+	params[qExpires] = strconv.FormatInt(expiration-t.Unix(), 10)
 	if creds.GetSecurityToken() != "" {
 		params[s.getQueryName(v4SecurityToken)] = creds.GetSecurityToken()
 	}
@@ -189,7 +189,7 @@ func (s v4Signer) signURL(method HTTPMethod, bucketName, objectName string, expi
 	query.Set(qSignature, signature)
 
 	urlParams := getURLParams(params)
-	return s.urlMaker.getSignURL(bucketName, objectName, urlParams), nil
+	return s.urlMaker.getSignURL(bucketName, encodeKS3Str(objectName), urlParams), nil
 }
 
 // signPolicyURL 构造带 X-Kss-Policy 的 v4 分享外链。
@@ -222,7 +222,8 @@ func (s v4Signer) signPolicyURL(bucketName string, expiration int64, params map[
 	params[qAlgorithm] = algorithm
 	params[qCredential] = creds.GetAccessKeyID() + "/" + scope
 	params[qDate] = t.Format("20060102T150405Z")
-	params[qExpires] = strconv.FormatInt(expiration, 10)
+	// X-Kss-Expires 为相对当前时间的有效秒数
+	params[qExpires] = strconv.FormatInt(expiration-t.Unix(), 10)
 	if creds.GetSecurityToken() != "" {
 		params[s.getQueryName(v4SecurityToken)] = creds.GetSecurityToken()
 	}
@@ -297,11 +298,16 @@ func (s v4Signer) computeContentSHA256FromReader(data io.Reader) (string, io.Rea
 	if !ok {
 		return unsignedPayload, data, nil
 	}
+	// 记录并恢复原始偏移，保证哈希区间与实际发送区间一致。
+	pos, err := r.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return "", nil, err
+	}
 	h := sha256.New()
 	if _, err := io.Copy(h, r); err != nil {
 		return "", nil, err
 	}
-	if _, err := r.Seek(0, io.SeekStart); err != nil {
+	if _, err := r.Seek(pos, io.SeekStart); err != nil {
 		return "", nil, err
 	}
 	return hex.EncodeToString(h.Sum(nil)), r, nil

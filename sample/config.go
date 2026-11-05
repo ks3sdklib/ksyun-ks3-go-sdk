@@ -12,11 +12,6 @@ var (
 	accountID  = os.Getenv("KS3_TEST_ACCOUNT_ID")
 	stsARN     = os.Getenv("KS3_TEST_STS_ARN")
 
-	// Credential
-	credentialAccessID  = os.Getenv("KS3_CREDENTIAL_KEY_ID")
-	credentialAccessKey = os.Getenv("KS3_CREDENTIAL_KEY_SECRET")
-	credentialUID       = os.Getenv("KS3_CREDENTIAL_UID")
-
 	// The cname endpoint
 	endpoint4Cname = os.Getenv("KS3_TEST_CNAME_ENDPOINT")
 )

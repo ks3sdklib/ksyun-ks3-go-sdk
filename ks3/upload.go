@@ -99,15 +99,6 @@ func getRoutines(options []Option) int {
 	return rs
 }
 
-// getPayer return the request payer
-func getPayer(options []Option) string {
-	payerOpt, err := FindOption(options, HTTPHeaderKs3Requester, nil)
-	if err != nil || payerOpt == nil {
-		return ""
-	}
-	return payerOpt.(string)
-}
-
 // GetProgressListener gets the progress callback
 func GetProgressListener(options []Option) ProgressListener {
 	isSet, listener, _ := IsOptionSet(options, progressListener)

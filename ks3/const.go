@@ -19,17 +19,6 @@ const (
 	ACLDefault ACLType = "default"
 )
 
-// bucket versioning status
-type VersioningStatus string
-
-const (
-	// Versioning Status definition: Enabled
-	VersionEnabled VersioningStatus = "Enabled"
-
-	// Versioning Status definition: Suspended
-	VersionSuspended VersioningStatus = "Suspended"
-)
-
 // MetadataDirectiveType specifying whether use the metadata of source object when copying object.
 type MetadataDirectiveType string
 
@@ -126,17 +115,6 @@ const (
 	HashFuncSha256 ObjecthashFuncType = "SHA-256"
 )
 
-// PayerType the type of request payer
-type PayerType string
-
-const (
-	// Requester the requester who send the request
-	Requester PayerType = "Requester"
-
-	// BucketOwner the requester who send the request
-	BucketOwner PayerType = "BucketOwner"
-)
-
 // RestoreMode the restore mode for coldArchive object
 type RestoreMode string
 
@@ -223,18 +201,15 @@ const (
 	HTTPHeaderKs3NextAppendPosition          = "X-Kss-Next-Append-Position"
 	HTTPHeaderKs3RequestID                   = "X-Kss-Request-Id"
 	HTTPHeaderKs3CRC64                       = "X-Kss-Checksum-Crc64ecma"
-	HTTPHeaderKs3SymlinkTarget               = "X-Kss-Symlink-Target"
 	HTTPHeaderKs3StorageClass                = "X-Kss-Storage-Class"
 	HTTPHeaderKs3Callback                    = "X-Kss-Callback"
 	HTTPHeaderKs3CallbackVar                 = "X-Kss-Callback-Var"
-	HTTPHeaderKs3Requester                   = "X-Kss-Request-Payer"
 	HTTPHeaderKs3Tagging                     = "X-Kss-Tagging"
 	HTTPHeaderKs3TaggingCount                = "X-Kss-Tagging-Count"
 	HTTPHeaderKs3TaggingDirective            = "X-Kss-Tagging-Directive"
 	HTTPHeaderKs3TrafficLimit                = "X-Kss-Traffic-Limit"
 	HTTPHeaderKs3ForbidOverWrite             = "X-Kss-Forbid-Overwrite"
 	HTTPHeaderKs3RangeBehavior               = "X-Kss-Range-Behavior"
-	HTTPHeaderKs3TaskID                      = "X-Kss-Task-Id"
 	HTTPHeaderKs3HashCtx                     = "X-Kss-Hash-Ctx"
 	HTTPHeaderKs3Md5Ctx                      = "X-Kss-Md5-Ctx"
 	HTTPHeaderAllowSameActionOverLap         = "X-Kss-Allow-Same-Action-Overlap"
