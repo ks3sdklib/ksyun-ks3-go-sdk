@@ -38,10 +38,10 @@ type PutVectorsRequest struct {
 
 // PutVectorsResult 写入向量数据的响应结果（无响应体，仅状态码与响应头）。
 type PutVectorsResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // PutVectors 向索引中写入向量数据。
@@ -90,12 +90,12 @@ type GetVectorsRequest struct {
 
 // GetVectorsResult 根据 key 获取向量数据的响应结果。
 type GetVectorsResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 获取到的向量列表。
 	Vectors []Vector `json:"vectors"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // GetVectors 根据 key 获取一条或多条向量数据。
@@ -158,14 +158,14 @@ type ListVectorsRequest struct {
 
 // ListVectorsResult 列举向量数据的响应结果。
 type ListVectorsResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 分页令牌，用于获取下一页，已列举完则为空。
 	NextToken *string `json:"nextToken"`
 	// 列举出的向量列表。
 	Vectors []Vector `json:"vectors"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // ListVectors 列举向量索引中的所有向量数据。
@@ -212,10 +212,10 @@ type DeleteVectorsRequest struct {
 
 // DeleteVectorsResult 删除向量数据的响应结果（无响应体，仅状态码与响应头）。
 type DeleteVectorsResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // DeleteVectors 删除向量索引中的指定向量数据。
@@ -282,12 +282,12 @@ type QueryVectorsRequest struct {
 
 // QueryVectorsResult 向量相似性检索的响应结果。
 type QueryVectorsResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 检索到的向量列表。
 	Vectors []QueryOutputVector `json:"vectors"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // QueryVectors 进行向量相似性检索。

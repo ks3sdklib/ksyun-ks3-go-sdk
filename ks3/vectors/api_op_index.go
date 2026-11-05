@@ -35,12 +35,12 @@ type CreateIndexRequest struct {
 
 // CreateIndexResult 创建向量索引的响应结果。
 type CreateIndexResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 创建后返回的索引 KRN。
 	IndexKrn string `json:"indexKrn"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // CreateIndex 在向量桶中创建向量索引。
@@ -115,12 +115,12 @@ type Index struct {
 
 // GetIndexResult 获取向量索引详情的响应结果。
 type GetIndexResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 索引详情。
 	Index *Index `json:"index"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // GetIndex 获取向量索引详情。
@@ -169,14 +169,14 @@ type ListIndexesRequest struct {
 
 // ListIndexesResult 列举向量索引的响应结果。
 type ListIndexesResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 分页令牌，用于获取下一页。
 	NextToken *string `json:"nextToken"`
 	// 索引列表。
 	Indexes []Index `json:"indexes"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // ListIndexes 列举向量桶中的所有向量索引。
@@ -221,10 +221,10 @@ type DeleteIndexRequest struct {
 
 // DeleteIndexResult 删除向量索引的响应结果（无响应体，仅状态码与响应头）。
 type DeleteIndexResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // DeleteIndex 删除向量索引。

@@ -17,12 +17,12 @@ type CreateVectorBucketRequest struct {
 
 // CreateVectorBucketResult 创建向量桶的响应结果。
 type CreateVectorBucketResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 创建后返回的向量桶 KRN。
 	VectorBucketKrn string `json:"vectorBucketKrn"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // CreateVectorBucket 创建向量桶。
@@ -72,10 +72,10 @@ type DeleteVectorBucketRequest struct {
 
 // DeleteVectorBucketResult 删除向量桶的响应结果（无响应体，仅状态码与响应头）。
 type DeleteVectorBucketResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // DeleteVectorBucket 删除向量桶（须先清空桶下所有索引）。
@@ -124,12 +124,12 @@ type VectorBucket struct {
 
 // GetVectorBucketResult 获取向量桶详情的响应结果。
 type GetVectorBucketResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 向量桶详情。
 	VectorBucket *VectorBucket `json:"vectorBucket"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // GetVectorBucket 获取向量桶详情。
@@ -174,14 +174,14 @@ type ListVectorBucketsRequest struct {
 
 // ListVectorBucketsResult 列举向量桶的响应结果。
 type ListVectorBucketsResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 分页令牌，用于获取下一页。
 	NextToken *string `json:"nextToken"`
 	// 向量桶列表。
 	VectorBuckets []VectorBucket `json:"vectorBuckets"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // ListVectorBuckets 列举当前账号下全地域的向量桶。

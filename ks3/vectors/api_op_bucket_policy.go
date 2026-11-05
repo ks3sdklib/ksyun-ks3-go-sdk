@@ -21,10 +21,10 @@ type PutVectorBucketPolicyRequest struct {
 
 // PutVectorBucketPolicyResult 设置向量桶策略的响应结果（无响应体，仅状态码与响应头）。
 type PutVectorBucketPolicyResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // PutVectorBucketPolicy 设置向量桶策略。
@@ -65,12 +65,12 @@ type GetVectorBucketPolicyRequest struct {
 
 // GetVectorBucketPolicyResult 查询向量桶策略的响应结果。
 type GetVectorBucketPolicyResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
-	// HTTP 响应头。
-	Headers http.Header `json:"-"`
 	// 策略 JSON 字符串。
 	Policy string `json:"-"`
+	// HTTP 响应头。
+	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // GetVectorBucketPolicy 查询向量桶策略。
@@ -126,10 +126,10 @@ type DeleteVectorBucketPolicyRequest struct {
 
 // DeleteVectorBucketPolicyResult 删除向量桶策略的响应结果（无响应体，仅状态码与响应头）。
 type DeleteVectorBucketPolicyResult struct {
-	// HTTP 响应状态码。
-	StatusCode int `json:"-"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
+	// HTTP 响应状态码。
+	StatusCode int `json:"-"`
 }
 
 // DeleteVectorBucketPolicy 删除向量桶策略。
