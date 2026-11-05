@@ -114,7 +114,7 @@ type Index struct {
 	// 索引名称。
 	IndexName *string `json:"indexName"`
 	// 元数据配置。
-	MetadataConfiguration *MetadataConfiguration `json:"metadataConfiguration"`
+	MetadataConfiguration *MetadataConfiguration `json:"metadataConfiguration,omitempty"`
 	// 所属向量桶名称。
 	VectorBucketName *string `json:"vectorBucketName"`
 }
@@ -176,7 +176,7 @@ type ListIndexesRequest struct {
 // ListIndexesResult 列举向量索引的响应结果。
 type ListIndexesResult struct {
 	// 分页令牌，用于获取下一页。
-	NextToken *string `json:"nextToken"`
+	NextToken *string `json:"nextToken,omitempty"`
 	// 索引列表。
 	Indexes []Index `json:"indexes"`
 	// HTTP 响应头。

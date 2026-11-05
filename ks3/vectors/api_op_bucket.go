@@ -175,7 +175,7 @@ type ListVectorBucketsRequest struct {
 // ListVectorBucketsResult 列举向量桶的响应结果。
 type ListVectorBucketsResult struct {
 	// 分页令牌，用于获取下一页。
-	NextToken *string `json:"nextToken"`
+	NextToken *string `json:"nextToken,omitempty"`
 	// 向量桶列表。
 	VectorBuckets []VectorBucket `json:"vectorBuckets"`
 	// HTTP 响应头。

@@ -160,7 +160,7 @@ type ListVectorsRequest struct {
 // ListVectorsResult 列举向量数据的响应结果。
 type ListVectorsResult struct {
 	// 分页令牌，用于获取下一页，已列举完则为空。
-	NextToken *string `json:"nextToken"`
+	NextToken *string `json:"nextToken,omitempty"`
 	// 列举出的向量列表。
 	Vectors []Vector `json:"vectors"`
 	// HTTP 响应头。
