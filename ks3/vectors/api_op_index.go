@@ -26,7 +26,7 @@ type CreateIndexRequest struct {
 	// 向量数据类型，默认 float32，缺省时自动填充。
 	DataType *string `json:"dataType,omitempty"`
 	// 向量维度，取值范围 1-4096。
-	Dimension *int `json:"dimension,omitempty"`
+	Dimension *int `json:"dimension"`
 	// 距离度量函数：euclidean（欧氏距离）/ cosine（余弦距离），必填。
 	DistanceMetric *string `json:"distanceMetric"`
 	// 元数据配置，可选。
@@ -53,6 +53,12 @@ func (vc *VectorsClient) CreateIndex(req *CreateIndexRequest, opts ...ks3.Option
 	}
 	if req.DistanceMetric == nil {
 		return nil, fmt.Errorf("vectors: requires distanceMetric")
+	}
+	if req.Dimension == nil {
+		return nil, fmt.Errorf("vectors: requires dimension")
+	}
+	if *req.Dimension < 1 || *req.Dimension > 4096 {
+		return nil, fmt.Errorf("vectors: dimension must be in [1, 4096]")
 	}
 	if req.DataType == nil {
 		req.DataType = ks3.String("float32")
@@ -183,6 +189,9 @@ type ListIndexesResult struct {
 func (vc *VectorsClient) ListIndexes(req *ListIndexesRequest, opts ...ks3.Option) (*ListIndexesResult, error) {
 	if req == nil {
 		req = &ListIndexesRequest{}
+	}
+	if req.MaxResults != nil && (*req.MaxResults < 1 || *req.MaxResults > 500) {
+		return nil, fmt.Errorf("vectors: maxResults must be in [1, 500]")
 	}
 	body, err := json.Marshal(req)
 	if err != nil {

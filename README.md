@@ -9,10 +9,10 @@
 > - With this SDK, you can upload, download and manage data on any app anytime and anywhere conveniently. 
 
 ## Version
-> - Current version: v0.0.1
+> - Current version: v1.3.0
 
 ## Running Environment
-> - Go 1.5 or above. 
+> - Go 1.16 or above. 
 
 ## Installing
 ### Install the SDK through GitHub
@@ -140,11 +140,11 @@
 ```
 
 ##  Complete Example
-More example projects can be found at 'src\github.com\ksyun\ksyun-ks3-go-sdk\sample' under the installation path of the KS3 Go SDK (the first path of the GOPATH variable). The directory contains example projects. 
+More example projects can be found at 'src\github.com\ks3sdklib\ksyun-ks3-go-sdk\sample' under the installation path of the KS3 Go SDK (the first path of the GOPATH variable). The directory contains example projects. 
 Or you can refer to the example objects in the sample directory under 'https://github.com/ks3sdklib/ksyun-ks3-go-sdk'.
 
 ### Running Example
-> - Copy the example file. Go to the installation path of KS3 Go SDK (the first path of the GOPATH variable), enter the code directory of the KS3 Go SDK, namely 'src\github.com\ksyun\ksyun-ks3-go-sdk',
+> - Copy the example file. Go to the installation path of KS3 Go SDK (the first path of the GOPATH variable), enter the code directory of the KS3 Go SDK, namely 'src\github.com\ks3sdklib\ksyun-ks3-go-sdk',
 and copy the sample directory and sample.go to the src directory of your test project.
 > - Modify the  endpoint, AccessKeyId, AccessKeySecret and BucketName configuration settings in sample/config.go.
 > - Run 'go run src/sample.go' under your project directory.

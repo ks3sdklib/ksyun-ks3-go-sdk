@@ -11,6 +11,7 @@ import (
 
 // VectorData 向量数据，仅支持 float32 类型。
 type VectorData struct {
+	// 向量值数组。
 	Float32 []float32 `json:"float32,omitempty"`
 }
 
@@ -18,8 +19,8 @@ type VectorData struct {
 type Vector struct {
 	// 向量主键，桶内唯一，长度 1-1024，UTF-8。
 	Key string `json:"key"`
-	// 向量数据，维度与数据类型须与 CreateIndex 指定的匹配。
-	Data VectorData `json:"data"`
+	// 向量数据，维度与数据类型须与索引一致；未返回数据时为 nil。
+	Data *VectorData `json:"data,omitempty"`
 	// 向量关联的元数据，可选，支持整数/浮点/字符串/布尔/数组/对象。
 	Metadata interface{} `json:"metadata,omitempty"`
 }
@@ -173,6 +174,9 @@ func (vc *VectorsClient) ListVectors(req *ListVectorsRequest, opts ...ks3.Option
 	if req == nil {
 		req = &ListVectorsRequest{}
 	}
+	if req.MaxResults != nil && (*req.MaxResults < 1 || *req.MaxResults > 1000) {
+		return nil, fmt.Errorf("vectors: maxResults must be in [1, 1000]")
+	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err
@@ -250,8 +254,8 @@ func (vc *VectorsClient) DeleteVectors(req *DeleteVectorsRequest, opts ...ks3.Op
 type QueryOutputVector struct {
 	// 向量主键。
 	Key string `json:"key"`
-	// 向量数据。
-	Data VectorData `json:"data"`
+	// 向量数据，未返回数据时为 nil。
+	Data *VectorData `json:"data,omitempty"`
 	// 向量元数据，可选，支持整数/浮点/字符串/布尔/数组/对象。
 	Metadata interface{} `json:"metadata,omitempty"`
 	// 结果向量与查询向量的相似度距离。
@@ -294,6 +298,9 @@ type QueryVectorsResult struct {
 func (vc *VectorsClient) QueryVectors(req *QueryVectorsRequest, opts ...ks3.Option) (*QueryVectorsResult, error) {
 	if req == nil {
 		req = &QueryVectorsRequest{}
+	}
+	if len(req.QueryVector.Float32) == 0 {
+		return nil, fmt.Errorf("vectors: requires queryVector")
 	}
 	if req.TopK == nil || *req.TopK < 1 || *req.TopK > 100 {
 		return nil, fmt.Errorf("vectors: requires topK in [1, 100]")

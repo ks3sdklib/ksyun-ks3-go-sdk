@@ -189,6 +189,9 @@ func (vc *VectorsClient) ListVectorBuckets(req *ListVectorBucketsRequest, opts .
 	if req == nil {
 		req = &ListVectorBucketsRequest{}
 	}
+	if req.MaxResults != nil && (*req.MaxResults < 1 || *req.MaxResults > 500) {
+		return nil, fmt.Errorf("vectors: maxResults must be in [1, 500]")
+	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, err

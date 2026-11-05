@@ -23,7 +23,7 @@ func (s *Ks3VectorsClientSuite) TestPutVectors(c *C) {
 		IndexName:        strPtr("idx"),
 		Vectors: []Vector{{
 			Key:      "k1",
-			Data:     VectorData{Float32: []float32{1, 2, 3}},
+			Data:     &VectorData{Float32: []float32{1, 2, 3}},
 			Metadata: map[string]interface{}{"color": "red"},
 		}},
 	})
@@ -39,7 +39,7 @@ func (s *Ks3VectorsClientSuite) TestPutVectors(c *C) {
 	// 按 indexKrn 写入
 	_, err = vc.PutVectors(&PutVectorsRequest{
 		IndexKrn: strPtr("krn:1"),
-		Vectors:  []Vector{{Key: "k1", Data: VectorData{Float32: []float32{1, 2, 3}}}},
+		Vectors:  []Vector{{Key: "k1", Data: &VectorData{Float32: []float32{1, 2, 3}}}},
 	})
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(gotBody, `"indexKrn":"krn:1"`), Equals, true)
@@ -139,6 +139,12 @@ func (s *Ks3VectorsClientSuite) TestListVectors(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(gotBody, `"indexKrn":"krn:1"`), Equals, true)
 
+	// maxResults 越界报错
+	_, err = vc.ListVectors(&ListVectorsRequest{VectorBucketName: strPtr("bkt"), IndexName: strPtr("idx"), MaxResults: intPtr(0)})
+	c.Assert(err, NotNil)
+	_, err = vc.ListVectors(&ListVectorsRequest{VectorBucketName: strPtr("bkt"), IndexName: strPtr("idx"), MaxResults: intPtr(1001)})
+	c.Assert(err, NotNil)
+
 	// 容错：req 为 nil 不 panic
 	nilVC, nilSrv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
 		_ = readBody(c, r.Body)
@@ -237,10 +243,19 @@ func (s *Ks3VectorsClientSuite) TestQueryVectors(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(gotBody, `"indexKrn":"krn:1"`), Equals, true)
 
+	// 缺 queryVector 报错
+	_, err = vc.QueryVectors(&QueryVectorsRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("idx"),
+		TopK:             intPtr(2),
+	})
+	c.Assert(err, NotNil)
+
 	// topK < 1 报错
 	_, err = vc.QueryVectors(&QueryVectorsRequest{
 		VectorBucketName: strPtr("bkt"),
 		IndexName:        strPtr("idx"),
+		QueryVector:      VectorData{Float32: []float32{1, 2}},
 		TopK:             intPtr(0),
 	})
 	c.Assert(err, NotNil)
@@ -249,6 +264,7 @@ func (s *Ks3VectorsClientSuite) TestQueryVectors(c *C) {
 	_, err = vc.QueryVectors(&QueryVectorsRequest{
 		VectorBucketName: strPtr("bkt"),
 		IndexName:        strPtr("idx"),
+		QueryVector:      VectorData{Float32: []float32{1, 2}},
 		TopK:             intPtr(101),
 	})
 	c.Assert(err, NotNil)

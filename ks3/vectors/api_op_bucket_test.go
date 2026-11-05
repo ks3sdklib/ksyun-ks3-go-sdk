@@ -112,7 +112,6 @@ func (s *Ks3VectorsClientSuite) TestCreateVectorBucket(c *C) {
 	errVC := &VectorsClient{client: errClient}
 	_, err = errVC.CreateVectorBucket(&CreateVectorBucketRequest{VectorBucketName: strPtr("test-vector-bucket")})
 	c.Assert(err, NotNil)
-	// 错误解析为 VectorServiceError
 	se, ok := err.(ks3.VectorServiceError)
 	c.Assert(ok, Equals, true)
 	c.Assert(se.Message, Equals, "bucket already exists")
@@ -250,6 +249,12 @@ func (s *Ks3VectorsClientSuite) TestListVectorBuckets(c *C) {
 	// 校验 VectorBucket[1] 部分字段
 	c.Assert(*result.VectorBuckets[1].VectorBucketName, Equals, "b2")
 	c.Assert(*result.VectorBuckets[1].Location, Equals, "shanghai")
+
+	// maxResults 越界报错
+	_, err = vc.ListVectorBuckets(&ListVectorBucketsRequest{MaxResults: intPtr(0)})
+	c.Assert(err, NotNil)
+	_, err = vc.ListVectorBuckets(&ListVectorBucketsRequest{MaxResults: intPtr(501)})
+	c.Assert(err, NotNil)
 
 	// 容错：req 为 nil 不 panic，发送空 body
 	nilVC, nilSrv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {

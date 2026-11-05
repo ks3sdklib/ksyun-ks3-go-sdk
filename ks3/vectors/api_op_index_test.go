@@ -61,6 +61,30 @@ func (s *Ks3VectorsClientSuite) TestCreateIndex(c *C) {
 		Dimension:        intPtr(1024),
 	})
 	c.Assert(err, NotNil)
+
+	// 缺 dimension 报错
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, NotNil)
+
+	// dimension 越界报错
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		Dimension:        intPtr(0),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, NotNil)
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		Dimension:        intPtr(4097),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, NotNil)
 }
 
 // TestCreateIndexDefaultDataType 校验不传 DataType 时默认填充 float32。
@@ -161,6 +185,12 @@ func (s *Ks3VectorsClientSuite) TestListIndexes(c *C) {
 	_, err = vc.ListIndexes(&ListIndexesRequest{VectorBucketKrn: strPtr(krn)})
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(gotBody, `"vectorBucketKrn":"`+krn+`"`), Equals, true)
+
+	// maxResults 越界报错
+	_, err = vc.ListIndexes(&ListIndexesRequest{VectorBucketName: strPtr("bkt"), MaxResults: intPtr(0)})
+	c.Assert(err, NotNil)
+	_, err = vc.ListIndexes(&ListIndexesRequest{VectorBucketName: strPtr("bkt"), MaxResults: intPtr(501)})
+	c.Assert(err, NotNil)
 
 	// 容错：req 为 nil 不 panic
 	nilVC, nilSrv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
