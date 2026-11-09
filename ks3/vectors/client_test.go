@@ -1,13 +1,16 @@
 package vectors
 
 import (
+	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,8 +19,84 @@ import (
 	"github.com/ks3sdklib/ksyun-ks3-go-sdk/ks3"
 )
 
-// Test 将 gocheck 接入 go test 测试运行器。
-func Test(t *testing.T) { TestingT(t) }
+// progressWriter 统计 gocheck 输出，每 N 个用例打印一行汇总。
+type progressWriter struct {
+	mu      sync.Mutex
+	every   int
+	total   int
+	done    int
+	passed  int
+	failed  int
+	skipped int
+	buf     []byte
+}
+
+// Write 按行解析 gocheck 输出并更新统计。
+func (w *progressWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.buf = append(w.buf, p...)
+	for {
+		i := bytes.IndexByte(w.buf, '\n')
+		if i < 0 {
+			break
+		}
+		w.consume(string(w.buf[:i]))
+		w.buf = w.buf[i+1:]
+	}
+	return len(p), nil
+}
+
+// consume 处理单行输出：用例结果计数，失败详情原样输出。
+func (w *progressWriter) consume(line string) {
+	switch {
+	case strings.HasPrefix(line, "PASS:"):
+		w.done++
+		w.passed++
+		w.report()
+	case strings.HasPrefix(line, "SKIP:"), strings.HasPrefix(line, "MISS:"):
+		w.done++
+		w.skipped++
+		w.report()
+	case strings.HasPrefix(line, "FAIL:"), strings.HasPrefix(line, "PANIC:"), strings.HasPrefix(line, "FAIL EXPECTED:"):
+		w.done++
+		w.failed++
+		fmt.Println(line)
+		w.report()
+	case line == "" || strings.HasPrefix(line, "START:") || strings.HasPrefix(line, "-----"):
+		// 丢弃空行、用例开始标记与分隔线
+	default:
+		// 失败详情原样输出，保证失败原因可见
+		fmt.Println(line)
+	}
+}
+
+// report 到达间隔时输出汇总。
+func (w *progressWriter) report() {
+	if w.done%w.every == 0 {
+		fmt.Printf("[progress] 用例 %d/%d：通过 %d，失败 %d，跳过 %d\n", w.done, w.total, w.passed, w.failed, w.skipped)
+	}
+}
+
+// Test 将 gocheck 接入 go test 测试运行器，每 10 个用例输出一次进度汇总；
+// 传 -check.v 时改用 gocheck 原生逐用例输出。
+func Test(t *testing.T) {
+	if flag.Lookup("check.v").Value.String() == "true" || flag.Lookup("gocheck.v").Value.String() == "true" {
+		TestingT(t)
+		return
+	}
+	conf := &RunConf{
+		Filter:  flag.Lookup("check.f").Value.String() + flag.Lookup("gocheck.f").Value.String(),
+		Verbose: true,
+	}
+	pw := &progressWriter{every: 10, total: len(ListAll(conf))}
+	conf.Output = pw
+	result := RunAll(conf)
+	fmt.Println(result.String())
+	if !result.Passed() {
+		t.Fail()
+	}
+}
 
 type Ks3VectorsClientSuite struct {
 	vc *VectorsClient
@@ -508,15 +587,6 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 		nextToken = listRes.NextToken
 	}
 	c.Assert(len(listed), Equals, 3, Commentf("ListVectors should return 3 vectors in total, got %v", listed))
-
-	// 带 filter 列举
-	filterRes, err := s.vc.ListVectors(&ListVectorsRequest{
-		VectorBucketName: strPtr(s.bucket),
-		IndexName:        strPtr(index),
-		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
-	})
-	c.Assert(err, IsNil)
-	c.Assert(filterRes.StatusCode, Equals, http.StatusOK)
 
 	// 不返回数据与元数据
 	plainList, err := s.vc.ListVectors(&ListVectorsRequest{

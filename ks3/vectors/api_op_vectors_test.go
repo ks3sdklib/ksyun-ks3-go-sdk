@@ -113,7 +113,6 @@ func (s *Ks3VectorsClientSuite) TestListVectors(c *C) {
 		ReturnMetadata:   boolPtr(true),
 		SegmentCount:     intPtr(4),
 		SegmentIndex:     intPtr(3),
-		Filter:           map[string]interface{}{"color": map[string]interface{}{"$eq": "red"}},
 	})
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(gotBody, `"vectorBucketName":"bkt"`), Equals, true)
@@ -124,7 +123,6 @@ func (s *Ks3VectorsClientSuite) TestListVectors(c *C) {
 	c.Assert(strings.Contains(gotBody, `"returnMetadata":true`), Equals, true)
 	c.Assert(strings.Contains(gotBody, `"segmentCount":4`), Equals, true)
 	c.Assert(strings.Contains(gotBody, `"segmentIndex":3`), Equals, true)
-	c.Assert(strings.Contains(gotBody, `"filter":{"color":{"$eq":"red"}}`), Equals, true)
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
 	c.Assert(*res.NextToken, Equals, "tok2")
 	c.Assert(res.Vectors, HasLen, 1)

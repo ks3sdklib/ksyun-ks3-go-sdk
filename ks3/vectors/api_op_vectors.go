@@ -153,8 +153,6 @@ type ListVectorsRequest struct {
 	SegmentCount *int `json:"segmentCount,omitempty"`
 	// 列举的段索引，取值范围 1-SegmentCount。
 	SegmentIndex *int `json:"segmentIndex,omitempty"`
-	// 元数据过滤器。
-	Filter interface{} `json:"filter,omitempty"`
 }
 
 // ListVectorsResult 列举向量数据的响应结果。
@@ -274,7 +272,7 @@ type QueryVectorsRequest struct {
 	QueryVector VectorData `json:"queryVector"`
 	// 返回的最近邻结果数，取值范围 1-100。
 	TopK *int `json:"topK"`
-	// 元数据预过滤器，可选。
+	// 元数据预过滤器，操作符带 $ 前缀（如 $eq/$gt/$lt）。
 	Filter interface{} `json:"filter,omitempty"`
 	// 是否返回向量数据，默认 false。
 	ReturnData *bool `json:"returnData,omitempty"`

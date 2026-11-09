@@ -1730,7 +1730,7 @@ func Region(region string) ClientOption {
 	}
 }
 
-// ServiceName 覆盖 v4 签名 scope 中的 service（默认 ks3；向量桶等子产品用 "s3vectors"）。仅 v4 生效，v2 忽略。
+// ServiceName 覆盖 v4 签名 scope 中的 service（默认 ks3，向量桶为 ks3vectors）；仅 v4 生效。
 func ServiceName(serviceName string) ClientOption {
 	return func(client *Client) {
 		client.Config.ServiceName = serviceName
