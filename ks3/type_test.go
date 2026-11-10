@@ -19,16 +19,16 @@ var (
 )
 
 func (s *Ks3TypeSuite) TestDecodeDeleteObjectsResult(c *C) {
-	var res DeleteObjectVersionsResult
+	var res deleteObjectsResult
 	err := decodeDeleteObjectsResult(&res)
 	c.Assert(err, IsNil)
 
-	res.DeletedObjectsDetail = []DeletedKeyInfo{DeletedKeyInfo{Key: ""}}
+	res.DeletedObjectsDetail = []deletedKeyInfo{deletedKeyInfo{Key: ""}}
 	err = decodeDeleteObjectsResult(&res)
 	c.Assert(err, IsNil)
 	c.Assert(res.DeletedObjectsDetail[0].Key, Equals, "")
 
-	res.DeletedObjectsDetail = []DeletedKeyInfo{DeletedKeyInfo{Key: goURLStr}, DeletedKeyInfo{Key: chnURLStr}}
+	res.DeletedObjectsDetail = []deletedKeyInfo{deletedKeyInfo{Key: goURLStr}, deletedKeyInfo{Key: chnURLStr}}
 	err = decodeDeleteObjectsResult(&res)
 	c.Assert(err, IsNil)
 	c.Assert(res.DeletedObjectsDetail[0].Key, Equals, goStr)
@@ -151,7 +151,7 @@ func (s *Ks3TypeSuite) TestValidateLifecycleRules(c *C) {
 
 	abortMPU := LifecycleAbortIncompleteMultipartUpload{
 		DaysAfterInitiation: 30,
-		Date: "2018-01-01T00:00:00+08:00",
+		Date:                "2018-01-01T00:00:00+08:00",
 	}
 	rule = LifecycleRule{
 		ID:                             "ruleID",
@@ -179,7 +179,7 @@ func (s *Ks3TypeSuite) TestValidateLifecycleRules(c *C) {
 
 	transition := LifecycleTransition{
 		Days:         30,
-		Date: "2018-01-01T00:00:00+08:00",
+		Date:         "2018-01-01T00:00:00+08:00",
 		StorageClass: StorageIA,
 	}
 	rule = LifecycleRule{
@@ -222,7 +222,7 @@ func (s *Ks3TypeSuite) TestValidateLifecycleRules(c *C) {
 	c.Assert(err, IsNil)
 
 	transition = LifecycleTransition{
-		Date: "2018-01-01T00:00:00+08:00",
+		Date:         "2018-01-01T00:00:00+08:00",
 		StorageClass: StorageStandard,
 	}
 	rule = LifecycleRule{

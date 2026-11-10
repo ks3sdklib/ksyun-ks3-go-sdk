@@ -5,8 +5,10 @@
 package ks3
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -18,15 +20,96 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	. "gopkg.in/check.v1"
 )
 
-// Test hooks up gocheck into the "go test" runner.
+// progressWriter 统计 gocheck 输出，每 N 个用例打印一行汇总。
+type progressWriter struct {
+	mu      sync.Mutex
+	every   int
+	total   int
+	done    int
+	passed  int
+	failed  int
+	skipped int
+	buf     []byte
+}
+
+// Write 按行解析 gocheck 输出并更新统计。
+func (w *progressWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.buf = append(w.buf, p...)
+	for {
+		i := bytes.IndexByte(w.buf, '\n')
+		if i < 0 {
+			break
+		}
+		w.consume(string(w.buf[:i]))
+		w.buf = w.buf[i+1:]
+	}
+	return len(p), nil
+}
+
+// consume 处理单行输出：用例结果计数，失败详情原样输出。
+func (w *progressWriter) consume(line string) {
+	switch {
+	case strings.HasPrefix(line, "PASS:"):
+		w.done++
+		w.passed++
+		w.report()
+	case strings.HasPrefix(line, "SKIP:"), strings.HasPrefix(line, "MISS:"):
+		w.done++
+		w.skipped++
+		w.report()
+	case strings.HasPrefix(line, "FAIL:"), strings.HasPrefix(line, "PANIC:"), strings.HasPrefix(line, "FAIL EXPECTED:"):
+		w.done++
+		w.failed++
+		fmt.Println(line)
+		w.report()
+	case line == "" || strings.HasPrefix(line, "START:") || strings.HasPrefix(line, "-----"):
+		// 丢弃空行、用例开始标记与分隔线
+	default:
+		// 失败详情原样输出，保证失败原因可见
+		fmt.Println(line)
+	}
+}
+
+// report 到达间隔时输出汇总。
+func (w *progressWriter) report() {
+	if w.done%w.every == 0 {
+		fmt.Printf("[progress] 用例 %d/%d：通过 %d，失败 %d，跳过 %d\n", w.done, w.total, w.passed, w.failed, w.skipped)
+	}
+}
+
+// Test 将 gocheck 接入 go test 测试运行器，每 10 个用例输出一次进度汇总；
+// 传 -check.v 时改用 gocheck 原生逐用例输出。
 func Test(t *testing.T) {
-	TestingT(t)
+	defer func() {
+		if testLogFile != nil {
+			testLogFile.Close()
+		}
+		os.RemoveAll(logDir)
+	}()
+	if flag.Lookup("check.v").Value.String() == "true" || flag.Lookup("gocheck.v").Value.String() == "true" {
+		TestingT(t)
+		return
+	}
+	conf := &RunConf{
+		Filter:  flag.Lookup("check.f").Value.String() + flag.Lookup("gocheck.f").Value.String(),
+		Verbose: true,
+	}
+	pw := &progressWriter{every: 10, total: len(ListAll(conf))}
+	conf.Output = pw
+	result := RunAll(conf)
+	fmt.Println(result.String())
+	if !result.Passed() {
+		t.Fail()
+	}
 }
 
 type Ks3ClientSuite struct {
@@ -71,12 +154,21 @@ var (
 )
 
 var (
-	logPath            = "go_sdk_test_" + time.Now().Format("20060102_150405") + ".log"
-	testLogFile, _     = os.OpenFile(logPath, os.O_RDWR|os.O_CREATE, 0664)
+	logDir             = "go_sdk_test"
+	logPath            = logDir + string(os.PathSeparator) + "go_sdk_test_" + time.Now().Format("20060102_150405") + ".log"
+	testLogFile, _     = openTestLogFile(logPath)
 	testLogger         = log.New(testLogFile, "", log.Ldate|log.Ltime|log.Lshortfile)
 	letters            = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	timeoutInOperation = 1 * time.Second
 )
+
+// openTestLogFile 创建日志目录（若不存在）并打开日志文件，统一输出到 go_sdk_test/ 子目录，避免平铺。
+func openTestLogFile(path string) (*os.File, error) {
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return nil, err
+	}
+	return os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0664)
+}
 
 // structs for replication get test
 type GetResult struct {
@@ -314,7 +406,7 @@ func (s *Ks3ClientSuite) TestCreateBucket(c *C) {
 	err = client.DeleteBucket(bucketNameTest)
 	c.Assert(err, IsNil)
 
-	// Create bucket with configuration and test GetBucketInfo
+	// Create bucket with configuration
 	for _, storage := range []BucketType{TypeNormal, TypeIA, TypeArchive} {
 		bucketNameTest := bucketNamePrefix + RandLowStr(6)
 		err = client.CreateBucket(bucketNameTest, BucketTypeClass(storage), ACL(ACLPublicRead))
@@ -777,7 +869,7 @@ func (s *Ks3ClientSuite) TestSetBucketLifecycleNew(c *C) {
 		StorageClass: StorageIA,
 	}
 	transition2 := LifecycleTransition{
-		Days: 40,
+		Days:         40,
 		StorageClass: StorageArchive,
 	}
 	transitions := []LifecycleTransition{transition1, transition2}
@@ -1186,7 +1278,7 @@ func (s *Ks3ClientSuite) TestSetBucketCORS(c *C) {
 		AllowedOrigin: []string{"http://www.a.com", "http://www.b.com"},
 		AllowedMethod: []string{"GET"},
 		AllowedHeader: []string{"Authorization"},
-		ExposeHeader:  []string{"x-ks3-test", "x-ks3-test1"},
+		ExposeHeader:  []string{"x-kss-test", "x-kss-test1"},
 		MaxAgeSeconds: 200,
 	}
 
@@ -1467,7 +1559,7 @@ func (s *Ks3ClientSuite) getBucket(buckets []BucketProperties, bucket string) (b
 }
 
 func (s *Ks3ClientSuite) TestHttpLogNotSignUrl(c *C) {
-	logName := "." + string(os.PathSeparator) + "test-go-sdk-httpdebug.log" + RandStr(5)
+	logName := logDir + string(os.PathSeparator) + "test-go-sdk-httpdebug.log" + RandStr(5)
 	f, err := os.OpenFile(logName, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0660)
 	c.Assert(err, IsNil)
 
@@ -2582,7 +2674,7 @@ func (s *Ks3ClientSuite) TestBucketReplication(c *C) {
 	c.Assert(err, NotNil)
 
 	replication := Replication{
-		Prefix: []string{"abc/"},
+		Prefix:                      []string{"abc/"},
 		DeleteMarkerStatus:          "Enabled",
 		TargetBucket:                targetBucket,
 		HistoricalObjectReplication: "Enabled",

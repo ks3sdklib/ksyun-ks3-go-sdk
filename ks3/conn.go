@@ -1,7 +1,6 @@
 package ks3
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"crypto/md5"
@@ -16,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,33 +28,6 @@ type Conn struct {
 	Url    *UrlMaker
 	client *http.Client
 }
-
-var signKeyList = []string{"acl", "uploads", "location", "cors",
-	"logging", "website", "referer", "lifecycle",
-	"retention", "recycle", "recover", "clear",
-	"crr", "mirror", "inventory", "id", "encryption",
-	"delete", "append", "tagging", "objectMeta",
-	"uploadId", "partNumber", "security-token",
-	"position", "img", "style", "styleName",
-	"replication", "replicationProgress",
-	"replicationLocation", "cname", "bucketInfo",
-	"comp", "qos", "live", "status", "vod",
-	"startTime", "endTime", "symlink",
-	"x-ks3-process", "response-content-type", "x-ks3-traffic-limit",
-	"response-content-language", "response-expires",
-	"response-cache-control", "response-content-disposition",
-	"response-content-encoding", "udf", "udfName", "udfImage",
-	"udfId", "udfImageDesc", "udfApplication", "comp",
-	"udfApplicationLog", "restore", "callback", "callback-var", "qosInfo",
-	"policy", "stat", "encryption", "versions", "versioning", "versionId", "requestPayment",
-	"x-ks3-request-payer", "sequential", "asyncFetch",
-	"worm", "wormId", "wormExtend", "withHashContext",
-	"x-ks3-enable-md5", "x-ks3-enable-sha1", "x-ks3-enable-sha256",
-	"x-ks3-hash-ctx", "x-ks3-md5-ctx", "transferAcceleration",
-	"regionList",
-}
-
-var policySignKeyList = []string{"X-Kss-Policy", "security-token"}
 
 // init initializes Conn
 func (conn *Conn) init(config *Config, urlMaker *UrlMaker, client *http.Client) error {
@@ -105,11 +78,11 @@ func (conn Conn) Do(method, bucketName, objectName string, params map[string]int
 // DoWithContext sends request and returns the response
 func (conn Conn) DoWithContext(ctx context.Context, method, bucketName, objectName string, params map[string]interface{}, headers map[string]string,
 	data io.Reader, initCRC uint64, listener ProgressListener) (*Response, error) {
-	urlParams := conn.getURLParams(params)
-	subResource := conn.getSubResource(params)
+	urlParams := getURLParams(params)
+	subResource := getSubResource(params)
 	urltmp := encodeKS3Str(objectName)
 	uri := conn.Url.getURL(bucketName, urltmp, urlParams)
-	resource := conn.getResource(bucketName, objectName, subResource)
+	resource := getResource(bucketName, objectName, subResource)
 	return conn.doRequest(ctx, method, uri, resource, headers, data, initCRC, listener)
 }
 
@@ -197,7 +170,7 @@ func (conn Conn) DoURLWithContext(ctx context.Context, method HTTPMethod, signed
 	return conn.handleResponse(resp, crc)
 }
 
-func (conn Conn) getURLParams(params map[string]interface{}) string {
+func getURLParams(params map[string]interface{}) string {
 	// Sort
 	keys := make([]string, 0, len(params))
 	for k := range params {
@@ -220,18 +193,12 @@ func (conn Conn) getURLParams(params map[string]interface{}) string {
 	return buf.String()
 }
 
-func (conn Conn) getSubResource(params map[string]interface{}) string {
+func getSubResource(params map[string]interface{}) string {
 	// Sort
 	keys := make([]string, 0, len(params))
 	signParams := make(map[string]string)
 	for k := range params {
-		if conn.config.AuthVersion == AuthV2 {
-			encodedKey := url.QueryEscape(k)
-			keys = append(keys, encodedKey)
-			if params[k] != nil && params[k] != "" {
-				signParams[encodedKey] = strings.Replace(url.QueryEscape(params[k].(string)), "+", "%20", -1)
-			}
-		} else if conn.isParamSign(k) {
+		if isParamSign(k) {
 			keys = append(keys, k)
 			if params[k] != nil {
 				signParams[k] = params[k].(string)
@@ -254,60 +221,6 @@ func (conn Conn) getSubResource(params map[string]interface{}) string {
 		}
 	}
 	return buf.String()
-}
-
-func (conn Conn) isParamSign(paramKey string) bool {
-	for _, k := range signKeyList {
-		if paramKey == k {
-			return true
-		}
-	}
-	return false
-}
-
-func (conn Conn) getPolicySubResource(params map[string]interface{}) string {
-	// Sort
-	keys := make([]string, 0, len(params))
-	signParams := make(map[string]string)
-	for k := range params {
-		if conn.config.AuthVersion == AuthV2 {
-			encodedKey := url.QueryEscape(k)
-			keys = append(keys, encodedKey)
-			if params[k] != nil && params[k] != "" {
-				signParams[encodedKey] = strings.Replace(url.QueryEscape(params[k].(string)), "+", "%20", -1)
-			}
-		} else if conn.isPolicyParamSign(k) {
-			keys = append(keys, k)
-			if params[k] != nil {
-				signParams[k] = params[k].(string)
-			}
-		}
-	}
-	sort.Strings(keys)
-
-	// Serialize
-	var buf bytes.Buffer
-	for _, k := range keys {
-		if buf.Len() > 0 {
-			buf.WriteByte('&')
-		}
-		buf.WriteString(k)
-		if _, ok := signParams[k]; ok {
-			if signParams[k] != "" {
-				buf.WriteString("=" + signParams[k])
-			}
-		}
-	}
-	return buf.String()
-}
-
-func (conn Conn) isPolicyParamSign(paramKey string) bool {
-	for _, k := range policySignKeyList {
-		if paramKey == k {
-			return true
-		}
-	}
-	return false
 }
 
 // ks3 encode 字符串
@@ -325,18 +238,12 @@ func encodeKS3Str(str string) string {
 }
 
 // getResource gets canonicalized resource
-func (conn Conn) getResource(bucketName, objectName, subResource string) string {
+func getResource(bucketName, objectName, subResource string) string {
 	if subResource != "" {
 		subResource = "?" + subResource
 	}
 	if bucketName == "" {
-		if conn.config.AuthVersion == AuthV2 {
-			return url.QueryEscape("/") + subResource
-		}
 		return fmt.Sprintf("/%s%s", bucketName, subResource)
-	}
-	if conn.config.AuthVersion == AuthV2 {
-		return url.QueryEscape("/"+bucketName+"/") + strings.Replace(url.QueryEscape(objectName), "+", "%20", -1) + subResource
 	}
 	objectName = encodeKS3Str(objectName)
 	tmp := "/" + bucketName + "/" + objectName + subResource
@@ -361,6 +268,19 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	}
 
 	tracker := &readerTracker{completedBytes: 0}
+
+	// v4 签名时，在 handleBody 包装 body 前从原始 body 计算 content-sha256，
+	// 计算完哈希（并 Seek 回 0）的 reader 替换 data，使 handleBody 仍能拿到完整 body。
+	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
+		v4s := v4Signer{conn.config, conn.Url}
+		contentSha256, hashedData, err := v4s.computeContentSHA256FromReader(data)
+		if err != nil {
+			return nil, err
+		}
+		data = hashedData
+		req.Header.Set(v4s.getHeaderName(v4ContentSHA256), contentSha256)
+	}
+
 	fd, crc := conn.handleBody(req, data, initCRC, listener, tracker)
 	if fd != nil {
 		defer func() {
@@ -380,9 +300,9 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	req.Header.Set(HTTPHeaderHost, req.Host)
 	req.Header.Set(HTTPHeaderUserAgent, conn.config.UserAgent)
 
-	akIf := conn.config.GetCredentials()
-	if akIf.GetSecurityToken() != "" {
-		req.Header.Set(HTTPHeaderKs3SecurityToken, akIf.GetSecurityToken())
+	creds := conn.config.GetCredentials()
+	if creds.GetSecurityToken() != "" {
+		req.Header.Set(HTTPHeaderKs3SecurityToken, creds.GetSecurityToken())
 	}
 
 	if headers != nil {
@@ -391,7 +311,9 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 		}
 	}
 
-	conn.signHeader(req, canonicalizedResource)
+	if err := conn.signHeader(req, canonicalizedResource); err != nil {
+		return nil, err
+	}
 
 	// Transfer started
 	event := newProgressEvent(TransferStartedEvent, 0, req.ContentLength, 0)
@@ -429,108 +351,28 @@ func (conn Conn) doRequest(ctx context.Context, method string, uri *url.URL, can
 	return ks3Resp, err
 }
 
-func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) string {
-	akIf := conn.config.GetCredentials()
-	if akIf.GetSecurityToken() != "" {
-		params[HTTPParamSecurityToken] = akIf.GetSecurityToken()
+// signer 按 config.AuthVersion 返回对应的签名器实例（V4→v4Signer，否则→v2Signer）。
+func (conn Conn) signer() signer {
+	if conn.config.AuthVersion == AuthV4 || conn.config.AuthVersion == AuthV4UnsignedPayload {
+		return v4Signer{conn.config, conn.Url}
 	}
-
-	m := strings.ToUpper(string(method))
-	req := &http.Request{
-		Method: m,
-		Header: make(http.Header),
-	}
-
-	if conn.config.IsAuthProxy {
-		auth := conn.config.ProxyUser + ":" + conn.config.ProxyPassword
-		basic := "Basic " + base64.StdEncoding.EncodeToString([]byte(auth))
-		req.Header.Set("Proxy-Authorization", basic)
-	}
-
-	req.Header.Set(HTTPHeaderDate, strconv.FormatInt(expiration, 10))
-	req.Header.Set(HTTPHeaderUserAgent, conn.config.UserAgent)
-
-	if headers != nil {
-		for k, v := range headers {
-			req.Header.Set(k, v)
-		}
-	}
-
-	if conn.config.AuthVersion == AuthV2 {
-		params[HTTPParamSignatureVersion] = "KSS2"
-		params[HTTPParamExpiresV2] = strconv.FormatInt(expiration, 10)
-		params[HTTPParamAccessKeyIDV2] = conn.config.AccessKeyID
-		additionalList, _ := conn.getAdditionalHeaderKeys(req)
-		if len(additionalList) > 0 {
-			params[HTTPParamAdditionalHeadersV2] = strings.Join(additionalList, ";")
-		}
-	}
-
-	subResource := conn.getSubResource(params)
-	canonicalResource := conn.getResource(bucketName, objectName, subResource)
-	signedStr := conn.getSignedStr(req, canonicalResource, akIf.GetAccessKeySecret())
-
-	if conn.config.AuthVersion == AuthV1 {
-		params[HTTPParamExpires] = strconv.FormatInt(expiration, 10)
-		params[HTTPParamAccessKeyID] = akIf.GetAccessKeyID()
-		params[HTTPParamSignature] = signedStr
-	} else if conn.config.AuthVersion == AuthV2 {
-		params[HTTPParamSignatureV2] = signedStr
-	}
-	str := encodeKS3Str(objectName)
-	urlParams := conn.getURLParams(params)
-	return conn.Url.getSignURL(bucketName, str, urlParams)
+	return v2Signer{conn.config, conn.Url}
 }
 
-func (conn Conn) signPolicyURL(bucketName string, expiration int64, params map[string]interface{}) string {
-	akIf := conn.config.GetCredentials()
-	if akIf.GetSecurityToken() != "" {
-		params[HTTPParamSecurityToken] = akIf.GetSecurityToken()
+func (conn Conn) signHeader(req *http.Request, canonicalizedResource string) error {
+	creds := conn.config.GetCredentials()
+	if creds.GetAccessKeyID() == "" && creds.GetAccessKeySecret() == "" && creds.GetSecurityToken() == "" {
+		return nil
 	}
-
-	date := strconv.FormatInt(expiration, 10)
-	subResource := conn.getPolicySubResource(params)
-	canonicalResource := conn.getResource(bucketName, "", subResource)
-	signedStr := conn.getPolicySignedStr(canonicalResource, date, akIf.GetAccessKeySecret())
-
-	params[HTTPParamExpires] = strconv.FormatInt(expiration, 10)
-	params[HTTPParamAccessKeyID] = akIf.GetAccessKeyID()
-	params[HTTPParamSignature] = signedStr
-
-	urlParams := conn.getURLParams(params)
-	return conn.Url.getSignURL(bucketName, "", urlParams)
+	return conn.signer().signHeader(req, creds, canonicalizedResource)
 }
 
-func (conn Conn) signRtmpURL(bucketName, channelName, playlistName string, expiration int64) string {
-	params := map[string]interface{}{}
-	if playlistName != "" {
-		params[HTTPParamPlaylistName] = playlistName
-	}
-	expireStr := strconv.FormatInt(expiration, 10)
-	params[HTTPParamExpires] = expireStr
-
-	akIf := conn.config.GetCredentials()
-	if akIf.GetAccessKeyID() != "" {
-		params[HTTPParamAccessKeyID] = akIf.GetAccessKeyID()
-		if akIf.GetSecurityToken() != "" {
-			params[HTTPParamSecurityToken] = akIf.GetSecurityToken()
-		}
-		signedStr := conn.getRtmpSignedStr(bucketName, channelName, playlistName, expiration, akIf.GetAccessKeySecret(), params)
-		params[HTTPParamSignature] = signedStr
-	}
-
-	urlParams := conn.getURLParams(params)
-	return conn.Url.getSignRtmpURL(bucketName, channelName, urlParams)
+func (conn Conn) signURL(method HTTPMethod, bucketName, objectName string, expiration int64, params map[string]interface{}, headers map[string]string) (string, error) {
+	return conn.signer().signURL(method, bucketName, objectName, expiration, params, headers)
 }
 
-func IsEmpty(r io.Reader) bool {
-
-	reader := bufio.NewReader(r)
-	_, err := reader.Peek(1)
-	if err != nil {
-		return true
-	}
-	return false
+func (conn Conn) signPolicyURL(bucketName string, expiration int64, params map[string]interface{}) (string, error) {
+	return conn.signer().signPolicyURL(bucketName, expiration, params)
 }
 
 // handleBody handles request body
@@ -619,10 +461,9 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 					RequestID:  resp.Header.Get(HTTPHeaderKs3RequestID),
 				}
 			} else {
-				// Response contains storage service error object, unmarshal
-				srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
-					resp.Header.Get(HTTPHeaderKs3RequestID))
-				if errIn != nil { // error unmarshaling the error response
+				// 响应体为服务端错误，按 Content-Type 分发解析（HTML/XML/JSON），失败兜底
+				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode, resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
+				if errIn != nil { // 解析失败，返回原始错误信息
 					err = fmt.Errorf("ks3: service returned invalid response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderKs3RequestID))
 				} else {
 					err = srvErr
@@ -637,10 +478,11 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 		} else if statusCode >= 300 && statusCode <= 307 {
 			// KS3 use 3xx, but response has no body
 			err := fmt.Errorf("ks3: service returned %d,%s", resp.StatusCode, resp.Status)
+			resp.Body.Close()
 			return &Response{
 				StatusCode: resp.StatusCode,
 				Headers:    resp.Header,
-				Body:       resp.Body,
+				Body:       http.NoBody,
 			}, err
 		} else {
 			// (0,300) [308,400) [506,)
@@ -657,10 +499,9 @@ func (conn Conn) handleResponse(resp *http.Response, crc hash.Hash64) (*Response
 					RequestID:  resp.Header.Get(HTTPHeaderKs3RequestID),
 				}
 			} else {
-				// Response contains storage service error object, unmarshal
-				srvErr, errIn := serviceErrFromXML(respBody, resp.StatusCode,
-					resp.Header.Get(HTTPHeaderKs3RequestID))
-				if errIn != nil { // error unmarshaling the error response
+				// 响应体为服务端错误，按 Content-Type 分发解析（HTML/XML/JSON），失败兜底
+				srvErr, errIn := serviceErrFromBody(respBody, resp.StatusCode, resp.Header.Get(HTTPHeaderKs3RequestID), resp.Header.Get(HTTPHeaderContentType))
+				if errIn != nil { // 解析失败，返回原始错误信息
 					err = fmt.Errorf("unkown response body, status = %s, RequestId = %s", resp.Status, resp.Header.Get(HTTPHeaderKs3RequestID))
 				} else {
 					err = srvErr
@@ -797,6 +638,66 @@ func serviceErrFromXML(body []byte, statusCode int, requestID string) (ServiceEr
 	storageErr.RequestID = requestID
 	storageErr.RawMessage = string(body)
 	return storageErr, nil
+}
+
+// serviceErrFromJSON 解析向量桶 JSON 格式的错误响应体为 VectorServiceError。
+// RequestID 不在 body 中，由响应头 x-kss-request-id（requestID 参数）填入。
+func serviceErrFromJSON(body []byte, statusCode int, requestID string) (VectorServiceError, error) {
+	var vErr VectorServiceError
+
+	if err := json.Unmarshal(body, &vErr); err != nil {
+		return vErr, err
+	}
+
+	vErr.StatusCode = statusCode
+	vErr.RequestID = requestID
+	vErr.RawMessage = string(body)
+	return vErr, nil
+}
+
+// htmlTitleRegexp 匹配 HTML 错误页的 <title>。
+var htmlTitleRegexp = regexp.MustCompile(`<title>([^<]*)</title>`)
+
+// serviceErrFromHTML 解析 HTML 错误响应（如网关/限流返回的 HTML 页）：
+// Code 取状态码文本（http.StatusText，如 "Too Many Requests"），Message 取 <title>（兜底同 Code）。
+func serviceErrFromHTML(body []byte, statusCode int, requestID string) ServiceError {
+	code := http.StatusText(statusCode) // Code 用规范的状态码描述，如 "Too Many Requests"
+	msg := code                         // 兜底：无 title 时用状态码文本
+	if m := htmlTitleRegexp.FindSubmatch(body); len(m) >= 2 && len(m[1]) > 0 {
+		msg = string(m[1])
+	}
+	return ServiceError{
+		StatusCode: statusCode,
+		Code:       code,
+		Message:    msg,
+		RequestID:  requestID,
+		RawMessage: string(body),
+	}
+}
+
+// serviceErrFromBody 解析错误响应体，按响应头 Content-Type 分发：
+// HTML（网关/限流页）→ ServiceError（取 <title>）；JSON（向量桶）→ VectorServiceError；
+// 否则 XML（普通 KS3）→ ServiceError。解析失败返回 err，由调用处的非法 body 兜底。
+func serviceErrFromBody(body []byte, statusCode int, requestID, contentType string) (error, error) {
+	if isHTMLContentType(contentType) {
+		return serviceErrFromHTML(body, statusCode, requestID), nil
+	}
+	if isJSONContentType(contentType) {
+		vErr, err := serviceErrFromJSON(body, statusCode, requestID)
+		return vErr, err
+	}
+	srvErr, err := serviceErrFromXML(body, statusCode, requestID)
+	return srvErr, err
+}
+
+// isHTMLContentType 判断响应是否为 HTML：Content-Type 含 html 即认为是。
+func isHTMLContentType(contentType string) bool {
+	return strings.Contains(strings.ToLower(contentType), "html")
+}
+
+// isJSONContentType 判断响应是否为 JSON：Content-Type 含 json 即认为是。
+func isJSONContentType(contentType string) bool {
+	return strings.Contains(strings.ToLower(contentType), "json")
 }
 
 func xmlUnmarshal(body io.Reader, v interface{}) error {
@@ -954,23 +855,16 @@ func (um UrlMaker) getSignURL(bucket, object, params string) string {
 	return fmt.Sprintf("%s://%s%s?%s", um.Scheme, host, path, params)
 }
 
-// getSignRtmpURL Build Sign Rtmp URL
-func (um UrlMaker) getSignRtmpURL(bucket, channelName, params string) string {
-	host, path := um.buildURL(bucket, "live")
-
-	channelName = url.QueryEscape(channelName)
-	channelName = strings.Replace(channelName, "+", "%20", -1)
-
-	return fmt.Sprintf("rtmp://%s%s/%s?%s", host, path, channelName, params)
-}
-
 // buildURL builds URL
 func (um UrlMaker) buildURL(bucket, object string) (string, string) {
+	// object 中的 "+" 按空格编码为 "%20"
+	return um.buildURLRaw(bucket, strings.Replace(object, "+", "%20", -1))
+}
+
+// buildURLRaw 构造 URL，保留 object 原始字符，供 V4 规范 URI 单次编码使用。
+func (um UrlMaker) buildURLRaw(bucket, object string) (string, string) {
 	var host = ""
 	var path = ""
-
-	//object = url.QueryEscape(object)
-	object = strings.Replace(object, "+", "%20", -1)
 
 	if um.Type == urlTypeCname {
 		host = um.NetLoc

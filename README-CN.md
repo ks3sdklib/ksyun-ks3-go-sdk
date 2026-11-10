@@ -10,10 +10,10 @@
 > - 使用此SDK，用户可以方便地在任何应用、任何时间、任何地点上传，下载和管理数据。
 
 ## 版本
-> - Current version: v0.0.1
+> - Current version: v1.3.0
 
 ## 运行环境
-> - Go 1.5及以上。
+> - Go 1.16及以上。
 
 ## 安装方法
 ### GitHub安装
@@ -141,12 +141,12 @@
 ```
 
 #### 其它
-更多的示例程序，请参看KS3 Go SDK安装路径（即GOPATH变量中的第一个路径）下的`src\github.com\ksyun\ksyun-ks3-go-sdk\sample`，该目录下为示例程序，
+更多的示例程序，请参看KS3 Go SDK安装路径（即GOPATH变量中的第一个路径）下的`src\github.com\ks3sdklib\ksyun-ks3-go-sdk\sample`，该目录下为示例程序，
 或者参看`https://github.com/ks3sdklib/ksyun-ks3-go-sdk`下sample目录中的示例文件。
 
 ## 注意事项
 ### 运行sample
-> - 拷贝示例文件。到KS3 Go SDK的安装路径（即GOPATH变量中的第一个路径），进入KS3 Go SDK的代码目录`src\github.com\ksyun\ksyun-ks3-go-sdk`，
+> - 拷贝示例文件。到KS3 Go SDK的安装路径（即GOPATH变量中的第一个路径），进入KS3 Go SDK的代码目录`src\github.com\ks3sdklib\ksyun-ks3-go-sdk`，
 把其下的sample目录和sample.go复制到您的测试工程src目录下。
 > - 修改sample/config.go里的endpoint、AccessKeyId、AccessKeySecret、BucketName等配置。
 > - 请在您的工程目录下执行`go run src/sample.go`。

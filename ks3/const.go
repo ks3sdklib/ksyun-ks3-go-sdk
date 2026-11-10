@@ -19,17 +19,6 @@ const (
 	ACLDefault ACLType = "default"
 )
 
-// bucket versioning status
-type VersioningStatus string
-
-const (
-	// Versioning Status definition: Enabled
-	VersionEnabled VersioningStatus = "Enabled"
-
-	// Versioning Status definition: Suspended
-	VersionSuspended VersioningStatus = "Suspended"
-)
-
 // MetadataDirectiveType specifying whether use the metadata of source object when copying object.
 type MetadataDirectiveType string
 
@@ -65,14 +54,14 @@ const (
 type StorageClassType string
 
 const (
-	StorageExtremePL3  StorageClassType = "EXTREME_PL3"
-	StorageExtremePL2  StorageClassType = "EXTREME_PL2"
-	StorageExtremePL1  StorageClassType = "EXTREME_PL1"
-	StorageStandard    StorageClassType = "STANDARD"
-	StorageIA          StorageClassType = "STANDARD_IA"
-	StorageDeepIA      StorageClassType = "DEEP_IA"
-	StorageArchive     StorageClassType = "ARCHIVE"
-	StorageColdArchive StorageClassType = "COLD_ARCHIVE"
+	StorageExtremePL3      StorageClassType = "EXTREME_PL3"
+	StorageExtremePL2      StorageClassType = "EXTREME_PL2"
+	StorageExtremePL1      StorageClassType = "EXTREME_PL1"
+	StorageStandard        StorageClassType = "STANDARD"
+	StorageIA              StorageClassType = "STANDARD_IA"
+	StorageDeepIA          StorageClassType = "DEEP_IA"
+	StorageArchive         StorageClassType = "ARCHIVE"
+	StorageColdArchive     StorageClassType = "COLD_ARCHIVE"
 	StorageDeepColdArchive StorageClassType = "DEEP_COLD_ARCHIVE"
 )
 
@@ -124,17 +113,6 @@ type ObjecthashFuncType string
 const (
 	HashFuncSha1   ObjecthashFuncType = "SHA-1"
 	HashFuncSha256 ObjecthashFuncType = "SHA-256"
-)
-
-// PayerType the type of request payer
-type PayerType string
-
-const (
-	// Requester the requester who send the request
-	Requester PayerType = "Requester"
-
-	// BucketOwner the requester who send the request
-	BucketOwner PayerType = "BucketOwner"
 )
 
 // RestoreMode the restore mode for coldArchive object
@@ -205,6 +183,8 @@ const (
 	HTTPHeaderKs3Prefix                      = "X-Kss-"
 	HTTPHeaderKs3ObjectACL                   = "X-Kss-Acl"
 	HTTPHeaderKs3SecurityToken               = "X-Kss-Security-Token"
+	HTTPHeaderKs3V4Date                      = "x-kss-date"
+	HTTPHeaderKs3V4ContentSHA256             = "x-kss-content-sha256"
 	HTTPHeaderKs3ServerSideEncryption        = "X-Kss-Server-Side-Encryption"
 	HTTPHeaderKs3ServerSideEncryptionKeyID   = "X-Kss-Server-Side-Encryption-Key-Id"
 	HTTPHeaderKs3ServerSideDataEncryption    = "X-Kss-Server-Side-Data-Encryption"
@@ -221,39 +201,21 @@ const (
 	HTTPHeaderKs3NextAppendPosition          = "X-Kss-Next-Append-Position"
 	HTTPHeaderKs3RequestID                   = "X-Kss-Request-Id"
 	HTTPHeaderKs3CRC64                       = "X-Kss-Checksum-Crc64ecma"
-	HTTPHeaderKs3SymlinkTarget               = "X-Kss-Symlink-Target"
 	HTTPHeaderKs3StorageClass                = "X-Kss-Storage-Class"
 	HTTPHeaderKs3Callback                    = "X-Kss-Callback"
 	HTTPHeaderKs3CallbackVar                 = "X-Kss-Callback-Var"
-	HTTPHeaderKs3Requester                   = "X-Kss-Request-Payer"
 	HTTPHeaderKs3Tagging                     = "X-Kss-Tagging"
 	HTTPHeaderKs3TaggingCount                = "X-Kss-Tagging-Count"
 	HTTPHeaderKs3TaggingDirective            = "X-Kss-Tagging-Directive"
 	HTTPHeaderKs3TrafficLimit                = "X-Kss-Traffic-Limit"
 	HTTPHeaderKs3ForbidOverWrite             = "X-Kss-Forbid-Overwrite"
 	HTTPHeaderKs3RangeBehavior               = "X-Kss-Range-Behavior"
-	HTTPHeaderKs3TaskID                      = "X-Kss-Task-Id"
 	HTTPHeaderKs3HashCtx                     = "X-Kss-Hash-Ctx"
 	HTTPHeaderKs3Md5Ctx                      = "X-Kss-Md5-Ctx"
 	HTTPHeaderAllowSameActionOverLap         = "X-Kss-Allow-Same-Action-Overlap"
 	HTTPHeaderKs3RetentionId                 = "X-Kss-Retention-Id"
 	HTTPHeaderKs3RetentionOverwrite          = "X-Kss-Retention-Overwrite"
 	HTTPHeaderKs3Shadowcopy                  = "X-Kss-Shadowcopy"
-)
-
-// HTTP Param
-const (
-	HTTPParamExpires       = "Expires"
-	HTTPParamAccessKeyID   = "KSSAccessKeyId"
-	HTTPParamSignature     = "Signature"
-	HTTPParamSecurityToken = "security-token"
-	HTTPParamPlaylistName  = "playlistName"
-
-	HTTPParamSignatureVersion    = "X-Kss-signature-version"
-	HTTPParamExpiresV2           = "X-Kss-expires"
-	HTTPParamAccessKeyIDV2       = "X-Kss-access-key-id"
-	HTTPParamSignatureV2         = "X-Kss-signature"
-	HTTPParamAdditionalHeadersV2 = "X-Kss-additional-headers"
 )
 
 // Other constants
@@ -270,7 +232,7 @@ const (
 
 	NullVersion = "null"
 
-	Version = "v1.2.8" // Go SDK version
+	Version = "v1.3.0" // Go SDK version
 
 	MinRateLimiterCapacity = 10 * 1024 // Min token bucket capacity in bytes, 10KB
 	MinRateLimiterRate     = 1024      // Min rate limit in byte/s, 1KB/s
@@ -289,10 +251,12 @@ const (
 type AuthVersionType string
 
 const (
-	// AuthV1 v1
-	AuthV1 AuthVersionType = "v1"
-	// AuthV2 v2
+	// AuthV2 v2 签名（HMAC-SHA1 / KSS 前缀）
 	AuthV2 AuthVersionType = "v2"
+	// AuthV4 v4 签名，对请求负载计算哈希（HMAC-SHA256）
+	AuthV4 AuthVersionType = "v4"
+	// AuthV4UnsignedPayload v4 签名，不对请求负载计算哈希（UNSIGNED-PAYLOAD）
+	AuthV4UnsignedPayload AuthVersionType = "v4-unsigned-payload"
 )
 
 const ALL_USERS = "http://acs.ksyun.com/groups/global/AllUsers"

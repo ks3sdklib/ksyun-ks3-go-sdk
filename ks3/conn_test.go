@@ -2,9 +2,8 @@ package ks3
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"os"
-	"strings"
-	"time"
 
 	. "gopkg.in/check.v1"
 )
@@ -12,6 +11,23 @@ import (
 type Ks3ConnSuite struct{}
 
 var _ = Suite(&Ks3ConnSuite{})
+
+// TestHandleResponse3xxClosesBody 验证 3xx 响应返回可安全关闭的空 body。
+func (s *Ks3ConnSuite) TestHandleResponse3xxClosesBody(c *C) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL)
+	c.Assert(err, IsNil)
+
+	conn := Conn{config: getDefaultKs3Config()}
+	res, err := conn.handleResponse(resp, nil)
+	c.Assert(err, NotNil)
+	c.Assert(res, NotNil)
+	c.Assert(res.Body, Equals, http.NoBody)
+}
 
 func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 	c.Skip("skip conn")
@@ -27,10 +43,10 @@ func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 
 	var conn Conn
 	conn.config = getDefaultKs3Config()
-	conn.config.AuthVersion = AuthV1
-	c.Assert(conn.getResource("bucket", "object", "subres"), Equals, "/bucket/object?subres")
-	c.Assert(conn.getResource("bucket", "object", ""), Equals, "/bucket/object")
-	c.Assert(conn.getResource("", "object", ""), Equals, "/")
+	conn.config.AuthVersion = AuthV2
+	c.Assert(getResource("bucket", "object", "subres"), Equals, "/bucket/object?subres")
+	c.Assert(getResource("bucket", "object", ""), Equals, "/bucket/object")
+	c.Assert(getResource("", "object", ""), Equals, "/")
 
 	um.Init("https://docs.github.com", true, false, true)
 	c.Assert(um.Type, Equals, urlTypeCname)
@@ -41,7 +57,7 @@ func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 	c.Assert(path, Equals, "/object")
 
 	um.Init("https://docs.github.com", false, false, true)
- 	c.Assert(um.Type, Equals, urlTypeksyun)
+	c.Assert(um.Type, Equals, urlTypeksyun)
 	c.Assert(um.Scheme, Equals, "https")
 	c.Assert(um.NetLoc, Equals, "docs.github.com")
 	host, path = um.buildURL("bucket", "object")
@@ -69,9 +85,9 @@ func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 	c.Assert(um.getURL("bucket", "object", "params").String(), Equals, "http://bucket.docs.github.com:8080/object?params")
 	c.Assert(um.getURL("bucket", "object", "").String(), Equals, "http://bucket.docs.github.com:8080/object")
 	c.Assert(um.getURL("", "object", "").String(), Equals, "http://docs.github.com:8080/")
-	c.Assert(conn.getResource("bucket", "object", "subres"), Equals, "/bucket/object?subres")
-	c.Assert(conn.getResource("bucket", "object", ""), Equals, "/bucket/object")
-	c.Assert(conn.getResource("", "object", ""), Equals, "/")
+	c.Assert(getResource("bucket", "object", "subres"), Equals, "/bucket/object?subres")
+	c.Assert(getResource("bucket", "object", ""), Equals, "/bucket/object")
+	c.Assert(getResource("", "object", ""), Equals, "/")
 
 	um.Init("https://docs.github.com:8080", false, true, false)
 	c.Assert(um.Type, Equals, urlTypeksyun)
@@ -109,7 +125,7 @@ func (s *Ks3ConnSuite) TestURLMarker(c *C) {
 func (s *Ks3ConnSuite) TestAuth(c *C) {
 	endpoint := "https://github.com/"
 	cfg := getDefaultKs3Config()
-	cfg.AuthVersion = AuthV1
+	cfg.AuthVersion = AuthV2
 	um := UrlMaker{}
 	um.Init(endpoint, false, false, false)
 	conn := Conn{cfg, &um, nil}
@@ -127,12 +143,12 @@ func (s *Ks3ConnSuite) TestAuth(c *C) {
 	req.Header.Set("Content-Type", "text/html")
 	req.Header.Set("Date", "Thu, 17 Nov 2005 18:49:58 GMT")
 	req.Header.Set("Host", endpoint)
-	req.Header.Set("X-KS3-Meta-Your", "your")
-	req.Header.Set("X-KS3-Meta-Author", "foo@bar.com")
-	req.Header.Set("X-KS3-Magic", "abracadabra")
+	req.Header.Set("X-Kss-Meta-Your", "your")
+	req.Header.Set("X-Kss-Meta-Author", "foo@bar.com")
+	req.Header.Set("X-Kss-Magic", "abracadabra")
 	req.Header.Set("Content-Md5", "ODBGOERFMDMzQTczRUY3NUE3NzA5QzdFNUYzMDQxNEM=")
 
-	conn.signHeader(req, conn.getResource("bucket", "object", ""))
+	conn.signHeader(req, getResource("bucket", "object", ""))
 	testLogger.Println("AUTHORIZATION:", req.Header.Get(HTTPHeaderAuthorization))
 }
 
@@ -168,45 +184,4 @@ func (s *Ks3ConnSuite) TestConnToolFunc(c *C) {
 	var out ProcessObjectResult
 	err = jsonUnmarshal(fd, &out)
 	c.Assert(err, NotNil)
-}
-
-func (s *Ks3ConnSuite) TestSignRtmpURL(c *C) {
-	cfg := getDefaultKs3Config()
-
-	um := UrlMaker{}
-	um.Init(endpoint, false, false, false)
-	conn := Conn{cfg, &um, nil}
-
-	//Anonymous
-	channelName := "test-sign-rtmp-url"
-	playlistName := "playlist.m3u8"
-	expiration := time.Now().Unix() + 3600
-	signedRtmpURL := conn.signRtmpURL(bucketName, channelName, playlistName, expiration)
-	playURL := getPublishURL(bucketName, channelName)
-	hasPrefix := strings.HasPrefix(signedRtmpURL, playURL)
-	c.Assert(hasPrefix, Equals, true)
-
-	//empty playlist name
-	playlistName = ""
-	signedRtmpURL = conn.signRtmpURL(bucketName, channelName, playlistName, expiration)
-	playURL = getPublishURL(bucketName, channelName)
-	hasPrefix = strings.HasPrefix(signedRtmpURL, playURL)
-	c.Assert(hasPrefix, Equals, true)
-}
-
-func (s *Ks3ConnSuite) TestGetRtmpSignedStr(c *C) {
-	cfg := getDefaultKs3Config()
-	um := UrlMaker{}
-	um.Init(endpoint, false, false, false)
-	conn := Conn{cfg, &um, nil}
-
-	akIf := conn.config.GetCredentials()
-
-	//Anonymous
-	channelName := "test-get-rtmp-signed-str"
-	playlistName := "playlist.m3u8"
-	expiration := time.Now().Unix() + 3600
-	params := map[string]interface{}{}
-	signedStr := conn.getRtmpSignedStr(bucketName, channelName, playlistName, expiration, akIf.GetAccessKeySecret(), params)
-	c.Assert(signedStr, Equals, "")
 }

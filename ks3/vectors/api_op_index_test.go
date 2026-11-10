@@ -1,0 +1,229 @@
+package vectors
+
+import (
+	"net/http"
+	"strings"
+
+	. "gopkg.in/check.v1"
+)
+
+// TestCreateIndex 校验创建索引的请求构造、响应解析与参数校验。
+func (s *Ks3VectorsClientSuite) TestCreateIndex(c *C) {
+	var gotBody string
+	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
+		c.Assert(r.URL.Path, Equals, "/CreateIndex")
+		gotBody = readBody(c, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"indexKrn":"krn:ksc:ks3vectors:beijing:1:bucket/bkt/index/my-index"}`))
+	})
+	defer srv.Close()
+
+	// 正常：请求构造与响应解析（含所有可选字段）
+	res, err := vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		DataType:         strPtr("float32"),
+		Dimension:        intPtr(1024),
+		DistanceMetric:   strPtr("euclidean"),
+		MetadataConfiguration: &MetadataConfiguration{
+			NonFilterableMetadataKeys: []string{"color", "size"},
+		},
+	})
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, http.StatusOK)
+	c.Assert(res.IndexKrn, Equals, "krn:ksc:ks3vectors:beijing:1:bucket/bkt/index/my-index")
+	c.Assert(strings.Contains(gotBody, `"vectorBucketName":"bkt"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"indexName":"my-index"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"dimension":1024`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"dataType":"float32"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"distanceMetric":"euclidean"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"nonFilterableMetadataKeys":["color","size"]`), Equals, true)
+
+	// 按 vectorBucketKrn 创建
+	krn := "krn:ksc:ks3vectors:beijing:1:bucket/bkt"
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketKrn: strPtr(krn),
+		IndexName:       strPtr("my-index2"),
+		Dimension:       intPtr(4),
+		DistanceMetric:  strPtr("cosine"),
+	})
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(gotBody, `"vectorBucketKrn":"`+krn+`"`), Equals, true)
+
+	// 缺 indexName 报错
+	_, err = vc.CreateIndex(&CreateIndexRequest{VectorBucketName: strPtr("bkt")})
+	c.Assert(err, NotNil)
+
+	// 缺 distanceMetric 报错
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		Dimension:        intPtr(1024),
+	})
+	c.Assert(err, NotNil)
+
+	// 缺 dimension 报错
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, NotNil)
+
+	// dimension 越界报错
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		Dimension:        intPtr(0),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, NotNil)
+	_, err = vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		Dimension:        intPtr(4097),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, NotNil)
+}
+
+// TestCreateIndexDefaultDataType 校验不传 DataType 时默认填充 float32。
+func (s *Ks3VectorsClientSuite) TestCreateIndexDefaultDataType(c *C) {
+	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
+		body := readBody(c, r.Body)
+		c.Assert(strings.Contains(body, `"dataType":"float32"`), Equals, true)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"indexKrn":"krn:ksc:ks3vectors:beijing:1:bucket/bkt/index/my-index"}`))
+	})
+	defer srv.Close()
+
+	// 不传 DataType，默认填充 float32
+	res, err := vc.CreateIndex(&CreateIndexRequest{
+		VectorBucketName: strPtr("bkt"),
+		IndexName:        strPtr("my-index"),
+		Dimension:        intPtr(1024),
+		DistanceMetric:   strPtr("euclidean"),
+	})
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, http.StatusOK)
+	c.Assert(res.IndexKrn, Equals, "krn:ksc:ks3vectors:beijing:1:bucket/bkt/index/my-index")
+}
+
+// TestGetIndex 校验获取索引详情的请求构造与响应解析。
+func (s *Ks3VectorsClientSuite) TestGetIndex(c *C) {
+	var gotBody string
+	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
+		gotBody = readBody(c, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"index":{"creationTime":1735449900000,"dataType":"float32","dimension":768,"distanceMetric":"cosine","indexKrn":"krn:1","indexName":"my-index","metadataConfiguration":{"nonFilterableMetadataKeys":["color"]},"vectorBucketName":"bkt"}}`))
+	})
+	defer srv.Close()
+
+	res, err := vc.GetIndex(&GetIndexRequest{VectorBucketName: strPtr("bkt"), IndexName: strPtr("my-index")})
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(gotBody, `"vectorBucketName":"bkt"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"indexName":"my-index"`), Equals, true)
+	c.Assert(res.StatusCode, Equals, http.StatusOK)
+	c.Assert(res.Index, NotNil)
+	// 校验响应所有字段
+	idx := res.Index
+	c.Assert(*idx.IndexName, Equals, "my-index")
+	c.Assert(*idx.IndexKrn, Equals, "krn:1")
+	c.Assert(*idx.VectorBucketName, Equals, "bkt")
+	c.Assert(*idx.DataType, Equals, "float32")
+	c.Assert(*idx.Dimension, Equals, 768)
+	c.Assert(*idx.DistanceMetric, Equals, "cosine")
+	c.Assert(*idx.CreationTime, Equals, int64(1735449900000))
+	c.Assert(idx.MetadataConfiguration, NotNil)
+	c.Assert(idx.MetadataConfiguration.NonFilterableMetadataKeys, DeepEquals, []string{"color"})
+
+	// 按 indexKrn 获取
+	_, err = vc.GetIndex(&GetIndexRequest{IndexKrn: strPtr("krn:1")})
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(gotBody, `"indexKrn":"krn:1"`), Equals, true)
+}
+
+// TestListIndexes 校验列举索引的请求构造与响应解析。
+func (s *Ks3VectorsClientSuite) TestListIndexes(c *C) {
+	var gotBody string
+	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
+		gotBody = readBody(c, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"nextToken":"tok2","indexes":[{"creationTime":1735449900000,"dataType":"float32","dimension":1024,"distanceMetric":"cosine","indexKrn":"krn:1","indexName":"idx1","metadataConfiguration":{"nonFilterableMetadataKeys":["color"]},"vectorBucketName":"bkt"},{"creationTime":1731657600000,"dataType":"float32","dimension":768,"distanceMetric":"euclidean","indexKrn":"krn:2","indexName":"idx2","vectorBucketName":"bkt"}]}`))
+	})
+	defer srv.Close()
+
+	maxResults := 100
+	res, err := vc.ListIndexes(&ListIndexesRequest{
+		VectorBucketName: strPtr("bkt"),
+		MaxResults:       &maxResults,
+		NextToken:        strPtr("tok1"),
+		Prefix:           strPtr("idx"),
+	})
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(gotBody, `"vectorBucketName":"bkt"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"maxResults":100`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"nextToken":"tok1"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"prefix":"idx"`), Equals, true)
+	c.Assert(res.StatusCode, Equals, http.StatusOK)
+	c.Assert(*res.NextToken, Equals, "tok2")
+	c.Assert(res.Indexes, HasLen, 2)
+	// 校验索引[0] 的完整字段
+	e0 := res.Indexes[0]
+	c.Assert(*e0.IndexName, Equals, "idx1")
+	c.Assert(*e0.IndexKrn, Equals, "krn:1")
+	c.Assert(*e0.VectorBucketName, Equals, "bkt")
+	c.Assert(*e0.CreationTime, Equals, int64(1735449900000))
+	c.Assert(*e0.DataType, Equals, "float32")
+	c.Assert(*e0.Dimension, Equals, 1024)
+	c.Assert(*e0.DistanceMetric, Equals, "cosine")
+	c.Assert(e0.MetadataConfiguration, NotNil)
+	c.Assert(e0.MetadataConfiguration.NonFilterableMetadataKeys, DeepEquals, []string{"color"})
+
+	// 按 vectorBucketKrn 列举
+	krn := "krn:ksc:ks3vectors:beijing:1:bucket/bkt"
+	_, err = vc.ListIndexes(&ListIndexesRequest{VectorBucketKrn: strPtr(krn)})
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(gotBody, `"vectorBucketKrn":"`+krn+`"`), Equals, true)
+
+	// maxResults 越界报错
+	_, err = vc.ListIndexes(&ListIndexesRequest{VectorBucketName: strPtr("bkt"), MaxResults: intPtr(0)})
+	c.Assert(err, NotNil)
+	_, err = vc.ListIndexes(&ListIndexesRequest{VectorBucketName: strPtr("bkt"), MaxResults: intPtr(501)})
+	c.Assert(err, NotNil)
+
+	// 容错：req 为 nil 不 panic
+	nilVC, nilSrv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
+		_ = readBody(c, r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"indexes":[]}`))
+	})
+	defer nilSrv.Close()
+	res, err = nilVC.ListIndexes(nil)
+	c.Assert(err, IsNil)
+	c.Assert(res.Indexes, HasLen, 0)
+}
+
+// TestDeleteIndex 校验删除索引的请求构造与参数校验。
+func (s *Ks3VectorsClientSuite) TestDeleteIndex(c *C) {
+	var gotPath, gotBody string
+	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotBody = readBody(c, r.Body)
+		w.WriteHeader(http.StatusOK)
+	})
+	defer srv.Close()
+
+	// 正常：请求构造
+	res, err := vc.DeleteIndex(&DeleteIndexRequest{VectorBucketName: strPtr("bkt"), IndexName: strPtr("my-index")})
+	c.Assert(err, IsNil)
+	c.Assert(res.StatusCode, Equals, http.StatusOK)
+	c.Assert(gotPath, Equals, "/DeleteIndex")
+	c.Assert(strings.Contains(gotBody, `"vectorBucketName":"bkt"`), Equals, true)
+	c.Assert(strings.Contains(gotBody, `"indexName":"my-index"`), Equals, true)
+
+	// 按 indexKrn 删除
+	_, err = vc.DeleteIndex(&DeleteIndexRequest{IndexKrn: strPtr("krn:1")})
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(gotBody, `"indexKrn":"krn:1"`), Equals, true)
+}

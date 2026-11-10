@@ -50,7 +50,7 @@ func ObjectMetaSample() {
 	if err != nil {
 		HandleError(err)
 	}
-	fmt.Println("MyProp:", props.Get("X-Ks3-Meta-Myprop"))
+	fmt.Println("MyProp:", props.Get("X-Kss-Meta-Myprop"))
 
 	_, err = bucket.GetObjectDetailedMeta(objectKey, ks3.IfModifiedSince(futureDate))
 	if err == nil {

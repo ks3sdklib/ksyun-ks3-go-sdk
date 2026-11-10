@@ -124,13 +124,13 @@ var headerTestcases = []optionTestCase{
 	},
 	{
 		option: ObjectACL(ACLPrivate),
-		key: "X-Kss-Acl",
+		key:    "X-Kss-Acl",
 		value:  "private",
 	},
 	{
 		option: ObjectStorageClass(StorageStandard),
 		key:    "X-Kss-Storage-Class",
-		value: "STANDARD",
+		value:  "STANDARD",
 	},
 	{
 		option: Callback("JTdCJTIyY2FsbGJhY2tVcmwlMjIlM0ElMjJleGFtcGxlLmNvbS9pbmRleC5odG1sJTIyJTdE"),
@@ -253,7 +253,7 @@ func (s *Ks3OptionSuite) TestHandleOptions(c *C) {
 }
 
 func (s *Ks3OptionSuite) TestHandleParams(c *C) {
-	client, err := New(endpoint, accessID, accessKey)
+	_, err := New(endpoint, accessID, accessKey)
 	c.Assert(err, IsNil)
 
 	options := []Option{}
@@ -265,7 +265,7 @@ func (s *Ks3OptionSuite) TestHandleParams(c *C) {
 	params, err := GetRawParams(options)
 	c.Assert(err, IsNil)
 
-	out := client.Conn.getURLParams(params)
+	out := getURLParams(params)
 	c.Assert(len(out), Equals, 156)
 
 	options = []Option{KeyMarker(""), nil}
@@ -273,7 +273,7 @@ func (s *Ks3OptionSuite) TestHandleParams(c *C) {
 	params, err = GetRawParams(options)
 	c.Assert(err, IsNil)
 
-	out = client.Conn.getURLParams(params)
+	out = getURLParams(params)
 	c.Assert(out, Equals, "key-marker")
 }
 
@@ -294,17 +294,14 @@ func (s *Ks3OptionSuite) TestFindOption(c *C) {
 }
 
 func (s *Ks3OptionSuite) TestDeleteOption(c *C) {
-	options := []Option{VersionId("123"), VersionIdMarker("456"), KeyMarker("789")}
-	str, err := FindOption(options, "versionId", "")
-	c.Assert(str, Equals, "123")
+	options := []Option{Marker("abc"), KeyMarker("789")}
+	str, err := FindOption(options, "marker", "")
+	c.Assert(str, Equals, "abc")
 	c.Assert(err, IsNil)
 
-	skipOption := DeleteOption(options, "versionId")
-	str, err = FindOption(skipOption, "versionId", "")
+	skipOption := DeleteOption(options, "marker")
+	str, err = FindOption(skipOption, "marker", "")
 	c.Assert(str, Equals, "")
-
-	str, err = FindOption(skipOption, "version-id-marker", "")
-	c.Assert(str, Equals, "456")
 
 	str, err = FindOption(skipOption, "key-marker", "")
 	c.Assert(str, Equals, "789")

@@ -682,7 +682,6 @@ func (s *Ks3DownloadSuite) TestdownloadFileChoiceOptions(c *C) {
 	// downloadFile with properties
 	options = []Option{
 		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
 		TrafficLimitHeader(1024 * 1024 * 8),
 	}
 
@@ -730,7 +729,6 @@ func (s *Ks3DownloadSuite) TestdownloadFileWithCpChoiceOptions(c *C) {
 	// DownloadFile with properties
 	options = []Option{
 		ObjectACL(ACLPublicRead),
-		RequestPayer(Requester),
 		TrafficLimitHeader(1024 * 1024 * 8),
 		CheckpointDir(true, "./"),
 	}

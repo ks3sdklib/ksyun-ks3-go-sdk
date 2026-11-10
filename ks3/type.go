@@ -192,16 +192,6 @@ func verifyLifecycleRules(rules []LifecycleRule) error {
 // GetBucketLifecycleResult defines GetBucketLifecycle's result object
 type GetBucketLifecycleResult LifecycleConfiguration
 
-// RefererXML defines Referer configuration
-type RefererXML struct {
-	XMLName           xml.Name `xml:"RefererConfiguration"`
-	AllowEmptyReferer bool     `xml:"AllowEmptyReferer"`   // Allow empty referrer
-	RefererList       []string `xml:"RefererList>Referer"` // Referer whitelist
-}
-
-// GetBucketRefererResult defines result object for GetBucketReferer request
-type GetBucketRefererResult RefererXML
-
 // LoggingXML defines logging configuration
 type LoggingXML struct {
 	XMLName        xml.Name       `xml:"BucketLoggingStatus"`
@@ -324,38 +314,6 @@ type CORSRule struct {
 // GetBucketCORSResult defines the result from GetBucketCORS request.
 type GetBucketCORSResult CORSXML
 
-// GetBucketInfoResult defines the result from GetBucketInfo request.
-type GetBucketInfoResult struct {
-	XMLName    xml.Name   `xml:"BucketInfo"`
-	BucketInfo BucketInfo `xml:"Bucket"`
-}
-
-// BucketInfo defines Bucket information
-type BucketInfo struct {
-	XMLName                xml.Name  `xml:"Bucket"`
-	Name                   string    `xml:"Name"`                     // Bucket name
-	Location               string    `xml:"Location"`                 // Bucket datacenter
-	Region                 string    `xml:"Region"`                   // Bucket datacenter
-	CreationDate           time.Time `xml:"CreationDate"`             // Bucket creation time
-	ExtranetEndpoint       string    `xml:"ExtranetEndpoint"`         // Bucket external endpoint
-	IntranetEndpoint       string    `xml:"IntranetEndpoint"`         // Bucket internal endpoint
-	ACL                    string    `xml:"AccessControlList>Grant"`  // Bucket ACL
-	RedundancyType         string    `xml:"DataRedundancyType"`       // Bucket DataRedundancyType
-	Owner                  Owner     `xml:"Owner"`                    // Bucket owner
-	StorageClass           string    `xml:"StorageClass"`             // Bucket storage class
-	SseRule                SSERule   `xml:"ServerSideEncryptionRule"` // Bucket ServerSideEncryptionRule
-	Versioning             string    `xml:"Versioning"`               // Bucket Versioning
-	TransferAcceleration   string    `xml:"TransferAcceleration"`     // bucket TransferAcceleration
-	CrossRegionReplication string    `xml:"CrossRegionReplication"`   // bucket CrossRegionReplication
-}
-
-type SSERule struct {
-	XMLName           xml.Name `xml:"ServerSideEncryptionRule"`    // Bucket ServerSideEncryptionRule
-	KMSMasterKeyID    string   `xml:"KMSMasterKeyID,omitempty"`    // Bucket KMSMasterKeyID
-	SSEAlgorithm      string   `xml:"SSEAlgorithm,omitempty"`      // Bucket SSEAlgorithm
-	KMSDataEncryption string   `xml:"KMSDataEncryption,omitempty"` //Bucket KMSDataEncryption
-}
-
 // ListObjectsResult defines the result from ListObjects request
 type ListObjectsResult struct {
 	XMLName        xml.Name           `xml:"ListBucketResult"`
@@ -399,46 +357,6 @@ type ListObjectsResultV2 struct {
 	CommonPrefixes        []string           `xml:"CommonPrefixes>Prefix"` // You can think of commonprefixes as "folders" whose names end with the delimiter
 }
 
-// ListObjectVersionsResult defines the result from ListObjectVersions request
-type ListObjectVersionsResult struct {
-	XMLName             xml.Name                       `xml:"ListVersionsResult"`
-	Name                string                         `xml:"Name"`                  // The Bucket Name
-	Owner               Owner                          `xml:"Owner"`                 // The owner of bucket
-	Prefix              string                         `xml:"Prefix"`                // The object prefix
-	KeyMarker           string                         `xml:"KeyMarker"`             // The start marker filter.
-	VersionIdMarker     string                         `xml:"VersionIdMarker"`       // The start VersionIdMarker filter.
-	MaxKeys             int                            `xml:"MaxKeys"`               // Max keys to return
-	Delimiter           string                         `xml:"Delimiter"`             // The delimiter for grouping objects' name
-	IsTruncated         bool                           `xml:"IsTruncated"`           // Flag indicates if all results are returned (when it's false)
-	NextKeyMarker       string                         `xml:"NextKeyMarker"`         // The start point of the next query
-	NextVersionIdMarker string                         `xml:"NextVersionIdMarker"`   // The start point of the next query
-	CommonPrefixes      []string                       `xml:"CommonPrefixes>Prefix"` // You can think of commonprefixes as "folders" whose names end with the delimiter
-	ObjectDeleteMarkers []ObjectDeleteMarkerProperties `xml:"DeleteMarker"`          // DeleteMarker list
-	ObjectVersions      []ObjectVersionProperties      `xml:"Version"`               // version list
-}
-
-type ObjectDeleteMarkerProperties struct {
-	XMLName      xml.Name  `xml:"DeleteMarker"`
-	Key          string    `xml:"Key"`          // The Object Key
-	VersionId    string    `xml:"VersionId"`    // The Object VersionId
-	IsLatest     bool      `xml:"IsLatest"`     // is current version or not
-	LastModified time.Time `xml:"LastModified"` // Object last modified time
-	Owner        Owner     `xml:"Owner"`        // bucket owner element
-}
-
-type ObjectVersionProperties struct {
-	XMLName      xml.Name  `xml:"Version"`
-	Key          string    `xml:"Key"`          // The Object Key
-	VersionId    string    `xml:"VersionId"`    // The Object VersionId
-	IsLatest     bool      `xml:"IsLatest"`     // is latest version or not
-	LastModified time.Time `xml:"LastModified"` // Object last modified time
-	Type         string    `xml:"Type"`         // Object type
-	Size         int64     `xml:"Size"`         // Object size
-	ETag         string    `xml:"ETag"`         // Object ETag
-	StorageClass string    `xml:"StorageClass"` // Object storage class (Standard, IA, Archive)
-	Owner        Owner     `xml:"Owner"`        // bucket owner element
-}
-
 // Owner defines Bucket/Object's owner
 type Owner struct {
 	XMLName     xml.Name `xml:"Owner"`
@@ -462,9 +380,8 @@ type deleteXML struct {
 
 // DeleteObject defines the struct for deleting object
 type DeleteObject struct {
-	XMLName   xml.Name `xml:"Object"`
-	Key       string   `xml:"Key"`                 // Object name
-	VersionId string   `xml:"VersionId,omitempty"` // Object VersionId
+	XMLName xml.Name `xml:"Object"`
+	Key     string   `xml:"Key"` // Object name
 }
 
 // DeleteObjectsResult defines result of DeleteObjects request
@@ -473,19 +390,16 @@ type DeleteObjectsResult struct {
 	DeletedObjects []string // Deleted object key list
 }
 
-// DeleteObjectsResult_inner defines result of DeleteObjects request
-type DeleteObjectVersionsResult struct {
+// deleteObjectsResult defines result of DeleteObjects request
+type deleteObjectsResult struct {
 	XMLName              xml.Name         `xml:"DeleteResult"`
-	DeletedObjectsDetail []DeletedKeyInfo `xml:"Deleted"` // Deleted object detail info
+	DeletedObjectsDetail []deletedKeyInfo `xml:"Deleted"` // Deleted object detail info
 }
 
-// DeleteKeyInfo defines object delete info
-type DeletedKeyInfo struct {
-	XMLName               xml.Name `xml:"Deleted"`
-	Key                   string   `xml:"Key"`                   // Object key
-	VersionId             string   `xml:"VersionId"`             // VersionId
-	DeleteMarker          bool     `xml:"DeleteMarker"`          // Object DeleteMarker
-	DeleteMarkerVersionId string   `xml:"DeleteMarkerVersionId"` // Object DeleteMarkerVersionId
+// deletedKeyInfo defines object delete info
+type deletedKeyInfo struct {
+	XMLName xml.Name `xml:"Deleted"`
+	Key     string   `xml:"Key"` // Object key
 }
 
 // InitiateMultipartUploadResult defines result of InitiateMultipartUpload request
@@ -595,7 +509,7 @@ type ProcessObjectResult struct {
 }
 
 // decodeDeleteObjectsResult decodes deleting objects result in URL encoding
-func decodeDeleteObjectsResult(result *DeleteObjectVersionsResult) error {
+func decodeDeleteObjectsResult(result *deleteObjectsResult) error {
 	var err error
 	for i := 0; i < len(result.DeletedObjectsDetail); i++ {
 		result.DeletedObjectsDetail[i].Key, err = url.QueryUnescape(result.DeletedObjectsDetail[i].Key)
@@ -674,73 +588,6 @@ func decodeListObjectsResultV2(result *ListObjectsResultV2) error {
 	return nil
 }
 
-// decodeListObjectVersionsResult decodes list version objects result in URL encoding
-func decodeListObjectVersionsResult(result *ListObjectVersionsResult) error {
-	var err error
-
-	// decode:Delimiter
-	result.Delimiter, err = url.QueryUnescape(result.Delimiter)
-	if err != nil {
-		return err
-	}
-
-	// decode Prefix
-	result.Prefix, err = url.QueryUnescape(result.Prefix)
-	if err != nil {
-		return err
-	}
-
-	// decode KeyMarker
-	result.KeyMarker, err = url.QueryUnescape(result.KeyMarker)
-	if err != nil {
-		return err
-	}
-
-	// decode VersionIdMarker
-	result.VersionIdMarker, err = url.QueryUnescape(result.VersionIdMarker)
-	if err != nil {
-		return err
-	}
-
-	// decode NextKeyMarker
-	result.NextKeyMarker, err = url.QueryUnescape(result.NextKeyMarker)
-	if err != nil {
-		return err
-	}
-
-	// decode NextVersionIdMarker
-	result.NextVersionIdMarker, err = url.QueryUnescape(result.NextVersionIdMarker)
-	if err != nil {
-		return err
-	}
-
-	// decode CommonPrefixes
-	for i := 0; i < len(result.CommonPrefixes); i++ {
-		result.CommonPrefixes[i], err = url.QueryUnescape(result.CommonPrefixes[i])
-		if err != nil {
-			return err
-		}
-	}
-
-	// decode deleteMarker
-	for i := 0; i < len(result.ObjectDeleteMarkers); i++ {
-		result.ObjectDeleteMarkers[i].Key, err = url.QueryUnescape(result.ObjectDeleteMarkers[i].Key)
-		if err != nil {
-			return err
-		}
-	}
-
-	// decode ObjectVersions
-	for i := 0; i < len(result.ObjectVersions); i++ {
-		result.ObjectVersions[i].Key, err = url.QueryUnescape(result.ObjectVersions[i].Key)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // decodeListUploadedPartsResult decodes
 func decodeListUploadedPartsResult(result *ListUploadedPartsResult) error {
 	var err error
@@ -792,104 +639,6 @@ type createBucketConfiguration struct {
 	ObjectHashFunction ObjecthashFuncType `xml:"ObjectHashFunction,omitempty"`
 }
 
-// LiveChannelConfiguration defines the configuration for live-channel
-type LiveChannelConfiguration struct {
-	XMLName     xml.Name          `xml:"LiveChannelConfiguration"`
-	Description string            `xml:"Description,omitempty"` //Description of live-channel, up to 128 bytes
-	Status      string            `xml:"Status,omitempty"`      //Specify the status of livechannel
-	Target      LiveChannelTarget `xml:"Target"`                //target configuration of live-channel
-	// use point instead of struct to avoid omit empty snapshot
-	Snapshot *LiveChannelSnapshot `xml:"Snapshot,omitempty"` //snapshot configuration of live-channel
-}
-
-// LiveChannelTarget target configuration of live-channel
-type LiveChannelTarget struct {
-	XMLName      xml.Name `xml:"Target"`
-	Type         string   `xml:"Type"`                   //the type of object, only supports HLS
-	FragDuration int      `xml:"FragDuration,omitempty"` //the length of each ts object (in seconds), in the range [1,100]
-	FragCount    int      `xml:"FragCount,omitempty"`    //the number of ts objects in the m3u8 object, in the range of [1,100]
-	PlaylistName string   `xml:"PlaylistName,omitempty"` //the name of m3u8 object, which must end with ".m3u8" and the length range is [6,128]
-}
-
-// LiveChannelSnapshot snapshot configuration of live-channel
-type LiveChannelSnapshot struct {
-	XMLName     xml.Name `xml:"Snapshot"`
-	RoleName    string   `xml:"RoleName,omitempty"`    //The role of snapshot operations, it sholud has write permission of DestBucket and the permission to send messages to the NotifyTopic.
-	DestBucket  string   `xml:"DestBucket,omitempty"`  //Bucket the snapshots will be written to. should be the same owner as the source bucket.
-	NotifyTopic string   `xml:"NotifyTopic,omitempty"` //Topics of MNS for notifying users of high frequency screenshot operation results
-	Interval    int      `xml:"Interval,omitempty"`    //interval of snapshots, threre is no snapshot if no I-frame during the interval time
-}
-
-// CreateLiveChannelResult the result of crete live-channel
-type CreateLiveChannelResult struct {
-	XMLName     xml.Name `xml:"CreateLiveChannelResult"`
-	PublishUrls []string `xml:"PublishUrls>Url"` //push urls list
-	PlayUrls    []string `xml:"PlayUrls>Url"`    //play urls list
-}
-
-// LiveChannelStat the result of get live-channel state
-type LiveChannelStat struct {
-	XMLName       xml.Name         `xml:"LiveChannelStat"`
-	Status        string           `xml:"Status"`        //Current push status of live-channel: Disabled,Live,Idle
-	ConnectedTime time.Time        `xml:"ConnectedTime"` //The time when the client starts pushing, format: ISO8601
-	RemoteAddr    string           `xml:"RemoteAddr"`    //The ip address of the client
-	Video         LiveChannelVideo `xml:"Video"`         //Video stream information
-	Audio         LiveChannelAudio `xml:"Audio"`         //Audio stream information
-}
-
-// LiveChannelVideo video stream information
-type LiveChannelVideo struct {
-	XMLName   xml.Name `xml:"Video"`
-	Width     int      `xml:"Width"`     //Width (unit: pixels)
-	Height    int      `xml:"Height"`    //Height (unit: pixels)
-	FrameRate int      `xml:"FrameRate"` //FramRate
-	Bandwidth int      `xml:"Bandwidth"` //Bandwidth (unit: B/s)
-}
-
-// LiveChannelAudio audio stream information
-type LiveChannelAudio struct {
-	XMLName    xml.Name `xml:"Audio"`
-	SampleRate int      `xml:"SampleRate"` //SampleRate
-	Bandwidth  int      `xml:"Bandwidth"`  //Bandwidth (unit: B/s)
-	Codec      string   `xml:"Codec"`      //Encoding forma
-}
-
-// LiveChannelHistory the result of GetLiveChannelHistory, at most return up to lastest 10 push records
-type LiveChannelHistory struct {
-	XMLName xml.Name     `xml:"LiveChannelHistory"`
-	Record  []LiveRecord `xml:"LiveRecord"` //push records list
-}
-
-// LiveRecord push recode
-type LiveRecord struct {
-	XMLName    xml.Name  `xml:"LiveRecord"`
-	StartTime  time.Time `xml:"StartTime"`  //StartTime, format: ISO8601
-	EndTime    time.Time `xml:"EndTime"`    //EndTime, format: ISO8601
-	RemoteAddr string    `xml:"RemoteAddr"` //The ip address of remote client
-}
-
-// ListLiveChannelResult the result of ListLiveChannel
-type ListLiveChannelResult struct {
-	XMLName     xml.Name          `xml:"ListLiveChannelResult"`
-	Prefix      string            `xml:"Prefix"`      //Filter by the name start with the value of "Prefix"
-	Marker      string            `xml:"Marker"`      //cursor from which starting list
-	MaxKeys     int               `xml:"MaxKeys"`     //The maximum count returned. the default value is 100. it cannot be greater than 1000.
-	IsTruncated bool              `xml:"IsTruncated"` //Indicates whether all results have been returned, "true" indicates partial results returned while "false" indicates all results have been returned
-	NextMarker  string            `xml:"NextMarker"`  //NextMarker indicate the Marker value of the next request
-	LiveChannel []LiveChannelInfo `xml:"LiveChannel"` //The infomation of live-channel
-}
-
-// LiveChannelInfo the infomation of live-channel
-type LiveChannelInfo struct {
-	XMLName      xml.Name  `xml:"LiveChannel"`
-	Name         string    `xml:"Name"`            //The name of live-channel
-	Description  string    `xml:"Description"`     //Description of live-channel
-	Status       string    `xml:"Status"`          //Status: disabled or enabled
-	LastModified time.Time `xml:"LastModified"`    //Last modification time, format: ISO8601
-	PublishUrls  []string  `xml:"PublishUrls>Url"` //push urls list
-	PlayUrls     []string  `xml:"PlayUrls>Url"`    //play urls list
-}
-
 // Tag a tag for the object
 type Tag struct {
 	XMLName xml.Name `xml:"Tag"`
@@ -906,29 +655,7 @@ type Tagging struct {
 // for GetObjectTagging return value
 type GetObjectTaggingResult Tagging
 
-// VersioningConfig for the bucket
-type VersioningConfig struct {
-	XMLName xml.Name `xml:"VersioningConfiguration"`
-	Status  string   `xml:"Status"`
-}
-
-type GetBucketVersioningResult VersioningConfig
-
 type GetBucketTaggingResult Tagging
-
-type BucketStat struct {
-	XMLName              xml.Name `xml:"BucketStat"`
-	Storage              int64    `xml:"Storage"`
-	ObjectCount          int64    `xml:"ObjectCount"`
-	MultipartUploadCount int64    `xml:"MultipartUploadCount"`
-}
-type GetBucketStatResult BucketStat
-
-// RequestPaymentConfiguration define the request payment configuration
-type RequestPaymentConfiguration struct {
-	XMLName xml.Name `xml:"RequestPaymentConfiguration"`
-	Payer   string   `xml:"Payer,omitempty"`
-}
 
 // BucketQoSConfiguration define QoS configuration
 type BucketQoSConfiguration struct {
@@ -942,13 +669,6 @@ type BucketQoSConfiguration struct {
 	TotalQPS                  *int     `xml:"TotalQps"`                  // Total Qps
 	IntranetQPS               *int     `xml:"IntranetQps"`               // Intranet Qps
 	ExtranetQPS               *int     `xml:"ExtranetQps"`               // Extranet Qps
-}
-
-// UserQoSConfiguration define QoS and Range configuration
-type UserQoSConfiguration struct {
-	XMLName xml.Name `xml:"QoSConfiguration"`
-	Region  string   `xml:"Region,omitempty"` // Effective area of Qos configuration
-	BucketQoSConfiguration
 }
 
 //////////////////////////////////////////////////////////////
@@ -1036,8 +756,8 @@ func (jsonInput *JSONSelectInput) JsonIsEmpty() bool {
 
 type OutputSerializationSelect struct {
 	XMLName          xml.Name         `xml:"OutputSerialization"`
-	CsvBodyOutput    CSVSelectOutput  `xml:CSV,omitempty`
-	JsonBodyOutput   JSONSelectOutput `xml:JSON,omitempty`
+	CsvBodyOutput    CSVSelectOutput  `xml:"CSV,omitempty"`
+	JsonBodyOutput   JSONSelectOutput `xml:"JSON,omitempty"`
 	OutputRawData    *bool            `xml:"OutputRawData,omitempty"`
 	KeepAllColumns   *bool            `xml:"KeepAllColumns,omitempty"`
 	EnablePayloadCrc *bool            `xml:"EnablePayloadCrc,omitempty"`
@@ -1217,45 +937,6 @@ type RestoreConfiguration struct {
 type RestoreJobParameters struct {
 	XMLName xml.Name `xml:"JobParameters"`
 	Tier    string   `xml:"Tier,omitempty"`
-}
-
-// AsyncFetchTaskConfiguration for SetBucketAsyncFetchTask
-type AsyncFetchTaskConfiguration struct {
-	XMLName       xml.Name `xml:"AsyncFetchTaskConfiguration"`
-	Url           string   `xml:"Url,omitempty"`
-	Object        string   `xml:"Object,omitempty"`
-	Host          string   `xml:"Host,omitempty"`
-	ContentMD5    string   `xml:"ContentMD5,omitempty"`
-	Callback      string   `xml:"Callback,omitempty"`
-	StorageClass  string   `xml:"StorageClass,omitempty"`
-	IgnoreSameKey bool     `xml:"IgnoreSameKey"`
-}
-
-// AsyncFetchTaskResult for SetBucketAsyncFetchTask result
-type AsyncFetchTaskResult struct {
-	XMLName xml.Name `xml:"AsyncFetchTaskResult"`
-	TaskId  string   `xml:"TaskId,omitempty"`
-}
-
-// AsynFetchTaskInfo for GetBucketAsyncFetchTask result
-type AsynFetchTaskInfo struct {
-	XMLName  xml.Name      `xml:"AsyncFetchTaskInfo"`
-	TaskId   string        `xml:"TaskId,omitempty"`
-	State    string        `xml:"State,omitempty"`
-	ErrorMsg string        `xml:"ErrorMsg,omitempty"`
-	TaskInfo AsyncTaskInfo `xml:"TaskInfo,omitempty"`
-}
-
-// AsyncTaskInfo for async task information
-type AsyncTaskInfo struct {
-	XMLName       xml.Name `xml:"TaskInfo"`
-	Url           string   `xml:"Url,omitempty"`
-	Object        string   `xml:"Object,omitempty"`
-	Host          string   `xml:"Host,omitempty"`
-	ContentMD5    string   `xml:"ContentMD5,omitempty"`
-	Callback      string   `xml:"Callback,omitempty"`
-	StorageClass  string   `xml:"StorageClass,omitempty"`
-	IgnoreSameKey bool     `xml:"IgnoreSameKey"`
 }
 
 // InitiateWormConfiguration define InitiateBucketWorm configuration
