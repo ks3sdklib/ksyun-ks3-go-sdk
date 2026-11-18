@@ -66,7 +66,7 @@ type GetVectorBucketPolicyRequest struct {
 // GetVectorBucketPolicyResult 查询向量桶策略的响应结果。
 type GetVectorBucketPolicyResult struct {
 	// 策略 JSON 字符串。
-	Policy string `json:"-"`
+	Policy string `json:"policy"`
 	// HTTP 响应头。
 	Headers http.Header `json:"-"`
 	// HTTP 响应状态码。
@@ -97,21 +97,8 @@ func (vc *VectorsClient) GetVectorBucketPolicy(req *GetVectorBucketPolicyRequest
 	result := &GetVectorBucketPolicyResult{}
 	result.StatusCode = resp.StatusCode
 	result.Headers = resp.Headers
-
-	// 统一转换为策略 JSON 字符串
-	var respBody struct {
-		Policy json.RawMessage `json:"policy"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
 		return nil, err
-	}
-	if len(respBody.Policy) > 0 {
-		var s string
-		if err := json.Unmarshal(respBody.Policy, &s); err == nil {
-			result.Policy = s
-		} else {
-			result.Policy = string(respBody.Policy)
-		}
 	}
 	return result, nil
 }

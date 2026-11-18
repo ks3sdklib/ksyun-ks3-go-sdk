@@ -598,9 +598,9 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 	c.Assert(plainList.Vectors[0].Data, IsNil)
 	c.Assert(plainList.Vectors[0].Metadata, IsNil)
 
-	// 并行分段列举：SegmentIndex 从 1 开始，两段合并覆盖全部向量
+	// 并行分段列举：SegmentIndex 从 0 开始，两段合并覆盖全部向量
 	var segKeys []string
-	for i := 1; i <= 2; i++ {
+	for i := 0; i < 2; i++ {
 		segRes, err := s.vc.ListVectors(&ListVectorsRequest{
 			VectorBucketName: strPtr(s.bucket),
 			IndexName:        strPtr(index),
@@ -613,6 +613,17 @@ func (s *Ks3VectorsClientSuite) TestVectorsIntegration(c *C) {
 		}
 	}
 	c.Assert(len(segKeys), Equals, 3, Commentf("segments should cover all 3 vectors, got %v", segKeys))
+
+	// segmentIndex 须在 [0, segmentCount) 内，-1 与 segmentCount 均越界
+	for _, idx := range []int{-1, 2} {
+		_, err = s.vc.ListVectors(&ListVectorsRequest{
+			VectorBucketName: strPtr(s.bucket),
+			IndexName:        strPtr(index),
+			SegmentCount:     intPtr(2),
+			SegmentIndex:     intPtr(idx),
+		})
+		c.Assert(err, NotNil, Commentf("segmentIndex=%d should be rejected", idx))
+	}
 
 	// 相似性检索：TopK 生效
 	queryRes, err := s.vc.QueryVectors(&QueryVectorsRequest{

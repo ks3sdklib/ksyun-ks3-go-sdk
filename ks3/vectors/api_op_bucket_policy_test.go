@@ -44,34 +44,23 @@ func (s *Ks3VectorsClientSuite) TestPutVectorBucketPolicy(c *C) {
 
 // TestGetVectorBucketPolicy 校验查询向量桶策略的请求构造与响应解析。
 func (s *Ks3VectorsClientSuite) TestGetVectorBucketPolicy(c *C) {
-	var calls int
 	var gotBody string
 	vc, srv := newMockVectorsClient(c, func(w http.ResponseWriter, r *http.Request) {
 		c.Assert(r.URL.Path, Equals, "/GetVectorBucketPolicy")
 		gotBody = readBody(c, r.Body)
 		w.Header().Set("Content-Type", "application/json")
-		if calls == 0 {
-			_, _ = w.Write([]byte(`{"policy":{"Version":"2025-12-01","Statement":[]}}`))
-		} else {
-			_, _ = w.Write([]byte(`{"policy":"{\"Version\":\"2025-12-01\",\"Statement\":[]}"}`))
-		}
-		calls++
+		_, _ = w.Write([]byte(`{"policy":"{\"Version\":\"2025-12-01\",\"Statement\":[]}"}`))
 	})
 	defer srv.Close()
 
-	// 对象形式策略
+	// 按 vectorBucketName 查询
 	res, err := vc.GetVectorBucketPolicy(&GetVectorBucketPolicyRequest{VectorBucketName: strPtr("test-vector-bucket")})
 	c.Assert(err, IsNil)
 	c.Assert(strings.Contains(gotBody, `"vectorBucketName":"test-vector-bucket"`), Equals, true)
 	c.Assert(res.StatusCode, Equals, http.StatusOK)
 	c.Assert(res.Policy, Equals, `{"Version":"2025-12-01","Statement":[]}`)
 
-	// 字符串形式策略
-	res, err = vc.GetVectorBucketPolicy(&GetVectorBucketPolicyRequest{VectorBucketName: strPtr("test-vector-bucket")})
-	c.Assert(err, IsNil)
-	c.Assert(res.Policy, Equals, `{"Version":"2025-12-01","Statement":[]}`)
-
-	// 按 vectorBucketKrn
+	// 按 vectorBucketKrn 查询
 	krn := "krn:ksc:ks3vectors:beijing:1:bucket/test-vector-bucket"
 	res, err = vc.GetVectorBucketPolicy(&GetVectorBucketPolicyRequest{VectorBucketKrn: strPtr(krn)})
 	c.Assert(err, IsNil)

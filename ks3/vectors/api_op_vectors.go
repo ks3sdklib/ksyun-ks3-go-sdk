@@ -151,7 +151,7 @@ type ListVectorsRequest struct {
 	ReturnMetadata *bool `json:"returnMetadata,omitempty"`
 	// 并行列举的段数，1-16，需与 SegmentIndex 同时指定。
 	SegmentCount *int `json:"segmentCount,omitempty"`
-	// 列举的段索引，取值范围 1-SegmentCount。
+	// 列举的段索引，取值范围 [0, SegmentCount)。
 	SegmentIndex *int `json:"segmentIndex,omitempty"`
 }
 

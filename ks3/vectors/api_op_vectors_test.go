@@ -132,6 +132,11 @@ func (s *Ks3VectorsClientSuite) TestListVectors(c *C) {
 	c.Assert(v0.Data.Float32, DeepEquals, []float32{1, 2})
 	c.Assert(v0.Metadata, DeepEquals, map[string]interface{}{"color": "red"})
 
+	// segmentIndex 从 0 开始
+	_, err = vc.ListVectors(&ListVectorsRequest{VectorBucketName: strPtr("bkt"), IndexName: strPtr("idx"), SegmentCount: intPtr(4), SegmentIndex: intPtr(0)})
+	c.Assert(err, IsNil)
+	c.Assert(strings.Contains(gotBody, `"segmentIndex":0`), Equals, true)
+
 	// 按 indexKrn 列举
 	_, err = vc.ListVectors(&ListVectorsRequest{IndexKrn: strPtr("krn:1")})
 	c.Assert(err, IsNil)
